@@ -1,0 +1,1 @@
+oarsub -S /scratch/octans/sileglai/recherche/python/speech_enhancement/SE_FFNN_RNN_VAEs_pytorch/training/script_FFNN.sh -l/host=1/gpudevice=1,walltime=15:00:00 -p "cluster='perception' AND not host like 'gpu5-perception.inrialpes.fr' AND not host like 'gpu6-perception.inrialpes.fr' " -t besteffort -t idempotent
