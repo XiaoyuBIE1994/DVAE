@@ -54,6 +54,7 @@ save_dir = os.path.join('/mnt/xbie/Code/saved_model', dataset_name + '_' + date 
                         '_FFNN_VAE_'  + 'latent_dim=' + str(latent_dim))
 
 if not(os.path.isdir(save_dir)):
+    print(save_dir)
     os.makedirs(save_dir)
 
 print(save_dir)
