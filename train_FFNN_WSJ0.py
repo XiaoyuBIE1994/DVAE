@@ -37,8 +37,8 @@ print(date)
 
 dataset_name = 'WSJ0'
 # train_data_dir, val_data_dir = prepare_dataset_WSJ0(dataset_name, hostname)
-train_data_dir = "/scratch2/octans/sileglai/datasets/clean_speech/wsj0_si_tr_s"
-val_data_dir = "/scratch2/octans/sileglai/datasets/clean_speech/wsj0_si_dt_05"
+train_data_dir = "/mnt/xbie/Data/clean_speech/wsj0_si_tr_s"
+val_data_dir = "/mnt/xbie/Data/clean_speech/wsj0_si_dt_05"
 
 #%% network parameters
 
@@ -50,7 +50,7 @@ activation = eval(activation_str)
 
 #%% create directory for results
 
-save_dir = os.path.join('../saved_model', dataset_name + '_' + date + 
+save_dir = os.path.join('/mnt/xbie/Code/saved_model', dataset_name + '_' + date + 
                         '_FFNN_VAE_'  + 'latent_dim=' + str(latent_dim))
 
 if not(os.path.isdir(save_dir)):

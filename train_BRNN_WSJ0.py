@@ -33,8 +33,10 @@ date = datetime.datetime.now().strftime("%Y-%m-%d-%Hh%M")
 #%% check if dataset is on local machine
 
 dataset_name = 'WSJ0'
-train_data_dir, val_data_dir = prepare_dataset_WSJ0(dataset_name, hostname)
-    
+# train_data_dir, val_data_dir = prepare_dataset_WSJ0(dataset_name, hostname)
+train_data_dir = "/mnt/xbie/Data/clean_speech/wsj0_si_tr_s"
+val_data_dir = "/mnt/xbie/Data/clean_speech/wsj0_si_dt_05"
+
 #%% network parameters
 
 input_dim = 513
@@ -66,7 +68,7 @@ else:
 res_folder_name = (dataset_name + '_' + date + '_RVAE_' + enc_type + dec_type 
                    + posterior_type + 'latent_dim=' + str(latent_dim))
         
-save_dir = os.path.join('../saved_model', res_folder_name)
+save_dir = os.path.join('/mnt/xbie/Code/saved_model', res_folder_name)
 
 if not(os.path.isdir(save_dir)):
     os.makedirs(save_dir)
