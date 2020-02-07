@@ -46,7 +46,7 @@ class RVAE(nn.Module):
         self.enc_rnn_s = nn.LSTM(self.input_dim, self.h_dim, self.num_LSTM,
                                  bidirection = self.bidir_enc_s)
         # 2. Define the RNN block for z (previous latent variables)
-        if self.bidir_enc_r:
+        if self.rec_over_z:
             self.enc_rnn_z  = nn.LSTM(self.z_dim, self.h_dim, self.num_LSTM)
 
         # 3. Define the dense layer fusing the output of two abouve-mentioned LSTM blocks
@@ -90,21 +90,100 @@ class RVAE(nn.Module):
             self.dec_logvar = nn.Linear(self.h_dim, self.input_dim)
 
             
-    def encode(self):
+    def encode(self, s):
+        # shape of s is (sequence_len, input_dim) but we need 
+        # (sequence_len, batch_size, input_dim), so we need to 
+        # one dimension in axis 1
+        if len(s.shape) == 2:
+            s = s.unsqueeze(1)
 
-        return
+        seq_len = s.shape[0]
+        batch_size = s.shape[1]
 
+        # create variable holder and send to GPU if needed
+        all_enc_logvar = torch.zeros((seq_len, batch_size, self.z_dim)).to(self.device)
+        all_enc_logvar = torch.zeros((seq_len. batch_size, self.z_dim)).to(self.device)
+        z = torch.zeros((seq_len, batch_size, self.z_dim)).to(self.device)
+        z_n = torch_zeros(batch_size, self.z_dim).to(self.device)
+        h_z_n = torch.zeros(self.num_LSTM, batch_size, self.h_dim).to(self.device)
+        c_z_n = torch.zeros(self.num_LSTM, batch_size, self.h_dim).to(self.device)
+        if self.bidir_enc_s:
+            h0 = torch.zeros(self.num_LSTM*2, batch_size, self.h_dim).to(self.device)
+            c0 = torch.zeros(self.num_LSTM*2, batch_size, self.h_dim).to(self.device)
+        else:
+            h0 = torch.zeros(self.num_LSTM, batch_size, self.h_dim).to(self.device)
+            c0 = torch.zeros(self.num_LSTM, batch_size, self.h_dim).to(self.device)
+        h_s, _ = self.enc_rnn_s(torch_flip(s, [0]), (h0, c0))
+        h_s = torch.flip(h_s, [0])
+        
+        if self.rec_over_z:
+            for n in range(0, seq_len):
+                if n > 0:
+                    _, (h_z_n, c_z_n) = self.enc_rnn_z(z_n_unsequeeze(0), (h_z_n, c_z_n))
+                
+                h_z_n_last = h_z_n.view(self.num_LSTM, 1, batch_size, self.h_dim)[-1, :,:,:]
+                h_z_n_last = h_z_n.view(batch_size, self.h_dim)
+                # concatenate h_s and h_z for time step n
+                h_sz = torch.cat([h_s[n, :,:], h_z_n_last], 1)
 
-    def decode(self):
+                # encoder
+                enc = self.enc_dense(h_sz)
+                enc_mean_n = self.enc_mean(enc)
+                enc_logvar_n = self.enc_logvar(enc)
 
-        return
+                # sampling
+                z_n = self.reparatemize(enc_mean_n, enc_logvar_n)
+
+                # store values over time step
+                all_enc_mean[n,:,:] = enc_mean_n
+                all_enc_logvar[n,:,:] = enc_logvar_n
+                z{n,:,:} = z_n
+
+        else:
+            # encoder
+            enc = self.dense(h_s)
+            all_enc_mean = self.enc_mean(enc)
+            all_enc_logvar = self.enc_logvar(enc)
+
+            # sampling
+            z = self.(all_enc_mean, all_enc_logvar)
+
+        return (torch,squeeze(all_enc_mean), torch.squeeze(all_enc_logvar), torch.squeeze(z))
+
 
     def reparatemize(self, mean, logvar):
         std = torch.exp(0.5*logvar)
         eps = torch.randn_like(std)
         return eps.mul(std).add_(mean)
-    
-    def forward(self):
 
-        return
+    def decode(self, z):
+        
+        if len(z.shape) == 2:
+            z = z.unsqueeze(1)
+        
+        batch_size = z.shape(1)
+
+        # reset initial states
+
+        if self.bidir_dec:
+            h0 = torch.zeros(self.num_LSTM*2, batch_size, self.h_dim).to(self.device)
+            c0 = torch.zeros(self.num_LSTM*2, batch_size, self.h_dim).to(self.device)
+        else:
+            h0 = torch.zeros(self.num_LSTM, batch_size, self.h_dim).to(self.device)
+            c0 = torch.zeros(self.num_LSTM, batch_size, self.h_dim).to(self.device)
+
+        # apply LSTM block to the input sequence of latent variable
+        x, _ = self.dec_rnn(z, h0, c0)
+
+        # output layer
+        x = self.dec_logvar(x0)
+
+        # tansform log-variance to variance
+        x = torc.exp(x)
+
+        return torch.sequeeze(x)
+
+    def forward(self):
+        mena, logvar, z = self.reparatemize(self, mean, logvar)
+        return self.decode(z), mean, logvar, z
 
