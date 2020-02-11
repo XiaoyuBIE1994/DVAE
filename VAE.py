@@ -95,3 +95,22 @@ class VAE(nn.Module):
             print(self.activation)
         print(self.output_layer)
     
+def loss_function(recon_x, x, mu, logvar):
+    recon = torch.sum(x/recon_x - torch.log(x/recon_x)-1)
+    KLD = -0.5 * torch.sum(logvar - mu.pow(2) - logvar.exp())
+    return recon + KLD 
+
+if __name__ == '__main__':
+    input_dim = 513
+    latent_dim = 16
+    hidden_dim_encoder = 128
+    batch_size = 128
+    activation = eval('torch.tanh')
+    device = 'cpu'
+    vae = VAE(input_dim = input_dim,
+              latent_dim = latent_dim,
+              hidden_dim_encoder = hidden_dim_encoder,
+              batch_size = batch_size,
+              activation = activation).to(device)
+    VAE.print_model()
+    
