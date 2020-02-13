@@ -49,7 +49,7 @@ class RVAE(nn.Module):
         if self.rec_over_z:
             self.enc_rnn_z  = nn.LSTM(self.z_dim, self.h_dim, self.num_LSTM)
 
-        # 3. Define the dense layer fusing the output of two abouve-mentioned LSTM blocks
+        # 3. Define the dense layer fusing the output of two above-mentioned LSTM blocks
         if self.bidir_enc_s:
             num_directions_s = 2
         else:
@@ -67,8 +67,8 @@ class RVAE(nn.Module):
                 self.dict_enc_dense['linear'+str(n)] = nn.Linear(tmp_input_dim, self.h_dim)
 
             else:
-                self.dict_enc_dense['linear'+str(n) = nn.Linear(self.h_dim, self.h_dim)
-            self.dict_enc_dense【'tanh'+str(n)】 = nn.Tanh()
+                self.dict_enc_dense['linear'+str(n)] = nn.Linear(self.h_dim, self.h_dim)
+            self.dict_enc_dense['tanh'+str(n)] = nn.Tanh()
 
         self.enc_dense = nn.Sequential(self.dict_enc_dense)
 
@@ -137,7 +137,7 @@ class RVAE(nn.Module):
                 # store values over time step
                 all_enc_mean[n,:,:] = enc_mean_n
                 all_enc_logvar[n,:,:] = enc_logvar_n
-                z{n,:,:} = z_n
+                z[n,:,:] = z_n
 
         else:
             # encoder

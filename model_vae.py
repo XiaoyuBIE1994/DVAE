@@ -28,7 +28,7 @@ class VAE(nn.Module):
         self.history = None
 
         self.encoder_layers = nn.ModuleList()
-        self.decoder_layers = nn.MoudleList()
+        self.decoder_layers = nn.ModuleList()
 
         self.output_dim = self.input_dim
 
@@ -112,5 +112,5 @@ if __name__ == '__main__':
               hidden_dim_encoder = hidden_dim_encoder,
               batch_size = batch_size,
               activation = activation).to(device)
-    VAE.print_model()
+    vae.print_model()
     
