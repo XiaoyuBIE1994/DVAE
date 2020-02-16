@@ -13,6 +13,7 @@ import datetime
 import torch
 import librosa
 from configparser import ConfigParser
+import backup_simon.speech_dataset
 from model_vae import VAE
 
 
@@ -58,23 +59,24 @@ class BuildBasic():
         self.early_stop_patience = self.cfg.getint('Training', 'early_stop_patience')
         self.save_frequency = self.cfg.getint('Training', 'save_frequency')
 
-        # Find device(cpu/gpu) and prefix for results saving
-        self.local_host = self.cfg.get('User', 'local_host')
-        if self.hostname == self.local_host:
-            self.device = 'cpu'
+        # Create directory (saved_model) if not exist
+        self.local_hostname = self.cfg.get('User', 'local_hostname')
+        if self.hostname == self.local_hostname:
             self.path_prefix = self.cfg.get('Path', 'path_local')
         # ===== develop on Mac, temporarily =====
         elif self.hostname == 'MacPro-BIE.local': 
-            self.device = 'cpu'
             self.path_prefix = '/Users/xiaoyu/WorkStation/saved_model'
         # ===== develop on Mac, temporarily =====
         else: 
-            self.device = 'cuda'
             self.path_prefix = self.cfg.get('Path', 'path_cluster')
-
-        # Create directory (saved_model) if not exist
         if not(os.path.isdir(self.path_prefix)):
+            print('No saved directory exists, new one will be generated')
             os.makedirs(self.path_prefix)
+            print('All training results will be saved in: ' + self.path_prefix)
+
+        # Choose to use gpu or cpu
+        self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
+        print('Device for training: ' + self.device)
 
 
 class BuildFFNN(BuildBasic):
@@ -89,25 +91,25 @@ class BuildFFNN(BuildBasic):
         super(BuildFFNN, self).__init__(cfg)
 
         # Load network parameters
-        self.input_dim = self.cfg.getint('Network', 'input_dim')
-        self.latent_dim = self.cfg.getint('Network','latent_dim')
+        self.x_dim = self.cfg.getint('Network', 'x_dim')
+        self.z_dim = self.cfg.getint('Network','z_dim')
         self.hidden_dim_encoder = [int(i) for i in self.cfg.get('Network', 'hidden_dim_encoder').split(',')] # this parameter is a python list
         self.activation = eval(self.cfg.get('Network', 'activation'))
 
         # Create directory for this training
-        dir_name = self.dataset_name + '_' + date + '_FFNN_VAE_latent_dim=' + str(self.latent_dim)
+        dir_name = self.dataset_name + '_' + self.date  + '_FFNN_VAE_latent_dim=' + str(self.latent_dim)
         self.save_dir = os.path.join(self.path_prefix, dir_name)
         if not(os.path.isdir(self.save_dir)):
             os.makedirs(self.save_dir)
-        print('Result will be saved in: ' + self.save_dir)
+        print('In this experiment, result will be saved in: ' + self.save_dir)
         
 
     def build_net(self):
 
         # Init VAE model
         print('===== Init VAE =====')
-        self.model = VAE(input_dim = self.input_dim,
-                         latent_dim = self.latent_dim,
+        self.model = VAE(x_dim = self.x_dim,
+                         z_dim = self.z_dim,
                          hidden_dim_encoder = self.hidden_dim_encoder,
                          batch_size = self.batch_size,
                          activation = self.activation).to(self.device)
@@ -176,6 +178,9 @@ class BuildFFNN(BuildBasic):
                                                     num_workers = self.num_workers)
         return self.train_dataloader, self.val_dataloader, self.train_num, self.val_num
 
+class BuildRNN(BuildBasic):
+    pass
+
 def build_model(config_file='config_default.ini'):
     cfg = myconf()
     cfg.read(config_file)
@@ -187,6 +192,6 @@ def build_model(config_file='config_default.ini'):
 
 
 if __name__ == '__main__':
-    model_build = build_model('config_rvae-ffnn.ini')
-    model = model_build.build_net()
+    model_class = build_model('config_rvae-ffnn.ini')
+    model, optimizer = model_class.build_net()
     model.print_model()

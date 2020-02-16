@@ -13,7 +13,7 @@ from collections import OrderedDict
 class RVAE(nn.Module):
     """
     Input:
-        input_dim: input dimension, e.g. number of frequency bins
+        x_dim: input dimension, e.g. number of frequency bins
         h_dim: internal hidden representation dimensions (output of LSTMs and dense layers)
         z_dim: dimensions of latent variables
         num_LSTM: number of recerrent layers in the LSTM blocks
@@ -22,16 +22,16 @@ class RVAE(nn.Module):
         bidir_dec: boolen, if the rnn for decoder is bi-directional
         rec_over_z: boolen, if it needs a rnn to generate z
     """
-    def __init__(self, input_dim, h_dim = 128, z_dim = 16, batch_size = 16,
-                 num_LSTM = 1, num_dense_enc = 1, bidir_enc_s = False,
+    def __init__(self, x_dim, h_dim = 128, z_dim = 16, batch_size = 16,
+                 num_LSTM = 1, num_dense_enc = 1, bidir_enc_x = False,
                  bidir_dec = False, rec_over_z = True, device = 'cpu'):
-        super(RVAE, self).__init__()
-        self.input_dim = input_dim
+        super().__init__()
+        self.x_dim = x_dim
         self.h_dim = h_dim
         self.z_dim = z_dim
         self.num_LSTM = num_LSTM
         self.num_dense_enc = num_dense_enc
-        self.bidir_enc_s = bidir_enc_s
+        self.bidir_enc_x = bidir_enc_x
         self.bidir_dec = bidir_dec
         self.rec_over_z = rec_over_z
         self.device = device
@@ -42,18 +42,18 @@ class RVAE(nn.Module):
 
         ###### Encoder #####
         
-        # 1. Define the RNN block for s (data input)
-        self.enc_rnn_s = nn.LSTM(self.input_dim, self.h_dim, self.num_LSTM,
-                                 bidirection = self.bidir_enc_s)
+        # 1. Define the RNN block for x (input data)
+        self.enc_rnn_x = nn.LSTM(self.x_dim, self.h_dim, self.num_LSTM,
+                                 bidirection = self.bidir_enc_x)
         # 2. Define the RNN block for z (previous latent variables)
         if self.rec_over_z:
             self.enc_rnn_z  = nn.LSTM(self.z_dim, self.h_dim, self.num_LSTM)
 
         # 3. Define the dense layer fusing the output of two above-mentioned LSTM blocks
-        if self.bidir_enc_s:
-            num_directions_s = 2
+        if self.bidir_enc_x:
+            num_directions_x = 2
         else:
-            num_directions_s = 1
+            num_directions_x = 1
         
         self.dict_enc_dense = OrderedDict()
 
@@ -61,10 +61,10 @@ class RVAE(nn.Module):
             if n == 0: # the first layer
                 if self.rec_over_z:
                     # 
-                    tmp_input_dim = num_direction_s * self.h_dim + self.h_dim
+                    tmp_dense_dim = num_directions_x * self.h_dim + self.h_dim
                 else:
-                    tmp_input_dim = num_directions_s * self.h_dim
-                self.dict_enc_dense['linear'+str(n)] = nn.Linear(tmp_input_dim, self.h_dim)
+                    tmp_dense_dim = num_directions_s * self.h_dim
+                self.dict_enc_dense['linear'+str(n)] = nn.Linear(tmp_dense_dim, self.h_dim)
 
             else:
                 self.dict_enc_dense['linear'+str(n)] = nn.Linear(self.h_dim, self.h_dim)
@@ -75,7 +75,7 @@ class RVAE(nn.Module):
         # 4. Define the linear layer for mean value
         self.enc_mean = nn.Linear(self.h_dim, self.z_dim)
 
-        # 5. Define the linear lyaer for the log-variance
+        # 5. Define the linear layer for the log-variance
         self.enc_logvar = nn.Linear(self.h_dim, self.z_dim)
 
         ##### Decoder #####
@@ -85,41 +85,45 @@ class RVAE(nn.Module):
 
         # 2. Define the linear layer outputing the log-variance
         if self.bidir_dec:
-            self.dec_logvar = nn.Linear(2*self.h_dim, self.input_dim)
+            self.dec_logvar = nn.Linear(2*self.h_dim, self.x_dim)
         else:
-            self.dec_logvar = nn.Linear(self.h_dim, self.input_dim)
+            self.dec_logvar = nn.Linear(self.h_dim, self.x_dim)
 
             
-    def encode(self, s):
-        # shape of s is (sequence_len, input_dim) but we need 
-        # (sequence_len, batch_size, input_dim), so we need to 
+    def encode(self, x):
+        # shape of x is (sequence_len, x_dim) but we need 
+        # (sequence_len, batch_size, x_dim), so we need to 
         # one dimension in axis 1
-        if len(s.shape) == 2:
-            s = s.unsqueeze(1)
+        if len(x.shape) == 2:
+            x = x.unsqueeze(1)
 
-        seq_len = s.shape[0]
-        batch_size = s.shape[1]
+        seq_len = x.shape[0]
+        batch_size = x.shape[1]
 
         # create variable holder and send to GPU if needed
         all_enc_logvar = torch.zeros((seq_len, batch_size, self.z_dim)).to(self.device)
-        all_enc_logvar = torch.zeros((seq_len. batch_size, self.z_dim)).to(self.device)
+        all_enc_mean = torch.zeros((seq_len. batch_size, self.z_dim)).to(self.device)
         z = torch.zeros((seq_len, batch_size, self.z_dim)).to(self.device)
         z_n = torch_zeros(batch_size, self.z_dim).to(self.device)
         h_z_n = torch.zeros(self.num_LSTM, batch_size, self.h_dim).to(self.device)
         c_z_n = torch.zeros(self.num_LSTM, batch_size, self.h_dim).to(self.device)
-        if self.bidir_enc_s:
+        if self.bidir_enc_x:
             h0 = torch.zeros(self.num_LSTM*2, batch_size, self.h_dim).to(self.device)
             c0 = torch.zeros(self.num_LSTM*2, batch_size, self.h_dim).to(self.device)
         else:
             h0 = torch.zeros(self.num_LSTM, batch_size, self.h_dim).to(self.device)
             c0 = torch.zeros(self.num_LSTM, batch_size, self.h_dim).to(self.device)
-        h_s, _ = self.enc_rnn_s(torch_flip(s, [0]), (h0, c0))
-        h_s = torch.flip(h_s, [0])
+        
+        h_x, _ = self.enc_rnn_x(torch.flip(x, [0]), (h0, c0))
+        h_x = torch.flip(h_x, [0])
         
         if self.rec_over_z:
             for n in range(0, seq_len):
                 if n > 0:
-                    _, (h_z_n, c_z_n) = self.enc_rnn_z(z_n_unsequeeze(0), (h_z_n, c_z_n))
+                    # Forward recurrence over z
+                    # the input of nn.LSTM should be of shape (sea_len, batch_size, z_dim)
+                    # so we have to add one dimension to z_n at index 0
+                    _, (h_z_n, c_z_n) = self.enc_rnn_z(z_n.unsqueeze(0), (h_z_n, c_z_n))
                 
                 h_z_n_last = h_z_n.view(self.num_LSTM, 1, batch_size, self.h_dim)[-1, :,:,:]
                 h_z_n_last = h_z_n.view(batch_size, self.h_dim)
@@ -146,7 +150,7 @@ class RVAE(nn.Module):
             all_enc_logvar = self.enc_logvar(enc)
 
             # sampling
-            z = self.(all_enc_mean, all_enc_logvar)
+            z = self.reparatemize(all_enc_mean, all_enc_logvar)
 
         return (torch,squeeze(all_enc_mean), torch.squeeze(all_enc_logvar), torch.squeeze(z))
 
@@ -186,4 +190,22 @@ class RVAE(nn.Module):
     def forward(self):
         mena, logvar, z = self.reparatemize(self, mean, logvar)
         return self.decode(z), mean, logvar, z
+
+
+    def print_model(self):
+        pass
+
+if __name__ == '__main__':
+    x_dim = 513
+    latent_dim = 16
+    hidden_dim_encoder = [128]
+    batch_size = 128
+    activation = eval('torch.tanh')
+    device = 'cpu'
+    vae = RVAE(x_dim = x_dim,
+               latent_dim = latent_dim,
+               hidden_dim_encoder = hidden_dim_encoder,
+               batch_size = batch_size,
+               activation = activation).to(device)
+    vae.print_model()
 

@@ -11,15 +11,22 @@ from torch import nn
 
 class VAE(nn.Module):
 
-    def __init__(self, input_dim = None,
-                       latent_dim = None,
-                       hidden_dim_encoder = None,
-                       batch_size = None,
-                       activation = None):
-        super(VAE, self).__init__()
+    '''
+    VAE model class
+    x: input data
+    z: latent variables
+    y: output data
+    hidden_dim_encoder: python list, the dimensions of hidden layers for encoder,
+                        its reverse is the dimensions of hidden layers for decoder
+    '''
 
-        self.input_dim = input_dim
-        self.latent_dim = latent_dim
+    def __init__(self, x_dim=None, z_dim=None,
+                 hidden_dim_encoder=None, batch_size=None,
+                 activation=None):
+        super().__init__()
+
+        self.x_dim = x_dim
+        self.z_dim = z_dim
         self.hidden_dim_encoder = hidden_dim_encoder
         self.hidden_dim_decoder = list(reversed(hidden_dim_encoder))
         self.batch_size = batch_size
@@ -30,7 +37,7 @@ class VAE(nn.Module):
         self.encoder_layers = nn.ModuleList()
         self.decoder_layers = nn.ModuleList()
 
-        self.output_dim = self.input_dim
+        self.y_dim = self.x_dim
 
         self.build()
         
@@ -38,23 +45,23 @@ class VAE(nn.Module):
         # Define the encode layers (without activation)
         for n, dim in enumerate(self.hidden_dim_encoder):
             if n == 0:
-                self.encoder_layers.append(nn.Linear(self.input_dim, dim))
+                self.encoder_layers.append(nn.Linear(self.x_dim, dim))
             else:
                 self.encoder_layers.append(nn.Linear(self.hidden_dim_encoder[n-1], dim))
 
         # Define the bottleneck layer (the latent variable space)
-        self.latent_mean_layer = nn.Linear(self.hidden_dim_encoder[-1], self.latent_dim)
-        self.latent_logvar_layer = nn.Linear(self.hidden_dim_encoder[-1], self.latent_dim)
+        self.latent_mean_layer = nn.Linear(self.hidden_dim_encoder[-1], self.z_dim)
+        self.latent_logvar_layer = nn.Linear(self.hidden_dim_encoder[-1], self.z_dim)
 
         # Define the decode layers (without activation)
         for n, dim in enumerate(self.hidden_dim_decoder):
             if n == 0:
-                self.decoder_layers.append(nn.Linear(self.latent_dim, dim))
+                self.decoder_layers.append(nn.Linear(self.z_dim, dim))
             else:
                 self.decoder_layers.append(nn.Linear(self.hidden_dim_decoder[n-1], dim))
 
         # Output
-        self.output_layer = nn.Linear(self.hidden_dim_decoder[-1], self.output_dim)
+        self.output_layer = nn.Linear(self.hidden_dim_decoder[-1], self.y_dim)
 
     def encode(self, x):
         for layer in self.encoder_layers:
@@ -101,14 +108,14 @@ def loss_function(recon_x, x, mu, logvar):
     return recon + KLD 
 
 if __name__ == '__main__':
-    input_dim = 513
-    latent_dim = 16
-    hidden_dim_encoder = 128
+    x_dim = 513
+    z_dim = 16
+    hidden_dim_encoder = [128]
     batch_size = 128
     activation = eval('torch.tanh')
     device = 'cpu'
-    vae = VAE(input_dim = input_dim,
-              latent_dim = latent_dim,
+    vae = VAE(x_dim = x_dim,
+              z_dim = z_dim,
               hidden_dim_encoder = hidden_dim_encoder,
               batch_size = batch_size,
               activation = activation).to(device)
