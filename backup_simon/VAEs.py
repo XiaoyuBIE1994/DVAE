@@ -393,8 +393,7 @@ class RVAE_Decoder(nn.Module):
         self.bidir_dec = vae.bidir_dec # indicates if the decoder LSTM blocks
         # processing the latent variables sequence should be directional
 
-        self.device = vae.device
-
+        self.device = vae.device 
         # Build the network
         self.build()
 

@@ -37,7 +37,7 @@ class SpeechDatasetFrames(data.Dataset):
         self.wlen = np.int(np.power(2, np.ceil(np.log2(self.wlen)))) # next power of 2
         self.hop = np.int(self.hop_percent*self.wlen) # hop size in samples
         self.nfft = self.wlen + self.zp_percent*self.wlen # number of points of the discrete Fourier transform
-        self.win = np.sin(np.arange(.5,self.wlen-.5+1)/self.wlen*np.pi); # sine analysis window
+        self.win = np.sin(np.arange(.5,self.wlen-.5+1)/self.wlen*np.pi) # sine analysis window
         
         self.name = name
         
