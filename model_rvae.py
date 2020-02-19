@@ -44,7 +44,7 @@ class RVAE(nn.Module):
         
         # 1. Define the RNN block for x (input data)
         self.enc_rnn_x = nn.LSTM(self.x_dim, self.h_dim, self.num_LSTM,
-                                 bidirection = self.bidir_enc_x)
+                                 bidirectional = self.bidir_enc_x)
         # 2. Define the RNN block for z (previous latent variables)
         if self.rec_over_z:
             self.enc_rnn_z  = nn.LSTM(self.z_dim, self.h_dim, self.num_LSTM)
@@ -60,10 +60,9 @@ class RVAE(nn.Module):
         for n in range(self.num_dense_enc):
             if n == 0: # the first layer
                 if self.rec_over_z:
-                    # 
                     tmp_dense_dim = num_directions_x * self.h_dim + self.h_dim
                 else:
-                    tmp_dense_dim = num_directions_s * self.h_dim
+                    tmp_dense_dim = num_directions_x * self.h_dim
                 self.dict_enc_dense['linear'+str(n)] = nn.Linear(tmp_dense_dim, self.h_dim)
 
             else:
@@ -114,6 +113,7 @@ class RVAE(nn.Module):
             h0 = torch.zeros(self.num_LSTM, batch_size, self.h_dim).to(self.device)
             c0 = torch.zeros(self.num_LSTM, batch_size, self.h_dim).to(self.device)
         
+        # rnn over x, return h_x
         h_x, _ = self.enc_rnn_x(torch.flip(x, [0]), (h0, c0))
         h_x = torch.flip(h_x, [0])
         
@@ -125,13 +125,16 @@ class RVAE(nn.Module):
                     # so we have to add one dimension to z_n at index 0
                     _, (h_z_n, c_z_n) = self.enc_rnn_z(z_n.unsqueeze(0), (h_z_n, c_z_n))
                 
+                # Get output of the last layer
+                # h_z_n.view(num_layers, num_directions, batch, hidden_size)
                 h_z_n_last = h_z_n.view(self.num_LSTM, 1, batch_size, self.h_dim)[-1, :,:,:]
+                # delete the first two dimension (both are 1)
                 h_z_n_last = h_z_n.view(batch_size, self.h_dim)
                 # concatenate h_s and h_z for time step n
-                h_sz = torch.cat([h_s[n, :,:], h_z_n_last], 1)
+                h_xz = torch.cat([h_x[n, :,:], h_z_n_last], 1)
 
                 # encoder
-                enc = self.enc_dense(h_sz)
+                enc = self.enc_dense(h_xz)
                 enc_mean_n = self.enc_mean(enc)
                 enc_logvar_n = self.enc_logvar(enc)
 
@@ -145,7 +148,7 @@ class RVAE(nn.Module):
 
         else:
             # encoder
-            enc = self.dense(h_s)
+            enc = self.enc_dense(h_x)
             all_enc_mean = self.enc_mean(enc)
             all_enc_logvar = self.enc_logvar(enc)
 
@@ -193,19 +196,42 @@ class RVAE(nn.Module):
 
 
     def print_model(self):
-        pass
+        
+        print("----- Encoder -----")
+        print('>>>> RNN over x')
+        print(self.enc_rnn_x)
+        if self.rec_over_z:
+            print('>>>> RNN over z')
+            print(self.enc_rnn_z)
+        else:
+            print('>>>> Dense layer over z')
+            print()
+        print('>>>> Dense layer in encoder')
+        for layer in self.dict_enc_dense:
+            print(layer)
+        print("\n")
+
+        print("----- Bottleneck -----")
+        print(self.enc_mean)
+        print(self.enc_logvar)
+        print("\n")
+
+        print("----- Decoder -----")
+        print('>>>> RNN for decoder')
+        print(self.dec_rnn)
+        print('>>>> Dense layer to generate log-variance')
+        print(self.dec_logvar)
+        print("\n")
 
 if __name__ == '__main__':
     x_dim = 513
-    latent_dim = 16
-    hidden_dim_encoder = [128]
-    batch_size = 128
-    activation = eval('torch.tanh')
+    h_dim = 128
+    z_dim = 16
+    batch_size = 32
     device = 'cpu'
     vae = RVAE(x_dim = x_dim,
-               latent_dim = latent_dim,
-               hidden_dim_encoder = hidden_dim_encoder,
-               batch_size = batch_size,
-               activation = activation).to(device)
+               h_dim = h_dim,
+               z_dim = z_dim,
+               batch_size = batch_size).to(device)
     vae.print_model()
 
