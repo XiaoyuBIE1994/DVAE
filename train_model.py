@@ -13,7 +13,7 @@ import socket
 import datetime
 import pickle
 from configparser import ConfigParser
-import build_model
+from build_model import build_model
 
 # import plot functions and disabhle the figure display
 import matplotlib
