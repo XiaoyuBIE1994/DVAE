@@ -136,7 +136,7 @@ class BuildFFNN(BuildBasic):
         # List all the data with certain suffix
         self.data_suffix = self.cfg.get('DataFrame', 'suffix')
         self.train_file_list = librosa.util.find_files(self.train_data_dir, ext=self.data_suffix)
-        self.val_file_list = librosa.util.find_files(model.val_data_dir, ext=self.data_suffix)
+        self.val_file_list = librosa.util.find_files(self.val_data_dir, ext=self.data_suffix)
         
         # Generate dataloader for pytorch
         self.num_workers = self.cfg.getint('DataFrame', 'num_workers')
