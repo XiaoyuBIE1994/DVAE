@@ -11,11 +11,14 @@ import os
 import socket
 import datetime
 import torch
+from torch.utils import data
 
 import librosa
 from configparser import ConfigParser
-from backup_simon.speech_dataset import *
 from model_vae import VAE
+
+from backup_simon.speech_dataset import *
+
 
 
 # Re-write configure class, enable to distinguish betwwen upper and lower letters
@@ -156,7 +159,7 @@ class BuildFFNN(BuildBasic):
                                             name = self.dataset_name)
         self.train_num = train_dataset.num_samples
         print('===== Instanciate validation dataloader =====')
-        val_dataset = SppechDatasetFrames(file_list = self.val_fil_list,
+        val_dataset = SpeechDatasetFrames(file_list = self.val_file_list,
                                           wlen_sec = self.wlen_sec,
                                           hop_percent = self.hop_percent,
                                           fs = self.fs,
@@ -168,15 +171,15 @@ class BuildFFNN(BuildBasic):
                                           name = self.dataset_name)
         self.val_num = val_dataset = val_dataset.num_samples
         print('===== Create training dataloader =====')
-        self.train_dataloader = torch.data.DataLoader(train_dataloader, 
-                                                      batch_size=self.batch_size,
-                                                      shuffle=self.shuffle_samples_in_batch,
-                                                      num_workers = self.num_workers)
+        self.train_dataloader = data.DataLoader(train_dataset, 
+                                                batch_size=self.batch_size,
+                                                shuffle=self.shuffle_samples_in_batch,
+                                                num_workers = self.num_workers)
         print('===== Create validation dataloader =====')
-        self.val_dataloader = torch.data.DataLoader(val_dataset, 
-                                                    batch_size=self.batch_size,
-                                                    shuffle=self.shuffle_samples_in_batch,
-                                                    num_workers = self.num_workers)
+        self.val_dataloader = data.DataLoader(val_dataset, 
+                                              batch_size=self.batch_size,
+                                              shuffle=self.shuffle_samples_in_batch,
+                                              num_workers = self.num_workers)
         return self.train_dataloader, self.val_dataloader, self.train_num, self.val_num
 
 class BuildRNN(BuildBasic):
@@ -196,3 +199,4 @@ if __name__ == '__main__':
     model_class = build_model('config_rvae-ffnn.ini')
     model, optimizer = model_class.build_net()
     model.print_model()
+    train_dataloader, _, _, _ = model_class.build_dataloader()
