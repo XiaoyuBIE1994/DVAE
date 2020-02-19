@@ -98,7 +98,7 @@ class BuildFFNN(BuildBasic):
         self.activation = eval(self.cfg.get('Network', 'activation'))
 
         # Create directory for this training
-        dir_name = self.dataset_name + '_' + self.date  + '_FFNN_VAE_latent_dim=' + str(self.latent_dim)
+        dir_name = self.dataset_name + '_' + self.date  + '_FFNN_VAE_z_dim=' + str(self.z_dim)
         self.save_dir = os.path.join(self.path_prefix, dir_name)
         if not(os.path.isdir(self.save_dir)):
             os.makedirs(self.save_dir)
