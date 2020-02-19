@@ -14,7 +14,7 @@ import torch
 
 import librosa
 from configparser import ConfigParser
-import backup_simon.speech_dataset
+from backup_simon.speech_dataset import *
 from model_vae import VAE
 
 
