@@ -8,6 +8,11 @@ License agreement in LICENSE.txt
 
 import torch
 from torch import nn
+my_seed = 0
+import numpy as np
+np.random.seed(my_seed)
+import torch
+torch.manual_seed(my_seed)
 
 class VAE(nn.Module):
 

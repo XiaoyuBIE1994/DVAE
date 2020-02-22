@@ -12,6 +12,8 @@ import shutil
 import socket
 import datetime
 import pickle
+import numpy as np
+import torch
 from configparser import ConfigParser
 from build_model import build_model
 
@@ -20,25 +22,36 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
-
 def train_model(config_file):
     
     # Build model using config_file
-    model_class = build_model(config_file)
-    model, optimizer = model_class.build_net()
+    model_class = build_model(config_file) 
+    model = model_class.model
+    optimizer = model_class.optimizer
+    loss_function = model_class.loss_function
+    epochs = model_class.epochs
     num_parameters = sum(p.numel() for p in model.parameters() if p.requires_grad)
     model.print_model()
-    
+
+    #### Test only ####
+    # optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+    # optimizer = model_class.optim()
+    # optimizer = model_class.optimizer
+    #### Test only ####
+
+
     # Create dataloader
     train_dataloader, val_dataloader, train_num, val_num = model_class.build_dataloader()
     
     # Create python list for loss
-    train_loss = np.zeros((model_class.epochs,))
-    val_loss = np.zeros((model_class.epochs,))
+    train_loss = np.zeros((epochs,))
+    val_loss = np.zeros((epochs,))
     best_val_loss = np.inf
     cpt_patience = 0
+    cur_best_epoch = epochs
+    best_state_dict = model.state_dict()
 
-    for epoch in range(model_class.epochs):
+    for epoch in range(epochs):
 
         start_time = datetime.datetime.now()
         model.train()
@@ -46,8 +59,9 @@ def train_model(config_file):
         # Batch training
         for batch_idx, batch_data in enumerate(train_dataloader):
             batch_data = batch_data.to(model_class.device)
+            optimizer.zero_grad()
             recon_batch_data, mean, logvar, z = model(batch_data)
-            loss = model_class.loss_function(recon_batch_data, batch_data, mean, logvar)
+            loss = loss_function(recon_batch_data, batch_data, mean, logvar)
             loss.backward()
             train_loss[epoch] += loss.item()
             optimizer.step()
@@ -56,7 +70,7 @@ def train_model(config_file):
         for batch_idx, batch_data in enumerate(val_dataloader):
             batch_data = batch_data.to(model_class.device)
             recon_batch_data, mean, logvar, z = model(batch_data)
-            loss = model_class.loss_function(recon_batch_data, batch_data, mean, logvar)
+            loss = loss_function(recon_batch_data, batch_data, mean, logvar)
             val_loss[epoch] += loss.item()
 
         # Early stop patiance

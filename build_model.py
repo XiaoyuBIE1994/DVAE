@@ -36,6 +36,7 @@ class BuildBasic():
     """
 
     def __init__(self, cfg = myconf()):
+
         # Load config parser
         self.cfg = cfg
         self.model_name = self.cfg.get('Network', 'name')
@@ -47,13 +48,17 @@ class BuildBasic():
         self.date = datetime.datetime.now().strftime("%Y-%m-%d-%Hh%M")
         print(self.date)
 
-        # Read STFT parameters
+        # Load STFT parameters
         self.wlen_sec = self.cfg.getfloat('STFT', 'wlen_sec')
         self.hop_percent = self.cfg.getfloat('STFT', 'hop_percent')
         self.fs = self.cfg.getint('STFT', 'fs')
-        self.zp_percent = self.cfg.getfloat('STFT', 'zp_percent')
+        self.zp_percent = self.cfg.getint('STFT', 'zp_percent')
         self.trim = self.cfg.getboolean('STFT', 'trim')
         self.verbose = self.cfg.getboolean('STFT', 'verbose')
+
+        # Load basical network parameters
+        self.x_dim = self.cfg.getint('Network', 'x_dim')
+        self.z_dim = self.cfg.getint('Network','z_dim')
 
         # Load training parameters
         self.lr = self.cfg.getfloat('Training', 'lr')
@@ -63,7 +68,7 @@ class BuildBasic():
         self.early_stop_patience = self.cfg.getint('Training', 'early_stop_patience')
         self.save_frequency = self.cfg.getint('Training', 'save_frequency')
 
-        # Create directory (saved_model) if not exist
+        # Create saved_model directory if not exist
         self.local_hostname = self.cfg.get('User', 'local_hostname')
         if self.hostname == self.local_hostname:
             self.path_prefix = self.cfg.get('Path', 'path_local')
@@ -77,6 +82,16 @@ class BuildBasic():
             print('No saved directory exists, new one will be generated')
             os.makedirs(self.path_prefix)
             print('All training results will be saved in: ' + self.path_prefix)
+
+        # Create directory for results
+        dir_name = "{}_{}_{}_z_dim={}".format(self.dataset_name, 
+                                              self.date, 
+                                              self.model_name, 
+                                              self.z_dim)
+        self.save_dir = os.path.join(self.path_prefix, dir_name)
+        if not(os.path.isdir(self.save_dir)):
+            os.makedirs(self.save_dir)
+        print('In this experiment, result will be saved in: ' + self.save_dir)
 
         # Choose to use gpu or cpu
         self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -95,22 +110,14 @@ class BuildFFNN(BuildBasic):
         super(BuildFFNN, self).__init__(cfg)
 
         # Load network parameters
-        self.x_dim = self.cfg.getint('Network', 'x_dim')
-        self.z_dim = self.cfg.getint('Network','z_dim')
         self.hidden_dim_encoder = [int(i) for i in self.cfg.get('Network', 'hidden_dim_encoder').split(',')] # this parameter is a python list
         self.activation = eval(self.cfg.get('Network', 'activation'))
-
-        # Create directory for this training
-        dir_name = self.dataset_name + '_' + self.date  + '_FFNN_VAE_z_dim=' + str(self.z_dim)
-        self.save_dir = os.path.join(self.path_prefix, dir_name)
-        if not(os.path.isdir(self.save_dir)):
-            os.makedirs(self.save_dir)
-        print('In this experiment, result will be saved in: ' + self.save_dir)
         
+        self.build()
 
-    def build_net(self):
+    def build(self):
 
-        # Init VAE model
+        # Init VAE network
         print('===== Init VAE =====')
         self.model = VAE(x_dim = self.x_dim,
                          z_dim = self.z_dim,
@@ -123,30 +130,29 @@ class BuildFFNN(BuildBasic):
             self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
         else:
             self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
-        return self.model, self.optimizer
 
-    def loss_function(self, recon_x, x, mu, logvar):
-        recon = torch.sum(  x/recon_x - torch.log(x/recon_x) - 1 ) 
-        KLD = -0.5 * torch.sum(logvar - mu.pow(2) - logvar.exp())
-        return recon + KLD
+        # Define loss function
+        def loss_function(recon_x, x, mu, logvar):
+            recon = torch.sum(  x/recon_x - torch.log(x/recon_x) - 1 ) 
+            KLD = -0.5 * torch.sum(logvar - mu.pow(2) - logvar.exp())
+            return recon + KLD
+        self.loss_function = loss_function
 
     def build_dataloader(self):
         # Find data set
         #train_data_dir, val_data_dir = find_dataset()
         self.train_data_dir = self.cfg.get('Path', 'train_data_dir')
         self.val_data_dir = self.cfg.get('Path', 'val_data_dir')
-        
         # List all the data with certain suffix
         self.data_suffix = self.cfg.get('DataFrame', 'suffix')
         self.train_file_list = librosa.util.find_files(self.train_data_dir, ext=self.data_suffix)
         self.val_file_list = librosa.util.find_files(self.val_data_dir, ext=self.data_suffix)
-        
         # Generate dataloader for pytorch
         self.num_workers = self.cfg.getint('DataFrame', 'num_workers')
         self.shuffle_file_list = self.cfg.get('DataFrame', 'shuffle_file_list')
         self.shuffle_samples_in_batch = self.cfg.get('DataFrame', 'shuffle_samples_in_batch')
 
-        print('===== Instranciate training dataloader =====')
+        print('>>>> Instranciate training dataloader')
         train_dataset = SpeechDatasetFrames(file_list = self.train_file_list,
                                             wlen_sec = self.wlen_sec,
                                             hop_percent = self.hop_percent,
@@ -158,7 +164,8 @@ class BuildFFNN(BuildBasic):
                                             shuffle_file_list = self.shuffle_file_list,
                                             name = self.dataset_name)
         self.train_num = train_dataset.num_samples
-        print('===== Instanciate validation dataloader =====')
+        print('Finish')
+        print('>>>> Instanciate validation dataloader')
         val_dataset = SpeechDatasetFrames(file_list = self.val_file_list,
                                           wlen_sec = self.wlen_sec,
                                           hop_percent = self.hop_percent,
@@ -169,17 +176,20 @@ class BuildFFNN(BuildBasic):
                                           batch_size = self.batch_size,
                                           shuffle_file_list = self.shuffle_file_list,
                                           name = self.dataset_name)
-        self.val_num = val_dataset = val_dataset.num_samples
-        print('===== Create training dataloader =====')
+        self.val_num = val_dataset.num_samples
+        print('Finish')
+        print('>>>> Create training dataloader')
         self.train_dataloader = data.DataLoader(train_dataset, 
                                                 batch_size=self.batch_size,
                                                 shuffle=self.shuffle_samples_in_batch,
                                                 num_workers = self.num_workers)
-        print('===== Create validation dataloader =====')
+        print('Finish')
+        print('>>>> Create validation dataloader')
         self.val_dataloader = data.DataLoader(val_dataset, 
                                               batch_size=self.batch_size,
                                               shuffle=self.shuffle_samples_in_batch,
                                               num_workers = self.num_workers)
+        print('Finish')
         return self.train_dataloader, self.val_dataloader, self.train_num, self.val_num
 
 class BuildRNN(BuildBasic):
@@ -189,14 +199,14 @@ def build_model(config_file='config_default.ini'):
     cfg = myconf()
     cfg.read(config_file)
     model_name = cfg.get('Network', 'name')
-    if model_name == 'VAE-FFNN':
+    if model_name == 'FFNN':
         model = BuildFFNN(cfg)
-    
     return model
 
 
 if __name__ == '__main__':
-    model_class = build_model('config_rvae-ffnn.ini')
-    model, optimizer = model_class.build_net()
+    model = build_model('cfg_debug_ffnn.ini')
+    net = model.net
+    optimizer = model.optimizer
     model.print_model()
     train_dataloader, _, _, _ = model_class.build_dataloader()

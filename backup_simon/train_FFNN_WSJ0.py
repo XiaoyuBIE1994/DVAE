@@ -37,8 +37,10 @@ print(date)
 
 dataset_name = 'WSJ0'
 # train_data_dir, val_data_dir = prepare_dataset_WSJ0(dataset_name, hostname)
-train_data_dir = "/mnt/xbie/Data/clean_speech/wsj0_si_tr_s"
-val_data_dir = "/mnt/xbie/Data/clean_speech/wsj0_si_dt_05"
+# train_data_dir = "/mnt/xbie/Data/clean_speech/wsj0_si_tr_s"
+# val_data_dir = "/mnt/xbie/Data/clean_speech/wsj0_si_dt_05"
+train_data_dir = "/Users/xiaoyu/WorkStation/Data/clean_speech/wsj0_si_dt_05"
+val_data_dir = "/Users/xiaoyu/WorkStation/Data/clean_speech/wsj0_si_et_05"
 
 #%% network parameters
 
@@ -50,7 +52,7 @@ activation = eval(activation_str)
 
 #%% create directory for results
 
-save_dir = os.path.join('/mnt/xbie/Code/saved_model', dataset_name + '_' + date + 
+save_dir = os.path.join('/Users/xiaoyu/WorkStation/saved_model', dataset_name + '_' + date + 
                         '_FFNN_VAE_'  + 'latent_dim=' + str(latent_dim))
 
 if not(os.path.isdir(save_dir)):
@@ -74,6 +76,8 @@ if hostname=='virgo':
     device = 'cpu'
 else:
     device = 'cuda'
+
+device = 'cpu'
     
 train_file_list = librosa.util.find_files(train_data_dir, ext='wav')
 val_file_list = librosa.util.find_files(val_data_dir, ext='wav')
@@ -126,8 +130,6 @@ print('init VAE')
 vae = VAE(input_dim=input_dim, latent_dim=latent_dim, 
             hidden_dim_encoder=hidden_dim_encoder, batch_size=batch_size, 
             activation=activation).to(device)         
-
-
 num_params = sum(p.numel() for p in vae.parameters() if p.requires_grad)
 
 # optimizer

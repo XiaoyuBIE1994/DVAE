@@ -84,7 +84,6 @@ class VAE(nn.Module):
 
         for layer in self.decoder_layers:
             z = self.activation(layer(z))
-
         return torch.exp(self.output_layer(z))
 
     def forward(self, x):

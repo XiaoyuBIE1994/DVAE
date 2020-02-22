@@ -218,7 +218,7 @@ class RVAE(nn.Module):
 
         return torch.sequeeze(y)
 
-    def forward(self):
+    def forward(self, x):
         mean, logvar, z = self.encode(self, x)
         return self.decode(z), mean, logvar, z
 
@@ -237,20 +237,17 @@ class RVAE(nn.Module):
         print('>>>> Dense layer in encoder')
         for layer in self.enc_dense:
             print(layer)
-        print("\n")
 
         print("----- Bottleneck -----")
         print(self.enc_mean)
         print(self.enc_logvar)
-        print("\n")
 
         print("----- Decoder -----")
         print('>>>> RNN for decoder')
         print(self.dec_rnn)
         print('>>>> Dense layer to generate log-variance')
         print(self.dec_logvar)
-        print("\n")
-
+        
 if __name__ == '__main__':
     x_dim = 513
     z_dim = 16
