@@ -21,19 +21,19 @@ class VAE(nn.Module):
     x: input data
     z: latent variables
     y: output data
-    hidden_dim_encoder: python list, the dimensions of hidden layers for encoder,
+    hidden_dim_enc: python list, the dimensions of hidden layers for encoder,
                         its reverse is the dimensions of hidden layers for decoder
     '''
 
     def __init__(self, x_dim=None, z_dim=None,
-                 hidden_dim_encoder=None, batch_size=None,
+                 hidden_dim_enc=None, batch_size=None,
                  activation=None):
         super().__init__()
 
         self.x_dim = x_dim
         self.z_dim = z_dim
-        self.hidden_dim_encoder = hidden_dim_encoder
-        self.hidden_dim_decoder = list(reversed(hidden_dim_encoder))
+        self.hidden_dim_enc = hidden_dim_enc
+        self.hidden_dim_dec = list(reversed(hidden_dim_enc))
         self.batch_size = batch_size
         self.activation = activation
         self.model = None
@@ -48,25 +48,25 @@ class VAE(nn.Module):
         
     def build(self):
         # Define the encode layers (without activation)
-        for n, dim in enumerate(self.hidden_dim_encoder):
+        for n, dim in enumerate(self.hidden_dim_enc):
             if n == 0:
                 self.encoder_layers.append(nn.Linear(self.x_dim, dim))
             else:
-                self.encoder_layers.append(nn.Linear(self.hidden_dim_encoder[n-1], dim))
+                self.encoder_layers.append(nn.Linear(self.hidden_dim_enc[n-1], dim))
 
         # Define the bottleneck layer (the latent variable space)
-        self.latent_mean_layer = nn.Linear(self.hidden_dim_encoder[-1], self.z_dim)
-        self.latent_logvar_layer = nn.Linear(self.hidden_dim_encoder[-1], self.z_dim)
+        self.latent_mean_layer = nn.Linear(self.hidden_dim_enc[-1], self.z_dim)
+        self.latent_logvar_layer = nn.Linear(self.hidden_dim_enc[-1], self.z_dim)
 
         # Define the decode layers (without activation)
-        for n, dim in enumerate(self.hidden_dim_decoder):
+        for n, dim in enumerate(self.hidden_dim_dec):
             if n == 0:
                 self.decoder_layers.append(nn.Linear(self.z_dim, dim))
             else:
-                self.decoder_layers.append(nn.Linear(self.hidden_dim_decoder[n-1], dim))
+                self.decoder_layers.append(nn.Linear(self.hidden_dim_dec[n-1], dim))
 
         # Output
-        self.output_layer = nn.Linear(self.hidden_dim_decoder[-1], self.y_dim)
+        self.output_layer = nn.Linear(self.hidden_dim_dec[-1], self.y_dim)
 
     def encode(self, x):
         for layer in self.encoder_layers:
@@ -115,13 +115,13 @@ def loss_function(recon_x, x, mu, logvar):
 if __name__ == '__main__':
     x_dim = 513
     z_dim = 16
-    hidden_dim_encoder = [128]
+    hidden_dim_enc = [128]
     batch_size = 128
     activation = eval('torch.tanh')
     device = 'cpu'
     vae = VAE(x_dim = x_dim,
               z_dim = z_dim,
-              hidden_dim_encoder = hidden_dim_encoder,
+              hidden_dim_enc = hidden_dim_enc,
               batch_size = batch_size,
               activation = activation).to(device)
     vae.print_model()

@@ -25,17 +25,17 @@ class RVAE(nn.Module):
         h_dim_z: dimension of hidden state for the RNN of z
         num_LSTM_z: number of LSTMs of z
 
-        hidden_dims_enc: python list, indicate the dimensions of hidden dense layers of encoder
+        hidden_dim_enc: python list, indicate the dimensions of hidden dense layers of encoder
 
         num_LSTM_dec: number of LSTMs of decoder
         bidir_dec: boolen, true if the RNN for decoder is bi-directional
     """
-    def __init__(self, x_dim, z_dim = 16, batch_size = 16,
-                 bidir_enc_x = False, h_dim_x = 128, num_LSTM_x = 1,
-                 rec_over_z = True, h_dim_z = 128, num_LSTM_z = 1,
-                 hidden_dims_enc = [128],
-                 bidir_dec = False, h_dim_dec = 128, num_LSTM_dec = 1, 
-                 device = 'cpu'):
+    def __init__(self, x_dim, z_dim=16, batch_size=16,
+                 bidir_enc_x=False, h_dim_x=128, num_LSTM_x=1,
+                 rec_over_z=True, h_dim_z=128, num_LSTM_z=1,
+                 hidden_dim_enc=[128],
+                 bidir_dec=False, h_dim_dec=128, num_LSTM_dec=1, 
+                 device='cpu'):
                  
         super().__init__()
         # General parameters for rvae
@@ -51,7 +51,7 @@ class RVAE(nn.Module):
         self.h_dim_z = h_dim_z
         self.num_LSTM_z = 1
         # Encoder: part dense layer 
-        self.hidden_dims_enc = hidden_dims_enc
+        self.hidden_dim_enc = hidden_dim_enc
         # Decoer
         self.bidir_dec = bidir_dec
         self.h_dim_dec = h_dim_dec
@@ -81,7 +81,7 @@ class RVAE(nn.Module):
         
         self.dict_enc_dense = OrderedDict()
 
-        for n, hidden_layer_dim in enumerate(self.hidden_dims_enc):
+        for n, hidden_layer_dim in enumerate(self.hidden_dim_enc):
             if n == 0: # the first layer
                 if self.rec_over_z:
                     tmp_dense_dim = num_directions_x * self.h_dim_x + self.h_dim_z
@@ -90,16 +90,16 @@ class RVAE(nn.Module):
                 self.dict_enc_dense['linear'+str(n)] = nn.Linear(tmp_dense_dim, hidden_layer_dim)
 
             else:
-                self.dict_enc_dense['linear'+str(n)] = nn.Linear(self.hidden_dims_enc[n-1], self.hidden_dims_enc[n])
+                self.dict_enc_dense['linear'+str(n)] = nn.Linear(self.hidden_dim_enc[n-1], self.hidden_dim_enc[n])
             self.dict_enc_dense['tanh'+str(n)] = nn.Tanh()
 
         self.enc_dense = nn.Sequential(self.dict_enc_dense)
 
         # 4. Define the linear layer for mean value
-        self.enc_mean = nn.Linear(self.hidden_dims_enc[-1], self.z_dim)
+        self.enc_mean = nn.Linear(self.hidden_dim_enc[-1], self.z_dim)
 
         # 5. Define the linear layer for the log-variance
-        self.enc_logvar = nn.Linear(self.hidden_dims_enc[-1], self.z_dim)
+        self.enc_logvar = nn.Linear(self.hidden_dim_enc[-1], self.z_dim)
 
         ##### Decoder #####
         # 1. Define the LSTM procesing the latent variables
@@ -114,20 +114,25 @@ class RVAE(nn.Module):
 
             
     def encode(self, x):
+        # input x is (batch_size, x_dim, seq_len)
+        # we want to change it to (seq_len, batch_size, x_dim)
         # shape of x is (sequence_len, x_dim) but we need 
         # (sequence_len, batch_size, x_dim), so we need to 
         # one dimension in axis 1
-        if len(x.shape) == 2:
+        if len(x.shape) == 3:
+            x = x.permute(-1, 0, 1)
+        elif len(x.shape) == 2:
             x = x.unsqueeze(1)
+
 
         seq_len = x.shape[0]
         batch_size = x.shape[1]
 
         # create variable holder and send to GPU if needed
         all_enc_logvar = torch.zeros((seq_len, batch_size, self.z_dim)).to(self.device)
-        all_enc_mean = torch.zeros((seq_len. batch_size, self.z_dim)).to(self.device)
+        all_enc_mean = torch.zeros((seq_len, batch_size, self.z_dim)).to(self.device)
         z = torch.zeros((seq_len, batch_size, self.z_dim)).to(self.device)
-        z_n = torch_zeros(batch_size, self.z_dim).to(self.device)
+        z_n = torch.zeros(batch_size, self.z_dim).to(self.device)
         h_z_n = torch.zeros(self.num_LSTM_z, batch_size, self.h_dim_z).to(self.device)
         c_z_n = torch.zeros(self.num_LSTM_z, batch_size, self.h_dim_z).to(self.device)
         if self.bidir_enc_x:
@@ -179,7 +184,7 @@ class RVAE(nn.Module):
             # sampling
             z = self.reparatemize(all_enc_mean, all_enc_logvar)
 
-        return (torch,squeeze(all_enc_mean), torch.squeeze(all_enc_logvar), torch.squeeze(z))
+        return (torch.squeeze(all_enc_mean), torch.squeeze(all_enc_logvar), torch.squeeze(z))
 
 
     def reparatemize(self, mean, logvar):
@@ -192,7 +197,7 @@ class RVAE(nn.Module):
         if len(z.shape) == 2:
             z = z.unsqueeze(1)
         
-        batch_size = z.shape(1)
+        batch_size = z.shape[1]
 
         # reset initial states
 
@@ -208,7 +213,7 @@ class RVAE(nn.Module):
                                  batch_size, self.h_dim_dec).to(self.device)
 
         # apply LSTM block to the input sequence of latent variable
-        h_dec, _ = self.dec_rnn(z, h0_dec, c0_dec)
+        h_dec, _ = self.dec_rnn(z, (h0_dec, c0_dec))
 
         # output layer
         log_y = self.dec_logvar(h_dec)
@@ -216,11 +221,22 @@ class RVAE(nn.Module):
         # tansform log-variance to variance
         y = torch.exp(log_y)
 
-        return torch.sequeeze(y)
+
+        # y is (seq_len, batch_size, y_dim), we want to change back to
+        # (batch_size, y_dim, seq_len)
+        if len(y.shape) == 3:    
+            y = y.permute(1,-1,0)
+
+        return torch.squeeze(y)
 
     def forward(self, x):
-        mean, logvar, z = self.encode(self, x)
-        return self.decode(z), mean, logvar, z
+        mean, logvar, z = self.encode(x)
+        # z is (seq_len, batch_size, z_dim), we want to change back to
+        # (batch_size, z_dim, seq_len)
+        y = self.decode(z)
+        if len(z.shape) == 3:
+            z = z.permute(1,-1,0)
+        return y, mean, logvar, z
 
 
     def print_model(self):
@@ -247,7 +263,7 @@ class RVAE(nn.Module):
         print(self.dec_rnn)
         print('>>>> Dense layer to generate log-variance')
         print(self.dec_logvar)
-        
+
 if __name__ == '__main__':
     x_dim = 513
     z_dim = 16

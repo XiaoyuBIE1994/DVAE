@@ -34,8 +34,10 @@ date = datetime.datetime.now().strftime("%Y-%m-%d-%Hh%M")
 
 dataset_name = 'WSJ0'
 # train_data_dir, val_data_dir = prepare_dataset_WSJ0(dataset_name, hostname)
-train_data_dir = "/mnt/xbie/Data/clean_speech/wsj0_si_tr_s"
-val_data_dir = "/mnt/xbie/Data/clean_speech/wsj0_si_dt_05"
+# train_data_dir = "/mnt/xbie/Data/clean_speech/wsj0_si_tr_s"
+# val_data_dir = "/mnt/xbie/Data/clean_speech/wsj0_si_dt_05"
+train_data_dir = "/Users/xiaoyu/WorkStation/Data/clean_speech/wsj0_si_dt_05"
+val_data_dir = "/Users/xiaoyu/WorkStation/Data/clean_speech/wsj0_si_et_05"
 
 #%% network parameters
 
@@ -68,7 +70,8 @@ else:
 res_folder_name = (dataset_name + '_' + date + '_RVAE_' + enc_type + dec_type 
                    + posterior_type + 'latent_dim=' + str(latent_dim))
         
-save_dir = os.path.join('/mnt/xbie/Code/saved_model', res_folder_name)
+# save_dir = os.path.join('/mnt/xbie/Code/saved_model', res_folder_name)
+save_dir = os.path.join('/Users/xiaoyu/WorkStation/saved_model', res_folder_name)
 
 if not(os.path.isdir(save_dir)):
     os.makedirs(save_dir)
@@ -91,11 +94,12 @@ if hostname=='octans':
 else:
     device = 'cuda'
     
+device = 'cpu'
 train_file_list = librosa.util.find_files(train_data_dir, ext='wav')
 val_file_list = librosa.util.find_files(val_data_dir, ext='wav')
 
 lr = 0.001
-epochs = 500
+epochs = 5
 batch_size = 32
 sequence_len = 50
 num_workers = 1 # if higher, may mess-up everything as the data loading is 

@@ -25,7 +25,7 @@ import matplotlib.pyplot as plt
 def train_model(config_file):
     
     # Build model using config_file
-    model_class = build_model(config_file) 
+    model_class = build_model(config_file)
     model = model_class.model
     optimizer = model_class.optimizer
     loss_function = model_class.loss_function
@@ -33,15 +33,11 @@ def train_model(config_file):
     num_parameters = sum(p.numel() for p in model.parameters() if p.requires_grad)
     model.print_model()
 
-    #### Test only ####
-    # optimizer = torch.optim.Adam(model.parameters(), lr=lr)
-    # optimizer = model_class.optim()
-    # optimizer = model_class.optimizer
-    #### Test only ####
-
-
     # Create dataloader
-    train_dataloader, val_dataloader, train_num, val_num = model_class.build_dataloader()
+    train_dataloader = model_class.train_dataloader
+    val_dataloader = model_class.val_dataloader
+    train_num = model_class.train_num
+    val_num = model_class.val_num
     
     # Create python list for loss
     train_loss = np.zeros((epochs,))
@@ -109,7 +105,7 @@ def train_model(config_file):
     torch.save(best_state_dict, save_file)
     
     # Save the training loss and validation loss
-    loss_file = os.path.join(save_dir, 'loss_model.pckl')
+    loss_file = os.path.join(model_class.save_dir, 'loss_model.pckl')
     with open(loss_file, 'wb') as f:
         pickle.dump([train_loss, val_loss], f)
 

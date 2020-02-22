@@ -16,6 +16,7 @@ from torch.utils import data
 import librosa
 from configparser import ConfigParser
 from model_vae import VAE
+from model_rvae import RVAE
 
 from backup_simon.speech_dataset import *
 
@@ -56,10 +57,6 @@ class BuildBasic():
         self.trim = self.cfg.getboolean('STFT', 'trim')
         self.verbose = self.cfg.getboolean('STFT', 'verbose')
 
-        # Load basical network parameters
-        self.x_dim = self.cfg.getint('Network', 'x_dim')
-        self.z_dim = self.cfg.getint('Network','z_dim')
-
         # Load training parameters
         self.lr = self.cfg.getfloat('Training', 'lr')
         self.epochs = self.cfg.getint('Training', 'epochs')
@@ -83,53 +80,9 @@ class BuildBasic():
             os.makedirs(self.path_prefix)
             print('All training results will be saved in: ' + self.path_prefix)
 
-        # Create directory for results
-        dir_name = "{}_{}_{}_z_dim={}".format(self.dataset_name, 
-                                              self.date, 
-                                              self.model_name, 
-                                              self.z_dim)
-        self.save_dir = os.path.join(self.path_prefix, dir_name)
-        if not(os.path.isdir(self.save_dir)):
-            os.makedirs(self.save_dir)
-        print('In this experiment, result will be saved in: ' + self.save_dir)
-
         # Choose to use gpu or cpu
         self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
         print('Device for training: ' + self.device)
-
-
-class BuildFFNN(BuildBasic):
-
-    """
-    Feed-forward fully-connected VAE
-    Implementation of FFNN in rvae
-    """
-
-    def __init__(self, cfg=myconf()):
-        
-        super(BuildFFNN, self).__init__(cfg)
-
-        # Load network parameters
-        self.hidden_dim_encoder = [int(i) for i in self.cfg.get('Network', 'hidden_dim_encoder').split(',')] # this parameter is a python list
-        self.activation = eval(self.cfg.get('Network', 'activation'))
-        
-        self.build()
-
-    def build(self):
-
-        # Init VAE network
-        print('===== Init VAE =====')
-        self.model = VAE(x_dim = self.x_dim,
-                         z_dim = self.z_dim,
-                         hidden_dim_encoder = self.hidden_dim_encoder,
-                         batch_size = self.batch_size,
-                         activation = self.activation).to(self.device)
-        
-        # Define optimizer (Adam by default)
-        if self.optimization == 'adam':
-            self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
-        else:
-            self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
 
         # Define loss function
         def loss_function(recon_x, x, mu, logvar):
@@ -138,7 +91,7 @@ class BuildFFNN(BuildBasic):
             return recon + KLD
         self.loss_function = loss_function
 
-    def build_dataloader(self):
+    def build_dataloader(self, get_seq=False):
         # Find data set
         #train_data_dir, val_data_dir = find_dataset()
         self.train_data_dir = self.cfg.get('Path', 'train_data_dir')
@@ -153,47 +106,195 @@ class BuildFFNN(BuildBasic):
         self.shuffle_samples_in_batch = self.cfg.get('DataFrame', 'shuffle_samples_in_batch')
 
         print('>>>> Instranciate training dataloader')
-        train_dataset = SpeechDatasetFrames(file_list = self.train_file_list,
-                                            wlen_sec = self.wlen_sec,
-                                            hop_percent = self.hop_percent,
-                                            fs = self.fs,
-                                            zp_percent = self.zp_percent,
-                                            trim = self.trim,
-                                            verbose = self.verbose,
-                                            batch_size = self.batch_size,
-                                            shuffle_file_list = self.shuffle_file_list,
-                                            name = self.dataset_name)
+        if not get_seq:
+            train_dataset = SpeechDatasetFrames(file_list = self.train_file_list,
+                                                wlen_sec = self.wlen_sec,
+                                                hop_percent = self.hop_percent,
+                                                fs = self.fs,
+                                                zp_percent = self.zp_percent,
+                                                trim = self.trim,
+                                                verbose = self.verbose,
+                                                batch_size = self.batch_size,
+                                                shuffle_file_list = self.shuffle_file_list,
+                                                name = self.dataset_name)
+        else:
+            self.sequence_len = self.cfg.getint('DataFrame','sequence_len')
+            train_dataset = SpeechDatasetSequences(file_list=self.train_file_list,
+                                                   sequence_len=self.sequence_len,
+                                                   wlen_sec=self.wlen_sec,
+                                                   hop_percent=self.hop_percent,
+                                                   fs=self.fs,
+                                                   zp_percent=self.zp_percent,
+                                                   trim=self.trim,
+                                                   verbose=self.verbose,
+                                                   batch_size=self.batch_size,
+                                                   shuffle_file_list=self.shuffle_file_list,
+                                                   name=self.dataset_name)
         self.train_num = train_dataset.num_samples
         print('Finish')
+
         print('>>>> Instanciate validation dataloader')
-        val_dataset = SpeechDatasetFrames(file_list = self.val_file_list,
-                                          wlen_sec = self.wlen_sec,
-                                          hop_percent = self.hop_percent,
-                                          fs = self.fs,
-                                          zp_percent = self.zp_percent,
-                                          trim = self.trim,
-                                          verbose = self.verbose,
-                                          batch_size = self.batch_size,
-                                          shuffle_file_list = self.shuffle_file_list,
-                                          name = self.dataset_name)
+        if not get_seq:
+            val_dataset = SpeechDatasetFrames(file_list = self.val_file_list,
+                                              wlen_sec = self.wlen_sec,
+                                              hop_percent = self.hop_percent,
+                                              fs = self.fs,
+                                              zp_percent = self.zp_percent,
+                                              trim = self.trim,
+                                              verbose = self.verbose,
+                                              batch_size = self.batch_size,
+                                              shuffle_file_list = self.shuffle_file_list,
+                                              name = self.dataset_name)
+        else:
+            self.sequence_len = self.cfg.getint('DataFrame','sequence_len')
+            val_dataset = SpeechDatasetSequences(file_list=self.val_file_list,
+                                                 sequence_len=self.sequence_len,
+                                                 wlen_sec=self.wlen_sec,
+                                                 hop_percent=self.hop_percent,
+                                                 fs=self.fs,
+                                                 zp_percent=self.zp_percent,
+                                                 trim=self.trim,
+                                                 verbose=self.verbose,
+                                                 batch_size=self.batch_size,
+                                                 shuffle_file_list=self.shuffle_file_list,
+                                                 name=self.dataset_name)
         self.val_num = val_dataset.num_samples
         print('Finish')
+
         print('>>>> Create training dataloader')
         self.train_dataloader = data.DataLoader(train_dataset, 
                                                 batch_size=self.batch_size,
                                                 shuffle=self.shuffle_samples_in_batch,
                                                 num_workers = self.num_workers)
         print('Finish')
+
         print('>>>> Create validation dataloader')
         self.val_dataloader = data.DataLoader(val_dataset, 
                                               batch_size=self.batch_size,
                                               shuffle=self.shuffle_samples_in_batch,
                                               num_workers = self.num_workers)
         print('Finish')
-        return self.train_dataloader, self.val_dataloader, self.train_num, self.val_num
 
-class BuildRNN(BuildBasic):
-    pass
+class BuildFFNN(BuildBasic):
+
+    """
+    Feed-forward fully-connected VAE
+    Implementation of FFNN in rvae
+    """
+
+    def __init__(self, cfg=myconf()):
+        
+        super().__init__(cfg)
+
+        # Load special parameters for FFNN
+        self.x_dim = self.cfg.getint('Network', 'x_dim')
+        self.z_dim = self.cfg.getint('Network','z_dim')
+        self.hidden_dim_enc = [int(i) for i in self.cfg.get('Network', 'hidden_dim_enc').split(',')] # this parameter is a python list
+        self.activation = eval(self.cfg.get('Network', 'activation'))
+        
+        self.build()
+
+    def build(self):
+
+        # Init VAE network
+        print('===== Init VAE =====')
+        self.model = VAE(x_dim = self.x_dim,
+                         z_dim = self.z_dim,
+                         hidden_dim_enc = self.hidden_dim_enc,
+                         batch_size = self.batch_size,
+                         activation = self.activation).to(self.device)
+        
+        # Init optimizer (Adam by default)
+        if self.optimization == 'adam':
+            self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
+        else:
+            self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
+
+        # build dataloader
+        self.build_dataloader(get_seq=False)
+
+        # Create directory for results
+        dir_name = "{}_{}_{}_z_dim={}".format(self.dataset_name, 
+                                              self.date, 
+                                              self.model_name, 
+                                              self.z_dim)
+        self.save_dir = os.path.join(self.path_prefix, dir_name)
+        if not(os.path.isdir(self.save_dir)):
+            os.makedirs(self.save_dir)
+        print('In this experiment, result will be saved in: ' + self.save_dir)
+
+class BuildRVAE(BuildBasic):
+    """
+    Reccurrent (uni- or bi-directional LSTM) VAE (RVAE)
+    We can choose wheter there is a recurrence over z
+    """
+    def __init__(self, cfg = myconf()):
+
+        super().__init__(cfg)
+
+        # Load special paramters for RVAE
+        self.x_dim = self.cfg.getint('Network', 'x_dim')
+        self.z_dim = self.cfg.getint('Network','z_dim')
+        self.bidir_enc_x = self.cfg.getboolean('Network', 'bidir_enc_x')
+        self.h_dim_x = self.cfg.getint('Network', 'h_dim_x')
+        self.num_LSTM_x = self.cfg.getint('Network', 'num_LSTM_x')
+        self.rec_over_z = self.cfg.getboolean('Network', 'rec_over_z')
+        self.h_dim_z = self.cfg.getint('Network', 'h_dim_z')
+        self.num_LSTM_z = self.cfg.getint('Network', 'num_LSTM_z')
+        self.hidden_dim_enc = [int(i) for i in self.cfg.get('Network', 'hidden_dim_enc').split(',')] # this parameter is a python list
+        self.bidir_dec = self.cfg.getboolean('Network', 'bidir_dec')
+        self.h_dim_dec = self.cfg.getint('Network', 'h_dim_dec')
+        self.num_LSTM_dec = self.cfg.getint('Network', 'num_LSTM_dec')
+
+        self.build()
+    
+    def build(self):
+        
+        # Init RVAE network
+        print('===== Init RVAE =====')
+        self.model = RVAE(x_dim=self.x_dim, z_dim=self.z_dim, batch_size=self.batch_size, 
+                          bidir_enc_x=self.bidir_enc_x, h_dim_x=self.h_dim_x, 
+                          num_LSTM_x=self.num_LSTM_x,
+                          rec_over_z=self.rec_over_z, h_dim_z=self.h_dim_z, 
+                          num_LSTM_z=self.num_LSTM_z,
+                          hidden_dim_enc=self.hidden_dim_enc,
+                          bidir_dec=self.bidir_dec, h_dim_dec=self.h_dim_dec, 
+                          num_LSTM_dec=self.num_LSTM_dec,
+                          device=self.device).to(self.device)
+        
+        # Init optimizer (Adam by default)
+        if self.optimization == 'adam':
+            self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
+        else:
+            self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
+
+        # Build dataloader
+        self.build_dataloader(get_seq=True)
+
+        # Create directory for results
+        if self.bidir_enc_x:
+            enc_type = 'BiEnc'
+        else:
+            enc_type = 'UniEnc'
+        if self.bidir_dec:
+            dec_type = 'BiDec'
+        else:
+            dec_type = 'UniDec'
+        if self.rec_over_z:
+            posterior_type = 'RecZ'
+        else:
+            posterior_type = 'NoRecZ'
+        fullname = '{}_{}_{}'.format(enc_type, dec_type, posterior_type)
+        dir_name = "{}_{}_{}_z_dim={}".format(self.dataset_name, 
+                                              self.date, 
+                                              fullname, 
+                                              self.z_dim)
+        self.save_dir = os.path.join(self.path_prefix, dir_name)
+        if not(os.path.isdir(self.save_dir)):
+            os.makedirs(self.save_dir)
+        print('In this experiment, result will be saved in: ' + self.save_dir)
+
+
 
 def build_model(config_file='config_default.ini'):
     cfg = myconf()
@@ -201,6 +302,8 @@ def build_model(config_file='config_default.ini'):
     model_name = cfg.get('Network', 'name')
     if model_name == 'FFNN':
         model = BuildFFNN(cfg)
+    elif model_name == 'RVAE':
+        model = BuildRVAE(cfg)
     return model
 
 
