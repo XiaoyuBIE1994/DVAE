@@ -14,6 +14,7 @@ import datetime
 import pickle
 import numpy as np
 import torch
+from logger import get_logger
 from configparser import ConfigParser
 from build_model import build_model
 
@@ -30,6 +31,7 @@ def train_model(config_file):
     optimizer = model_class.optimizer
     loss_function = model_class.loss_function
     epochs = model_class.epochs
+    logger = model_class.logger
     num_parameters = sum(p.numel() for p in model.parameters() if p.requires_grad)
     model.print_model()
 
@@ -84,11 +86,12 @@ def train_model(config_file):
 
         end_time = datetime.datetime.now()
         interval = (end_time - start_time).seconds / 60
-        print('=====> Epoch: {} train loss: {:.4f} val loss {:.4f} training time {:.2f}m'.format(epoch, train_loss[epoch], val_loss[epoch], interval))
+        log_message = 'Epoch: {} train loss: {:.4f} val loss {:.4f} training time {:.2f}m'.format(epoch, train_loss[epoch], val_loss[epoch], interval)
+        logger.info(log_message)
 
         # Stop traning if early-stop triggers
         if cpt_patience == model_class.early_stop_patience:
-            print('===== Early stop patience achieved =====')
+            logger.info('Early stop patience achieved')
             break
 
         # Save model parameters regularly
@@ -127,4 +130,4 @@ if __name__ == '__main__':
         config_file = sys.argv[1]
         train_model(config_file)
     else:
-        print("Please indiquate config file")
+        logger.warning("Please indiquate config file")

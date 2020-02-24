@@ -15,8 +15,10 @@ from torch.utils import data
 
 import librosa
 from configparser import ConfigParser
+from logger import get_logger
 from model_vae import VAE
 from model_rvae import RVAE
+
 
 from backup_simon.speech_dataset import *
 
@@ -33,7 +35,10 @@ class myconf(ConfigParser):
 class BuildBasic():
 
     """
-    Basical class for model building, include fundamental functions for all VAE/RVAE models
+    Basical class for model building, including:
+    - read common paramters for different models
+    - define data loader
+    - define loss function as a class member
     """
 
     def __init__(self, cfg = myconf()):
@@ -45,9 +50,10 @@ class BuildBasic():
 
         # Get host name and date
         self.hostname = socket.gethostname()
-        print('HOSTNAME: ' + self.hostname)
         self.date = datetime.datetime.now().strftime("%Y-%m-%d-%Hh%M")
-        print(self.date)
+
+        # Get logger type
+        self.logger_type = self.cfg.getint('User', 'logger_type')
 
         # Load STFT parameters
         self.wlen_sec = self.cfg.getfloat('STFT', 'wlen_sec')
@@ -76,13 +82,10 @@ class BuildBasic():
         else: 
             self.path_prefix = self.cfg.get('Path', 'path_cluster')
         if not(os.path.isdir(self.path_prefix)):
-            print('No saved directory exists, new one will be generated')
             os.makedirs(self.path_prefix)
-            print('All training results will be saved in: ' + self.path_prefix)
 
         # Choose to use gpu or cpu
         self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
-        print('Device for training: ' + self.device)
 
         # Define loss function
         def loss_function(recon_x, x, mu, logvar):
@@ -105,7 +108,7 @@ class BuildBasic():
         self.shuffle_file_list = self.cfg.get('DataFrame', 'shuffle_file_list')
         self.shuffle_samples_in_batch = self.cfg.get('DataFrame', 'shuffle_samples_in_batch')
 
-        print('>>>> Instranciate training dataloader')
+        # Instranciate training dataloader
         if not get_seq:
             train_dataset = SpeechDatasetFrames(file_list = self.train_file_list,
                                                 wlen_sec = self.wlen_sec,
@@ -131,9 +134,8 @@ class BuildBasic():
                                                    shuffle_file_list=self.shuffle_file_list,
                                                    name=self.dataset_name)
         self.train_num = train_dataset.num_samples
-        print('Finish')
 
-        print('>>>> Instanciate validation dataloader')
+        # Instanciate validation dataloader
         if not get_seq:
             val_dataset = SpeechDatasetFrames(file_list = self.val_file_list,
                                               wlen_sec = self.wlen_sec,
@@ -159,21 +161,27 @@ class BuildBasic():
                                                  shuffle_file_list=self.shuffle_file_list,
                                                  name=self.dataset_name)
         self.val_num = val_dataset.num_samples
-        print('Finish')
 
-        print('>>>> Create training dataloader')
+        # Create training dataloader
         self.train_dataloader = data.DataLoader(train_dataset, 
                                                 batch_size=self.batch_size,
                                                 shuffle=self.shuffle_samples_in_batch,
                                                 num_workers = self.num_workers)
-        print('Finish')
 
-        print('>>>> Create validation dataloader')
+        # Create validation dataloader
         self.val_dataloader = data.DataLoader(val_dataset, 
                                               batch_size=self.batch_size,
                                               shuffle=self.shuffle_samples_in_batch,
                                               num_workers = self.num_workers)
-        print('Finish')
+
+    def get_basic_info(self):
+        basic_info = []
+        basic_info.append('HOSTNAME: ' + self.hostname)
+        basic_info.append('Time: ' + self.date)
+        basic_info.append('Training results will be saved in: ' + self.save_dir)
+        basic_info.append('Device for training: ' + self.device)
+        basic_info.append('Model name: {}'.format(self.model_name))
+        return basic_info
 
 class BuildFFNN(BuildBasic):
 
@@ -192,12 +200,29 @@ class BuildFFNN(BuildBasic):
         self.hidden_dim_enc = [int(i) for i in self.cfg.get('Network', 'hidden_dim_enc').split(',')] # this parameter is a python list
         self.activation = eval(self.cfg.get('Network', 'activation'))
         
+        # Create directory for results
+        dir_name = "{}_{}_{}_z_dim={}".format(self.dataset_name, 
+                                              self.date, 
+                                              self.model_name, 
+                                              self.z_dim)
+        self.save_dir = os.path.join(self.path_prefix, dir_name)
+        if not(os.path.isdir(self.save_dir)):
+            os.makedirs(self.save_dir)
+
+        # Create logger
+        log_file = os.path.join(self.save_dir, 'log.txt')
+        logger = get_logger(log_file, self.logger_type)
+        for log in self.get_basic_info():
+            logger.info(log)
+        logger.info('In this experiment, result will be saved in: ' + self.save_dir)
+        self.logger = logger
+
         self.build()
 
     def build(self):
 
         # Init VAE network
-        print('===== Init VAE =====')
+        self.logger.info('===== Init RVAE =====')
         self.model = VAE(x_dim = self.x_dim,
                          z_dim = self.z_dim,
                          hidden_dim_enc = self.hidden_dim_enc,
@@ -213,15 +238,7 @@ class BuildFFNN(BuildBasic):
         # build dataloader
         self.build_dataloader(get_seq=False)
 
-        # Create directory for results
-        dir_name = "{}_{}_{}_z_dim={}".format(self.dataset_name, 
-                                              self.date, 
-                                              self.model_name, 
-                                              self.z_dim)
-        self.save_dir = os.path.join(self.path_prefix, dir_name)
-        if not(os.path.isdir(self.save_dir)):
-            os.makedirs(self.save_dir)
-        print('In this experiment, result will be saved in: ' + self.save_dir)
+        
 
 class BuildRVAE(BuildBasic):
     """
@@ -246,31 +263,6 @@ class BuildRVAE(BuildBasic):
         self.h_dim_dec = self.cfg.getint('Network', 'h_dim_dec')
         self.num_LSTM_dec = self.cfg.getint('Network', 'num_LSTM_dec')
 
-        self.build()
-    
-    def build(self):
-        
-        # Init RVAE network
-        print('===== Init RVAE =====')
-        self.model = RVAE(x_dim=self.x_dim, z_dim=self.z_dim, batch_size=self.batch_size, 
-                          bidir_enc_x=self.bidir_enc_x, h_dim_x=self.h_dim_x, 
-                          num_LSTM_x=self.num_LSTM_x,
-                          rec_over_z=self.rec_over_z, h_dim_z=self.h_dim_z, 
-                          num_LSTM_z=self.num_LSTM_z,
-                          hidden_dim_enc=self.hidden_dim_enc,
-                          bidir_dec=self.bidir_dec, h_dim_dec=self.h_dim_dec, 
-                          num_LSTM_dec=self.num_LSTM_dec,
-                          device=self.device).to(self.device)
-        
-        # Init optimizer (Adam by default)
-        if self.optimization == 'adam':
-            self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
-        else:
-            self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
-
-        # Build dataloader
-        self.build_dataloader(get_seq=True)
-
         # Create directory for results
         if self.bidir_enc_x:
             enc_type = 'BiEnc'
@@ -292,8 +284,39 @@ class BuildRVAE(BuildBasic):
         self.save_dir = os.path.join(self.path_prefix, dir_name)
         if not(os.path.isdir(self.save_dir)):
             os.makedirs(self.save_dir)
-        print('In this experiment, result will be saved in: ' + self.save_dir)
 
+        # Create logger
+        log_file = os.path.join(self.save_dir, 'log.txt')
+        logger = get_logger(log_file, self.logger_type)
+        for log in self.get_basic_info():
+            logger.info(log)
+        logger.info('In this experiment, result will be saved in: ' + self.save_dir)
+        self.logger = logger
+
+        self.build()
+    
+    def build(self):
+        
+        # Init RVAE network
+        self.logger.info('===== Init RVAE =====')
+        self.model = RVAE(x_dim=self.x_dim, z_dim=self.z_dim, batch_size=self.batch_size, 
+                          bidir_enc_x=self.bidir_enc_x, h_dim_x=self.h_dim_x, 
+                          num_LSTM_x=self.num_LSTM_x,
+                          rec_over_z=self.rec_over_z, h_dim_z=self.h_dim_z, 
+                          num_LSTM_z=self.num_LSTM_z,
+                          hidden_dim_enc=self.hidden_dim_enc,
+                          bidir_dec=self.bidir_dec, h_dim_dec=self.h_dim_dec, 
+                          num_LSTM_dec=self.num_LSTM_dec,
+                          device=self.device).to(self.device)
+        
+        # Init optimizer (Adam by default)
+        if self.optimization == 'adam':
+            self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
+        else:
+            self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
+
+        # Build dataloader
+        self.build_dataloader(get_seq=True)
 
 
 def build_model(config_file='config_default.ini'):
