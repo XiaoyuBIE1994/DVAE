@@ -1,4 +1,4 @@
 OAR.*
 __pycache__/*
 backup_simon/__pycache__/*
-cfg_debug*
+config/cfg_debug*
