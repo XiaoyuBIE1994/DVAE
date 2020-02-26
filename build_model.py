@@ -94,7 +94,10 @@ class BuildBasic():
             return recon + KLD
         self.loss_function = loss_function
 
-    def build_dataloader(self, get_seq=False):
+        # Define dataloader type
+        self.get_seq = False
+
+    def build_dataloader(self):
         # Find data set
         #train_data_dir, val_data_dir = find_dataset()
         self.train_data_dir = self.cfg.get('Path', 'train_data_dir')
@@ -109,7 +112,7 @@ class BuildBasic():
         self.shuffle_samples_in_batch = self.cfg.get('DataFrame', 'shuffle_samples_in_batch')
 
         # Instranciate training dataloader
-        if not get_seq:
+        if not self.get_seq:
             train_dataset = SpeechDatasetFrames(file_list = self.train_file_list,
                                                 wlen_sec = self.wlen_sec,
                                                 hop_percent = self.hop_percent,
@@ -133,7 +136,7 @@ class BuildBasic():
                                                    batch_size=self.batch_size,
                                                    shuffle_file_list=self.shuffle_file_list,
                                                    name=self.dataset_name)
-        self.train_num = train_dataset.num_samples
+        train_num = train_dataset.num_samples
 
         # Instanciate validation dataloader
         if not get_seq:
@@ -160,19 +163,20 @@ class BuildBasic():
                                                  batch_size=self.batch_size,
                                                  shuffle_file_list=self.shuffle_file_list,
                                                  name=self.dataset_name)
-        self.val_num = val_dataset.num_samples
+        val_num = val_dataset.num_samples
 
         # Create training dataloader
-        self.train_dataloader = data.DataLoader(train_dataset, 
-                                                batch_size=self.batch_size,
-                                                shuffle=self.shuffle_samples_in_batch,
-                                                num_workers = self.num_workers)
+        train_dataloader = data.DataLoader(train_dataset, 
+                                           batch_size=self.batch_size,
+                                           shuffle=self.shuffle_samples_in_batch,
+                                           num_workers = self.num_workers)
 
         # Create validation dataloader
-        self.val_dataloader = data.DataLoader(val_dataset, 
-                                              batch_size=self.batch_size,
-                                              shuffle=self.shuffle_samples_in_batch,
-                                              num_workers = self.num_workers)
+        val_dataloader = data.DataLoader(val_dataset, 
+                                         batch_size=self.batch_size,
+                                         shuffle=self.shuffle_samples_in_batch,
+                                         num_workers = self.num_workers)
+        return train_dataloader, val_dataloader, train_num, val_num
 
     def get_basic_info(self):
         basic_info = []
@@ -180,6 +184,8 @@ class BuildBasic():
         basic_info.append('Time: ' + self.date)
         basic_info.append('Training results will be saved in: ' + self.save_dir)
         basic_info.append('Device for training: ' + self.device)
+        if self.device == 'cuda':
+            basic_info.append('Cuda verion', + torch.version.cuda)
         basic_info.append('Model name: {}'.format(self.model_name))
         return basic_info
 
@@ -217,6 +223,9 @@ class BuildFFNN(BuildBasic):
         logger.info('In this experiment, result will be saved in: ' + self.save_dir)
         self.logger = logger
 
+        # Re-define data type
+        self.get_seq = False
+
         self.build()
 
     def build(self):
@@ -235,10 +244,6 @@ class BuildFFNN(BuildBasic):
         else:
             self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
 
-        # build dataloader
-        self.build_dataloader(get_seq=False)
-
-        
 
 class BuildRVAE(BuildBasic):
     """
@@ -293,6 +298,9 @@ class BuildRVAE(BuildBasic):
         logger.info('In this experiment, result will be saved in: ' + self.save_dir)
         self.logger = logger
 
+        # Re-define data type
+        self.get_seq = True
+
         self.build()
     
     def build(self):
@@ -314,9 +322,6 @@ class BuildRVAE(BuildBasic):
             self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
         else:
             self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
-
-        # Build dataloader
-        self.build_dataloader(get_seq=True)
 
 
 def build_model(config_file='config_default.ini'):

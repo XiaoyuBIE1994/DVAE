@@ -9,6 +9,7 @@ import soundfile as sf
 import librosa
 from VAEs import RVAE
 import random
+import librosa.display
 
 plt.close('all')
 #%% network parameters
@@ -35,7 +36,7 @@ verbose=False
 #%% test parameters
 
 use_gpu = False
-saved_model = '/local_scratch/sileglai/recherche/python/speech_enhancement/SE_FFNN_RNN_VAEs_pytorch/saved_model/WSJ0_2019-07-08-16h33-continued-2019-07-09-11h52_RVAE_RNNenc_RNNdec_RecZ_latent_dim=16/final_model_RVAE_epoch134.pt'
+saved_model = '/Users/xiaoyu/WorkStation/saved_model_Xiaoyu/WSJ0_2020-02-22-12h32_UniEnc_UniDec_NoRecZ_z_dim=16/RVAE_final_epoch207.pt'
 device = 'cpu'
 
 #%%
@@ -61,7 +62,7 @@ if use_gpu:
 data_dir = '/local_scratch/sileglai/datasets/clean_speech/TIMIT/TEST'
 file_list = librosa.util.find_files(data_dir, ext='wav')
 #wavfile = random.choice(file_list)
-wavfile = '/local_scratch/sileglai/datasets/test_Simon.wav'
+wavfile = '/Users/xiaoyu/WorkStation/Data/clean_speech/wsj0_si_et_05/440/440c0210.wav'
 
 wlen = int(wlen_sec*fs) # window length of 64 ms
 wlen = np.int(np.power(2, np.ceil(np.log2(wlen)))) # next power of 2
@@ -75,8 +76,6 @@ X = librosa.stft(x, n_fft=nfft, hop_length=hop,
                              win_length=wlen,
                              window=win) # STFT
 data_orig = np.abs(X)**2
-
-#%%
 
 with torch.no_grad():
     
@@ -98,9 +97,6 @@ with torch.no_grad():
 #    data_recon = data_recon[:,0,:].detach().numpy().T
 #    data_orig = data_orig[:,0,:].detach().numpy().T
 
-#%%
-       
-import librosa.display
 plt.figure()
 plt.subplot(3, 1, 1)
 librosa.display.specshow(librosa.power_to_db(data_orig), y_axis='log', sr=fs, hop_length=hop)#, vmin=-50, vmax=20)
@@ -120,8 +116,6 @@ librosa.display.specshow(librosa.power_to_db(data_recon), x_axis='time', y_axis=
 plt.set_cmap('jet')
 plt.colorbar(format='%+2.0f dB')
 plt.title('Reconstructed spectrogram')
-
-#%%
 
 X_recon = np.sqrt(data_recon)*np.exp(1j*np.angle(X))
 

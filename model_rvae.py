@@ -114,16 +114,17 @@ class RVAE(nn.Module):
 
             
     def encode(self, x):
-        # input x is (batch_size, x_dim, seq_len)
-        # we want to change it to (seq_len, batch_size, x_dim)
-        # shape of x is (sequence_len, x_dim) but we need 
-        # (sequence_len, batch_size, x_dim), so we need to 
-        # one dimension in axis 1
+        # case1: input x is (batch_size, x_dim, seq_len)
+        #        we want to change it to (seq_len, batch_size, x_dim)
+        # case2: shape of x is (x_dim, seq_len) but we need 
+        #        (seq_len, batch_size, x_dim)
         if len(x.shape) == 3:
             x = x.permute(-1, 0, 1)
         elif len(x.shape) == 2:
+            x = x.permute(1, 0)
             x = x.unsqueeze(1)
 
+        # print('shape of x: {}'.format(x.shape)) # used for debug only
 
         seq_len = x.shape[0]
         batch_size = x.shape[1]

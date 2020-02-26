@@ -36,10 +36,7 @@ def train_model(config_file):
     model.print_model()
 
     # Create dataloader
-    train_dataloader = model_class.train_dataloader
-    val_dataloader = model_class.val_dataloader
-    train_num = model_class.train_num
-    val_num = model_class.val_num
+    train_dataloader, val_dataloader, train_num, val_num = model_class.build_dataloader()
     
     # Create python list for loss
     train_loss = np.zeros((epochs,))
