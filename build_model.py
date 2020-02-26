@@ -185,7 +185,7 @@ class BuildBasic():
         basic_info.append('Training results will be saved in: ' + self.save_dir)
         basic_info.append('Device for training: ' + self.device)
         if self.device == 'cuda':
-            basic_info.append('Cuda verion', + torch.version.cuda)
+            basic_info.append('Cuda verion: {}'.format(torch.version.cuda))
         basic_info.append('Model name: {}'.format(self.model_name))
         return basic_info
 
