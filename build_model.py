@@ -139,7 +139,7 @@ class BuildBasic():
         train_num = train_dataset.num_samples
 
         # Instanciate validation dataloader
-        if not get_seq:
+        if not self.get_seq:
             val_dataset = SpeechDatasetFrames(file_list = self.val_file_list,
                                               wlen_sec = self.wlen_sec,
                                               hop_percent = self.hop_percent,
