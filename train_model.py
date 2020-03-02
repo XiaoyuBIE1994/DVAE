@@ -33,7 +33,6 @@ def train_model(config_file):
     epochs = model_class.epochs
     logger = model_class.logger
     num_parameters = sum(p.numel() for p in model.parameters() if p.requires_grad)
-    model.print_model()
 
     # Create dataloader
     train_dataloader, val_dataloader, train_num, val_num = model_class.build_dataloader()
@@ -119,6 +118,8 @@ def train_model(config_file):
     plt.plot(val_loss, '--x')
     plt.legend(('train loss', 'val loss'))
     plt.xlabel('epochs')
+    plt.ylabel('loss')
+    plt.title(model_class.tag)
     loss_figure_file = os.path.join(model_class.save_dir, 'loss.pdf')
     plt.savefig(loss_figure_file)
 

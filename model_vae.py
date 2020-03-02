@@ -8,11 +8,11 @@ License agreement in LICENSE.txt
 
 import torch
 from torch import nn
-my_seed = 0
+# my_seed = 0
 import numpy as np
-np.random.seed(my_seed)
+# np.random.seed(my_seed)
 import torch
-torch.manual_seed(my_seed)
+# torch.manual_seed(my_seed)
 
 class VAE(nn.Module):
 
@@ -91,21 +91,24 @@ class VAE(nn.Module):
         z = self.reparameterize(mean, logvar)
         return self.decode(z), mean, logvar, z
 
-    def print_model(self):
-        print("----- Encoder -----")
+    def get_info(self):
+        info = []
+        info.append("----- Encoder -----")
         for layer in self.encoder_layers:
-            print(layer)
-            print(self.activation)
+            info.append(str(layer))
+            info.append(str(self.activation))
         
-        print("----- Bottleneck -----")
-        print(self.latent_mean_layer)
-        print(self.latent_logvar_layer)
+        info.append("----- Bottleneck -----")
+        info.append(str(self.latent_mean_layer))
+        info.append(str(self.latent_logvar_layer))
         
-        print("----- Decoder -----")
+        info.append("----- Decoder -----")
         for layer in self.decoder_layers:
-            print(layer)
-            print(self.activation)
-        print(self.output_layer)
+            info.append(str(layer))
+            info.append(str(self.activation))
+        info.append(str(self.output_layer))
+
+        return info
     
 def loss_function(recon_x, x, mu, logvar):
     recon = torch.sum(x/recon_x - torch.log(x/recon_x)-1)

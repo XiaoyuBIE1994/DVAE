@@ -13,7 +13,7 @@ import random
 import librosa.display
 
 plt.close('all')
-#%% network parameters
+# network parameters
 
 input_dim = 513
 latent_dim = 16   
@@ -22,7 +22,7 @@ activation = torch.tanh
 num_LSTM = 1
 num_dense_enc = 1
 
-#%% STFT parameters
+# STFT parameters
 
 wlen_sec=64e-3
 hop_percent=0.25
@@ -31,7 +31,7 @@ zp_percent=0
 trim=True
 verbose=False
 
-#%% test parameters
+# test parameters
 
 use_gpu = False
 # rnn rec z
@@ -64,7 +64,6 @@ bidir_dec = True
 
 device = 'cpu'
 
-#%%
 # init model
 vae = RVAE(input_dim=input_dim, h_dim=hidden_dim, z_dim=latent_dim, 
            num_LSTM=num_LSTM, num_dense_enc=num_dense_enc, 
@@ -86,13 +85,21 @@ if use_gpu:
 # data_dir = '/local_scratch/sileglai/datasets/clean_speech/TIMIT/TEST'
 # file_list = librosa.util.find_files(data_dir, ext='wav')
 #wavfile = random.choice(file_list)
-data_dir = '/Users/xiaoyu/WorkStation/Data/clean_speech/wsj0_si_et_05/440'
+
+# data_dir = '/Users/xiaoyu/WorkStation/Data/clean_speech/wsj0_si_et_05/440'
+# file_list = ['440c020a.wav', '440c020b.wav', '440c020c.wav', '440c020d.wav', '440c020e.wav']
+
+data_dir = '/Users/xiaoyu/WorkStation/Data/clean_speech/wsj0_si_et_05/441'
+file_list = ['441c020a.wav', '441c020b.wav', '441c020c.wav', '441c020d.wav', '441c020e.wav']
+
 audiofile_list = []
-file_list = ['440c020a.wav', '440c020b.wav', '440c020c.wav', '440c020d.wav', '440c020e.wav']
 for file in file_list:
     audio_file = os.path.join(data_dir, file)
     audiofile_list.append(audio_file)
 
+saved_dir = os.path.join(saved_dir, 'test')
+if not os.path.isdir(saved_dir):
+    os.mkdir(saved_dir)
 
 wlen = int(wlen_sec*fs) # window length of 64 ms
 wlen = np.int(np.power(2, np.ceil(np.log2(wlen)))) # next power of 2
@@ -154,10 +161,14 @@ for num, wavfile in enumerate(audiofile_list):
     x_orig = x
 
     scale = 1/(np.maximum(np.max(np.abs(x_recon)),np.max(np.abs(x_orig))))*0.9
-    
-    orig_file = os.path.join(saved_dir, 'signal_origin-{}.wav'.format(num))
-    recon_file = os.path.join(saved_dir, 'signal_recon-{}.wav'.format(num))
-    plot_file = os.path.join(saved_dir, 'resynthesis-{}.png'.format(num))
+
+    # orig_file = os.path.join(saved_dir, 'man_440_origin-{}.wav'.format(num))
+    # recon_file = os.path.join(saved_dir, 'man_440_recon-{}.wav'.format(num))
+    # plot_file = os.path.join(saved_dir, 'man_440_resynthesis-{}.png'.format(num))
+
+    orig_file = os.path.join(saved_dir, 'women_441_origin-{}.wav'.format(num))
+    recon_file = os.path.join(saved_dir, 'women_441_recon-{}.wav'.format(num))
+    plot_file = os.path.join(saved_dir, 'women_441_resynthesis-{}.png'.format(num))
 
     librosa.output.write_wav(orig_file, scale*x_orig, fs)
     librosa.output.write_wav(recon_file, scale*x_recon, fs)

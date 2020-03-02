@@ -65,13 +65,18 @@ def resynthesis(cfg_file, weight_file, audio_file_list, local_device='cpu'):
         data_orig = torch.from_numpy(data_orig.astype(np.float32))
         data_orig = data_orig.to(local_device)
 
+        # print('shape of data_orig: {}'.format(data_orig.shape)) # used for debug only
+        data_orig = data_orig.T # ffnn only
+
         with torch.no_grad():
             data_recon, mean, logvar, z = model(data_orig)
             mean = mean.detach().numpy()
             data_recon = data_recon.detach().numpy()
             data_orig = data_orig.detach().numpy()
 
-        # print('shape of data_orig: {}'.format(data_orig.shape)) # used for debug only
+        data_orig = data_orig.T  # ffnn only
+        data_recon = data_recon.T # ffnn only
+
         # print('shape of mean: {}'.format(mean.shape)) # used for debug only
 
         plt.figure()
@@ -99,9 +104,17 @@ def resynthesis(cfg_file, weight_file, audio_file_list, local_device='cpu'):
         scale = 1 / (np.maximum(np.max(np.abs(x_recon)), np.max(np.abs(x_origin)))) * 0.9
 
         dir_name, file_name = os.path.split(weight_file)
-        orig_file = os.path.join(dir_name, 'signal_origin-{}.wav'.format(num))
-        recon_file = os.path.join(dir_name, 'signal_recon-{}.wav'.format(num))
-        plot_file = os.path.join(dir_name, 'resynthesis-{}.png'.format(num))
+        dir_name = os.path.join(dir_name, 'test')
+        if not os.path.isdir(dir_name):
+            os.mkdir(dir_name)
+        
+        orig_file = os.path.join(dir_name, 'man_440_origin-{}.wav'.format(num))
+        recon_file = os.path.join(dir_name, 'man_440_recon-{}.wav'.format(num))
+        plot_file = os.path.join(dir_name, 'man_440_resynthesis-{}.png'.format(num))
+        
+        # orig_file = os.path.join(dir_name, 'women_441_origin-{}.wav'.format(num))
+        # recon_file = os.path.join(dir_name, 'women_441_recon-{}.wav'.format(num))
+        # plot_file = os.path.join(dir_name, 'women_441_resynthesis-{}.png'.format(num))
 
         librosa.output.write_wav(orig_file, scale*x_origin, fs)
         librosa.output.write_wav(recon_file, scale*x_recon, fs)
@@ -112,14 +125,20 @@ def resynthesis(cfg_file, weight_file, audio_file_list, local_device='cpu'):
 
 if __name__ == '__main__':
     if len(sys.argv) == 2:
-        data_dir = '/Users/xiaoyu/WorkStation/Data/clean_speech/wsj0_si_et_05/440'
         dir_result = sys.argv[1]
         cfg_file, weight_file = find_file(dir_result)
 
         # file_list = librosa.util.find_files(data_dir, ext='wav')
         # audiofile_list = random.sample(file_list, 5)
+
         audiofile_list = []
+        
+        data_dir = '/Users/xiaoyu/WorkStation/Data/clean_speech/wsj0_si_et_05/440'
         file_list = ['440c020a.wav', '440c020b.wav', '440c020c.wav', '440c020d.wav', '440c020e.wav']
+
+        # data_dir = '/Users/xiaoyu/WorkStation/Data/clean_speech/wsj0_si_et_05/441'
+        # file_list = ['441c020a.wav', '441c020b.wav', '441c020c.wav', '441c020d.wav', '441c020e.wav']
+
         for file in file_list:
             audio_file = os.path.join(data_dir, file)
             audiofile_list.append(audio_file)

@@ -207,11 +207,11 @@ class BuildFFNN(BuildBasic):
         self.activation = eval(self.cfg.get('Network', 'activation'))
         
         # Create directory for results
-        dir_name = "{}_{}_{}_z_dim={}".format(self.dataset_name, 
+        self.tag = "{}_{}_{}_z_dim={}".format(self.dataset_name, 
                                               self.date, 
                                               self.model_name, 
                                               self.z_dim)
-        self.save_dir = os.path.join(self.path_prefix, dir_name)
+        self.save_dir = os.path.join(self.path_prefix, self.tag)
         if not(os.path.isdir(self.save_dir)):
             os.makedirs(self.save_dir)
 
@@ -238,6 +238,10 @@ class BuildFFNN(BuildBasic):
                          batch_size = self.batch_size,
                          activation = self.activation).to(self.device)
         
+        # Print model information
+        for log in self.model.get_info():
+            self.logger.info(log)
+
         # Init optimizer (Adam by default)
         if self.optimization == 'adam':
             self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
@@ -282,11 +286,11 @@ class BuildRVAE(BuildBasic):
         else:
             posterior_type = 'NoRecZ'
         fullname = '{}_{}_{}'.format(enc_type, dec_type, posterior_type)
-        dir_name = "{}_{}_{}_z_dim={}".format(self.dataset_name, 
+        self.tag = "{}_{}_{}_z_dim={}".format(self.dataset_name, 
                                               self.date, 
                                               fullname, 
                                               self.z_dim)
-        self.save_dir = os.path.join(self.path_prefix, dir_name)
+        self.save_dir = os.path.join(self.path_prefix, self.tag)
         if not(os.path.isdir(self.save_dir)):
             os.makedirs(self.save_dir)
 
@@ -316,7 +320,10 @@ class BuildRVAE(BuildBasic):
                           bidir_dec=self.bidir_dec, h_dim_dec=self.h_dim_dec, 
                           num_LSTM_dec=self.num_LSTM_dec,
                           device=self.device).to(self.device)
-        
+        # Print model information
+        for log in self.model.get_info():
+            self.logger.info(log)
+            
         # Init optimizer (Adam by default)
         if self.optimization == 'adam':
             self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)

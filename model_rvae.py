@@ -6,8 +6,12 @@ Authoried by Xiaoyu BIE (xiaoyu.bie@inrai.fr)
 License agreement in LICENSE.txt
 """
 
-import torch
 from torch import nn
+# my_seed = 0
+import numpy as np
+# np.random.seed(my_seed)
+import torch
+# torch.manual_seed(my_seed)
 from collections import OrderedDict
 
 class RVAE(nn.Module):
@@ -240,30 +244,31 @@ class RVAE(nn.Module):
         return y, mean, logvar, z
 
 
-    def print_model(self):
-        
-        print("----- Encoder -----")
-        print('>>>> RNN over x')
-        print(self.enc_rnn_x)
+    def get_info(self):
+        info = []
+        info.append("----- Encoder -----")
+        info.append('>>>> RNN over x')
+        info.append(str(self.enc_rnn_x))
         if self.rec_over_z:
-            print('>>>> RNN over z')
-            print(self.enc_rnn_z)
+            info.append('>>>> RNN over z')
+            info.append(str(self.enc_rnn_z))
         else:
-            print('>>>> Dense layer over z')
-            print()
-        print('>>>> Dense layer in encoder')
+            info.append('>>>> No RNN over z')
+        info.append('>>>> Dense layer in encoder')
         for layer in self.enc_dense:
-            print(layer)
+            info.append(str(layer))
 
-        print("----- Bottleneck -----")
-        print(self.enc_mean)
-        print(self.enc_logvar)
+        info.append("----- Bottleneck -----")
+        info.append(str(self.enc_mean))
+        info.append(str(self.enc_logvar))
 
-        print("----- Decoder -----")
-        print('>>>> RNN for decoder')
-        print(self.dec_rnn)
-        print('>>>> Dense layer to generate log-variance')
-        print(self.dec_logvar)
+        info.append("----- Decoder -----")
+        info.append('>>>> RNN for decoder')
+        info.append(str(self.dec_rnn))
+        info.append('>>>> Dense layer to generate log-variance')
+        info.append(str(self.dec_logvar))
+        
+        return info
 
 if __name__ == '__main__':
     x_dim = 513
