@@ -4,6 +4,10 @@
 Copyright (c) 2020 by Inria
 Authoried by Xiaoyu BIE (xiaoyu.bie@inrai.fr)
 License agreement in LICENSE.txt
+
+The code in this file is based part on the source code of:
+- Simon Legaive (simon.leglaive@centralesupelec.fr)
+- in “A recurrent variational autoencoder for speech enhancement” ICASSP, 2020
 """
 
 import torch
@@ -69,6 +73,7 @@ class VAE(nn.Module):
         self.output_layer = nn.Linear(self.hidden_dim_dec[-1], self.y_dim)
 
     def encode(self, x):
+        print('shape of x: {}'.format(x.shape)) # used for debug only
         for layer in self.encoder_layers:
             x = self.activation(layer(x))
 

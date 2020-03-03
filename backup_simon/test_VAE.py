@@ -40,7 +40,7 @@ use_gpu = False
 
 # saved_model = '/local_scratch/sileglai/recherche/python/speech_enhancement/SE_FFNN_RNN_VAEs_pytorch/saved_model/VAE_first_test_11_june/final_model_VAE_epoch125.pt'
 
-saved_dir = '/Users/xiaoyu/WorkStation/saved_model_Simon/WSJ0_2019-07-15-10h21_FFNN_VAE_latent_dim=16'
+saved_dir = '/Users/xiaoyu/WorkStation/Project_rvae/saved_model_Simon/WSJ0_2019-07-15-10h21_FFNN_VAE_latent_dim=16'
 saved_model = os.path.join(saved_dir, 'final_model_RVAE_epoch65.pt')
 
 device = 'cpu'
@@ -64,7 +64,7 @@ if use_gpu:
 # wavfile = random.choice(file_list)
 #wavfile = '/local_scratch/sileglai/datasets/test_Simon.wav'
 
-data_dir = '/Users/xiaoyu/WorkStation/Data/clean_speech/wsj0_si_et_05/440'
+data_dir = '/Users/xiaoyu/WorkStation/Project_rvae/Data/clean_speech/wsj0_si_et_05/440'
 file_list = ['440c020a.wav', '440c020b.wav', '440c020c.wav', '440c020d.wav', '440c020e.wav']
 
 # data_dir = '/Users/xiaoyu/WorkStation/Data/clean_speech/wsj0_si_et_05/441'

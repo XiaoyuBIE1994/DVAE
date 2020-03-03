@@ -56,7 +56,7 @@ use_gpu = False
 # bidir_dec = True
 
 # # brnn no rec z
-saved_dir = '/Users/xiaoyu/WorkStation/saved_model_Simon/WSJ0_2019-08-02-08h52_RVAE_BRNNenc_BRNNdec_NoRecZ_latent_dim=16'
+saved_dir = '/Users/xiaoyu/WorkStation/Project_rvae/saved_model_Simon/WSJ0_2019-08-02-08h52_RVAE_BRNNenc_BRNNdec_NoRecZ_latent_dim=16'
 saved_model = os.path.join(saved_dir, 'final_model_RVAE_epoch120.pt')
 rec_over_z = False
 bidir_enc_s = True
@@ -89,7 +89,7 @@ if use_gpu:
 # data_dir = '/Users/xiaoyu/WorkStation/Data/clean_speech/wsj0_si_et_05/440'
 # file_list = ['440c020a.wav', '440c020b.wav', '440c020c.wav', '440c020d.wav', '440c020e.wav']
 
-data_dir = '/Users/xiaoyu/WorkStation/Data/clean_speech/wsj0_si_et_05/441'
+data_dir = '/Users/xiaoyu/WorkStation/Project_rvae/Data/clean_speech/wsj0_si_et_05/441'
 file_list = ['441c020a.wav', '441c020b.wav', '441c020c.wav', '441c020d.wav', '441c020e.wav']
 
 audiofile_list = []

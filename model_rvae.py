@@ -4,6 +4,10 @@
 Copyright (c) 2020 by Inria
 Authoried by Xiaoyu BIE (xiaoyu.bie@inrai.fr)
 License agreement in LICENSE.txt
+
+The code in this file is based part on the source code of:
+- Simon Legaive (simon.leglaive@centralesupelec.fr)
+- in “A recurrent variational autoencoder for speech enhancement” ICASSP, 2020
 """
 
 from torch import nn
@@ -118,18 +122,19 @@ class RVAE(nn.Module):
 
             
     def encode(self, x):
+        print('shape of x: {}'.format(x.shape)) # used for debug only
+
         # case1: input x is (batch_size, x_dim, seq_len)
         #        we want to change it to (seq_len, batch_size, x_dim)
-        # case2: shape of x is (x_dim, seq_len) but we need 
+        # case2: shape of x is (seq_len, x_dim) but we need 
         #        (seq_len, batch_size, x_dim)
         if len(x.shape) == 3:
             x = x.permute(-1, 0, 1)
         elif len(x.shape) == 2:
-            x = x.permute(1, 0)
             x = x.unsqueeze(1)
 
-        # print('shape of x: {}'.format(x.shape)) # used for debug only
-
+        # print('shape of input: {}'.format(x.shape)) # used for debug only
+        # input('stop')
         seq_len = x.shape[0]
         batch_size = x.shape[1]
 

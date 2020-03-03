@@ -77,7 +77,7 @@ class BuildBasic():
             self.path_prefix = self.cfg.get('Path', 'path_local')
         # ===== develop on Mac, temporarily =====
         elif self.hostname == 'MacPro-BIE.local': 
-            self.path_prefix = '/Users/xiaoyu/WorkStation/saved_model'
+            self.path_prefix = self.cfg.get('Path', 'path_mac')
         # ===== develop on Mac, temporarily =====
         else: 
             self.path_prefix = self.cfg.get('Path', 'path_cluster')
