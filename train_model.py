@@ -23,6 +23,10 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
+my_seed = 0
+np.random.seed(my_seed)
+torch.manual_seed(my_seed)
+
 def train_model(config_file):
     
     # Build model using config_file

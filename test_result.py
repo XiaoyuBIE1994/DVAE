@@ -34,7 +34,7 @@ def resynthesis(cfg_file, weight_file, audio_file_list, tag):
     cfg = model_class.cfg
     local_device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
-    
+    # Load model
     model.load_state_dict(torch.load(weight_file, map_location=local_device))
     model.eval()
     
@@ -61,6 +61,7 @@ def resynthesis(cfg_file, weight_file, audio_file_list, tag):
     data_orig_list = []
     
     for num, file in enumerate(audio_file_list):
+        
         x, fs_x = sf.read(file)
         x = x / np.max(np.abs(x)) 
         X = librosa.stft(x, n_fft=nfft, hop_length=hop,
@@ -114,6 +115,7 @@ def resynthesis(cfg_file, weight_file, audio_file_list, tag):
 
         dir_name, file_name = os.path.split(weight_file)
         dir_name = os.path.join(dir_name, 'test')
+
         if not os.path.isdir(dir_name):
             os.mkdir(dir_name)
         

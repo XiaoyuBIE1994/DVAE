@@ -73,7 +73,7 @@ class VAE(nn.Module):
         self.output_layer = nn.Linear(self.hidden_dim_dec[-1], self.y_dim)
 
     def encode(self, x):
-        print('shape of x: {}'.format(x.shape)) # used for debug only
+        # print('shape of x: {}'.format(x.shape)) # used for debug only
         for layer in self.encoder_layers:
             x = self.activation(layer(x))
 
