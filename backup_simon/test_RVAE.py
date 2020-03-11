@@ -13,6 +13,24 @@ import random
 import librosa.display
 
 plt.close('all')
+
+def write_eval(eval_dic, file_list, save_path):
+    with open(save_path, 'w') as f:
+        eval_list = list(eval_dic.keys())
+        headline = ['filename'] + eval_list
+        for item in headline:
+            f.write('{}\t'.format(item))
+        f.write('\n')
+        for n, file in enumerate(file_list):
+            _, filename = os.path.split(file)
+            f.write(filename)
+            for eval_method in eval_list:
+                f.write('\t{}'.format(eval_dic[eval_method][n]))
+            f.write('\n')
+
+def mse(A, B):
+    return np.square(A - B).mean()
+    
 # network parameters
 
 input_dim = 513

@@ -16,8 +16,24 @@ import random
 import librosa.display
 import os
 
-
 plt.close('all')
+
+def write_eval(eval_dic, file_list, save_path):
+    with open(save_path, 'w') as f:
+        eval_list = list(eval_dic.keys())
+        headline = ['filename'] + eval_list
+        for item in headline:
+            f.write('{}\t'.format(item))
+        f.write('\n')
+        for n, file in enumerate(file_list):
+            _, filename = os.path.split(file)
+            f.write(filename)
+            for eval_method in eval_list:
+                f.write('\t{}'.format(eval_dic[eval_method][n]))
+            f.write('\n')
+
+def mse(A, B):
+    return np.square(A - B).mean()
 
 # network parameters
 input_dim = 513
@@ -59,16 +75,25 @@ if use_gpu:
 
 #plt.close('all')    
 
-# data_dir = './data'
-# file_list = librosa.util.find_files(data_dir, ext='wav')
-# wavfile = random.choice(file_list)
-#wavfile = '/local_scratch/sileglai/datasets/test_Simon.wav'
+root_dir = '/Users/xiaoyu/WorkStation/Project_rvae/Data/clean_speech/wsj0_si_et_05'
+male_dir = '440'
+female_dir = '441'
+male_audios = ['440c020a.wav', '440c020b.wav', '440c020c.wav', '440c020d.wav', '440c020e.wav']
+female_audios = ['441c020a.wav', '441c020b.wav', '441c020c.wav', '441c020d.wav', '441c020e.wav']
 
-data_dir = '/Users/xiaoyu/WorkStation/Project_rvae/Data/clean_speech/wsj0_si_et_05/440'
-file_list = ['440c020a.wav', '440c020b.wav', '440c020c.wav', '440c020d.wav', '440c020e.wav']
+# male
+male_list = []
+for file in male_audios:
+    audio_file = os.path.join(root_dir, male_dir, file)
+    male_list.append(audio_file)
 
-# data_dir = '/Users/xiaoyu/WorkStation/Data/clean_speech/wsj0_si_et_05/441'
-# file_list = ['441c020a.wav', '441c020b.wav', '441c020c.wav', '441c020d.wav', '441c020e.wav']
+# female
+female_list = []
+for file in female_audios:
+    audio_file = os.path.join(root_dir, female_dir, file)
+    female_list.append(audio_file)
+
+    audio_list = male_list + female_list
 
 audiofile_list = []
 for file in file_list:
@@ -143,13 +168,17 @@ for num, wavfile in enumerate(audiofile_list):
     # recon_file = os.path.join(saved_dir, 'women_441_recon-{}.wav'.format(num))
     # plot_file = os.path.join(saved_dir, 'women_441_resynthesis-{}.png'.format(num))
 
-    librosa.output.write_wav(orig_file, scale*x_orig, fs)
-    librosa.output.write_wav(recon_file, scale*x_recon, fs)
-    plt.savefig(plot_file)
+    # librosa.output.write_wav(orig_file, scale*x_orig, fs)
+    # librosa.output.write_wav(recon_file, scale*x_recon, fs)
+    # plt.savefig(plot_file)
 
+
+    mse_error = '{:.4f}'.format(mse(data_orig, data_recon))
+    eval_dic['mse'].append(mse_error)
+    print('{}-{}: mse error: {}'.format(tag, num, mse_error))
     print('=====> {} file {} reconstruction finished'.format(num, wavfile))
 
-
+write_eval(eval_dic, audio_list, eval_file)
 
 #%%
 #z = np.zeros((latent_dim,500))

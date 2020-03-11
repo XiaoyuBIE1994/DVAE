@@ -122,7 +122,7 @@ class RVAE(nn.Module):
 
             
     def encode(self, x):
-        print('shape of x: {}'.format(x.shape)) # used for debug only
+        # print('shape of x: {}'.format(x.shape)) # used for debug only
 
         # case1: input x is (batch_size, x_dim, seq_len)
         #        we want to change it to (seq_len, batch_size, x_dim)
@@ -231,21 +231,17 @@ class RVAE(nn.Module):
         # tansform log-variance to variance
         y = torch.exp(log_y)
 
-
-        # y is (seq_len, batch_size, y_dim), we want to change back to
-        # (batch_size, y_dim, seq_len)
-        if len(y.shape) == 3:    
-            y = y.permute(1,-1,0)
-
         return torch.squeeze(y)
 
     def forward(self, x):
         mean, logvar, z = self.encode(x)
-        # z is (seq_len, batch_size, z_dim), we want to change back to
-        # (batch_size, z_dim, seq_len)
         y = self.decode(z)
+        # y/z is (seq_len, batch_size, y/z_dim), we want to change back to
+        # (batch_size, y/z_dim, seq_len)
         if len(z.shape) == 3:
             z = z.permute(1,-1,0)
+        if len(y.shape) == 3:    
+            y = y.permute(1,-1,0)
         return y, mean, logvar, z
 
 

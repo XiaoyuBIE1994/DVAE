@@ -211,6 +211,7 @@ class BuildFFNN(BuildBasic):
                                               self.date, 
                                               self.model_name, 
                                               self.z_dim)
+        self.tag_simple = self.model_name
         self.save_dir = os.path.join(self.path_prefix, self.tag)
         if not(os.path.isdir(self.save_dir)):
             os.makedirs(self.save_dir)
@@ -290,6 +291,7 @@ class BuildRVAE(BuildBasic):
                                               self.date, 
                                               fullname, 
                                               self.z_dim)
+        self.tag_simple = '{}{} {}'.format(enc_type[:-3], 'RNN', posterior_type)                                     
         self.save_dir = os.path.join(self.path_prefix, self.tag)
         if not(os.path.isdir(self.save_dir)):
             os.makedirs(self.save_dir)

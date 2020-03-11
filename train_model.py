@@ -59,7 +59,7 @@ def train_model(config_file):
             batch_data = batch_data.to(model_class.device)
             optimizer.zero_grad()
             recon_batch_data, mean, logvar, z = model(batch_data)
-            loss = loss_function(recon_batch_data, batch_data, mean, logvar) / train_num
+            loss = loss_function(recon_batch_data, batch_data, mean, logvar)
             loss.backward()
             train_loss[epoch] += loss.item()
             optimizer.step()
@@ -68,7 +68,7 @@ def train_model(config_file):
         for batch_idx, batch_data in enumerate(val_dataloader):
             batch_data = batch_data.to(model_class.device)
             recon_batch_data, mean, logvar, z = model(batch_data)
-            loss = loss_function(recon_batch_data, batch_data, mean, logvar) / val_num
+            loss = loss_function(recon_batch_data, batch_data, mean, logvar)
             val_loss[epoch] += loss.item()
 
         # Early stop patiance
@@ -81,8 +81,8 @@ def train_model(config_file):
             cpt_patience += 1
 
 
-        # train_loss[epoch] = train_loss[epoch] / train_num
-        # val_loss[epoch] = val_loss[epoch] / val_num
+        train_loss[epoch] = train_loss[epoch] / train_num
+        val_loss[epoch] = val_loss[epoch] / val_num
 
         end_time = datetime.datetime.now()
         interval = (end_time - start_time).seconds / 60
