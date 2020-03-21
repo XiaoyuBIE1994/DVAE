@@ -2,3 +2,4 @@ OAR.*
 __pycache__/*
 backup_simon/__pycache__/*
 config/cfg_debug*
+.DS_Store

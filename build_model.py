@@ -16,8 +16,9 @@ from torch.utils import data
 import librosa
 from configparser import ConfigParser
 from logger import get_logger
-from model_vae import VAE
-from model_rvae import RVAE
+from pre.prepare_dataset import perpare_dataset
+from model.vae import VAE
+from model.rvae import RVAE
 
 
 from backup_simon.speech_dataset import *
@@ -71,18 +72,8 @@ class BuildBasic():
         self.early_stop_patience = self.cfg.getint('Training', 'early_stop_patience')
         self.save_frequency = self.cfg.getint('Training', 'save_frequency')
 
-        # Create saved_model directory if not exist
-        self.local_hostname = self.cfg.get('User', 'local_hostname')
-        if self.hostname == self.local_hostname:
-            self.path_prefix = self.cfg.get('Path', 'path_local')
-        # ===== develop on Mac, temporarily =====
-        elif self.hostname == 'MacPro-BIE.local': 
-            self.path_prefix = self.cfg.get('Path', 'path_mac')
-        # ===== develop on Mac, temporarily =====
-        else: 
-            self.path_prefix = self.cfg.get('Path', 'path_cluster')
-        if not(os.path.isdir(self.path_prefix)):
-            os.makedirs(self.path_prefix)
+        # Create saved_model directory if not exist, and find dataset
+        self.saved_root, self.train_data_dir, self.val_data_dir = perpare_dataset(self.dataset_name, self.hostname)
 
         # Choose to use gpu or cpu
         self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -98,10 +89,6 @@ class BuildBasic():
         self.get_seq = False
 
     def build_dataloader(self):
-        # Find data set
-        #train_data_dir, val_data_dir = find_dataset()
-        self.train_data_dir = self.cfg.get('Path', 'train_data_dir')
-        self.val_data_dir = self.cfg.get('Path', 'val_data_dir')
         # List all the data with certain suffix
         self.data_suffix = self.cfg.get('DataFrame', 'suffix')
         self.train_file_list = librosa.util.find_files(self.train_data_dir, ext=self.data_suffix)
@@ -212,7 +199,7 @@ class BuildFFNN(BuildBasic):
                                               self.model_name, 
                                               self.z_dim)
         self.tag_simple = self.model_name
-        self.save_dir = os.path.join(self.path_prefix, self.tag)
+        self.save_dir = os.path.join(self.saved_root, self.tag)
         if not(os.path.isdir(self.save_dir)):
             os.makedirs(self.save_dir)
 
@@ -292,7 +279,7 @@ class BuildRVAE(BuildBasic):
                                               fullname, 
                                               self.z_dim)
         self.tag_simple = '{}{} {}'.format(enc_type[:-3], 'RNN', posterior_type)                                     
-        self.save_dir = os.path.join(self.path_prefix, self.tag)
+        self.save_dir = os.path.join(self.saved_root, self.tag)
         if not(os.path.isdir(self.save_dir)):
             os.makedirs(self.save_dir)
 
