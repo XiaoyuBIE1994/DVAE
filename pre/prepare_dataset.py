@@ -14,8 +14,10 @@ def perpare_dataset(dataset_name, hostname):
         saved_root = '/local_scratch/xbie/Code/saved_model'
     elif hostname == 'MacPro-BIE.local':
         saved_root =  '/Users/xiaoyu/WorkStation/Project_rvae/saved_model'
-    elif 'gpu' in hostname or 'access' in hostname:
-        saved_root = '/local_scratch/xbie/Code/saved_model'
+    elif 'access' in hostname:
+        saved_root = '/scratch/virgo/xbie/Code/saved_model'
+    elif 'gpu' in hostname:
+        saved_root = '/mnt/xbie/Code/saved_model'
     else:
         saved_root = '/mnt/saved_model'
     
