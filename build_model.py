@@ -364,9 +364,9 @@ class BuildSTORN(BuildBasic):
 
 
         if self.bidir_enc or self.bidir_dec:
-            fullname = '{}_{}_dense={}'.format(enc_type, dec_type, num_dense)
+            fullname = '{}_{}_act={}_dense={}'.format(enc_type, dec_type, self.activation, num_dense)
         else:
-            fullname = 'dense={}'.format(num_dense)
+            fullname = 'act={}_dense={}'.format(self.activation, num_dense)
         
         self.tag = "{}_{}_{}_{}_z_dim={}".format(self.dataset_name, 
                                                  self.date,
