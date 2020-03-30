@@ -145,7 +145,8 @@ class STORN(nn.Module):
         x_dim = x.shape[2]
 
         # create x_tm1 for decoder
-        x_tm1 = torch.cat((torch.zeros(1, batch_size, x_dim), x[1:,:,:]), 0)
+        x_0 = torch.zeros(1, batch_size, x_dim).to(self.device)
+        x_tm1 = torch.cat((x_0, x[1:,:,:]), 0)
 
         # create variable holder and send to GPU if needed
         if self.bidir_enc:
