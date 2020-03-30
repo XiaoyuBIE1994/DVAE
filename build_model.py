@@ -19,6 +19,7 @@ from logger import get_logger
 from pre.prepare_dataset import perpare_dataset
 from model.vae import VAE
 from model.rvae import RVAE
+from model.storn import STORN
 
 
 from backup_simon.speech_dataset import *
@@ -274,10 +275,11 @@ class BuildRVAE(BuildBasic):
         else:
             posterior_type = 'NoRecZ'
         fullname = '{}_{}_{}'.format(enc_type, dec_type, posterior_type)
-        self.tag = "{}_{}_{}_z_dim={}".format(self.dataset_name, 
-                                              self.date, 
-                                              fullname, 
-                                              self.z_dim)
+        self.tag = "{}_{}_{}_{}_z_dim={}".format(self.dataset_name, 
+                                                 self.date,
+                                                 self.model_name,
+                                                 fullname, 
+                                                 self.z_dim)
         self.tag_simple = '{}{} {}'.format(enc_type[:-3], 'RNN', posterior_type)                                     
         self.save_dir = os.path.join(self.saved_root, self.tag)
         if not(os.path.isdir(self.save_dir)):
@@ -319,6 +321,95 @@ class BuildRVAE(BuildBasic):
         else:
             self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
 
+class BuildSTORN(BuildBasic):
+    """
+    Reccurrent (uni- or bi-directional LSTM) VAE (RVAE)
+    We can choose wheter there is a recurrence over z
+    """
+    def __init__(self, cfg = myconf()):
+
+        super().__init__(cfg)
+
+        ### Load parameters for STORN
+        # General
+        self.x_dim = self.cfg.getint('Network', 'x_dim')
+        self.z_dim = self.cfg.getint('Network','z_dim')
+        self.activation = self.cfg.get('Network', 'activation')
+        # Encoder
+        self.bidir_enc = self.cfg.getboolean('Network', 'bidir_enc')
+        self.h_dim_enc = self.cfg.getint('Network', 'h_dim_enc')
+        self.num_LSTM_enc = self.cfg.getint('Network', 'num_LSTM_enc')
+        self.hidden_dim_enc_pre = [int(i) for i in self.cfg.get('Network', 'hidden_dim_enc_pre').split(',')] # list
+        self.hidden_dim_enc_post = [int(i) for i in self.cfg.get('Network', 'hidden_dim_enc_post').split(',')] # list
+        # Decoder
+        self.bidir_dec = self.cfg.getboolean('Network', 'bidir_dec')
+        self.h_dim_dec = self.cfg.getint('Network', 'h_dim_dec')
+        self.num_LSTM_dec = self.cfg.getint('Network', 'num_LSTM_dec')
+        self.hidden_dim_dec_pre = [int(i) for i in self.cfg.get('Network', 'hidden_dim_dec_pre').split(',')] # list
+        self.hidden_dim_dec_post = [int(i) for i in self.cfg.get('Network', 'hidden_dim_dec_post').split(',')] # list
+        # Dropout
+        self.dropout_p = self.cfg.getfloat('Network', 'dropout_p')
+
+        # Create directory for results
+        if self.bidir_enc:
+            enc_type = 'BiEnc'
+        else:
+            enc_type = 'UniEnc'
+        if self.bidir_dec:
+            dec_type = 'BiDec'
+        else:
+            dec_type = 'UniDec'
+
+        fullname = '{}_{}'.format(enc_type, dec_type)
+        self.tag = "{}_{}_{}_{}_z_dim={}".format(self.dataset_name, 
+                                                 self.date,
+                                                 self.model_name,
+                                                 fullname, 
+                                                 self.z_dim)
+        self.tag_simple = '{}{}'.format(enc_type[:-3], self.model_name)                                     
+        self.save_dir = os.path.join(self.saved_root, self.tag)
+        if not(os.path.isdir(self.save_dir)):
+            os.makedirs(self.save_dir)
+
+        # Create logger
+        log_file = os.path.join(self.save_dir, 'log.txt')
+        logger = get_logger(log_file, self.logger_type)
+        for log in self.get_basic_info():
+            logger.info(log)
+        logger.info('In this experiment, result will be saved in: ' + self.save_dir)
+        self.logger = logger
+
+        # Re-define data type
+        self.get_seq = True
+
+        self.build()
+    
+    def build(self):
+        
+        # Init RVAE network
+        self.logger.info('===== Init STORN =====')
+        self.model = STORN(x_dim=self.x_dim, z_dim=self.z_dim, 
+                           batch_size=self.batch_size, activation=self.activation,
+                           bidir_enc=self.bidir_enc, h_dim_enc=self.h_dim_enc,
+                           num_LSTM_enc=self.num_LSTM_enc,
+                           hidden_dim_enc_pre=self.hidden_dim_enc_pre,
+                           hidden_dim_enc_post=self.hidden_dim_enc_post,
+                           bidir_dec=self.bidir_dec, h_dim_dec=self.h_dim_dec,
+                           num_LSTM_dec=self.num_LSTM_dec,
+                           hidden_dim_dec_pre=self.hidden_dim_dec_pre,
+                           hidden_dim_dec_post=self.hidden_dim_dec_post,
+                           dropout_p = self.dropout_p,
+                           device=self.device).to(self.device)
+        # Print model information
+        for log in self.model.get_info():
+            self.logger.info(log)
+            
+        # Init optimizer (Adam by default)
+        if self.optimization == 'adam':
+            self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
+        else:
+            self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
+
 
 def build_model(config_file='config_default.ini'):
     cfg = myconf()
@@ -328,6 +419,8 @@ def build_model(config_file='config_default.ini'):
         model = BuildFFNN(cfg)
     elif model_name == 'RVAE':
         model = BuildRVAE(cfg)
+    elif model_name == 'STORN':
+        model = BuildSTORN(cfg)
     return model
 
 

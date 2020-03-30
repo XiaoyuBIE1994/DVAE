@@ -89,10 +89,7 @@ verbose = False
 
 #%% training parameters
 
-if hostname=='octans':
-    device = 'cpu'
-else:
-    device = 'cuda'
+device = 'cuda' if torch.cuda.is_available() else 'cpu'
     
 device = 'cpu'
 train_file_list = librosa.util.find_files(train_data_dir, ext='wav')

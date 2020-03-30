@@ -8,6 +8,7 @@ License agreement in LICENSE.txt
 
 import os
 import sys
+sys.path.append(os.path.join(os.getcwd(), 'evaluation'))
 import random
 import torch
 import numpy as np
@@ -19,7 +20,8 @@ import librosa
 import librosa.display
 from build_model import build_model
 from evaluation.write_eval import write_eval, write_eval_latex
-from evaluation.loss_mse import rmse_td, rmse_fd_mag, rmse_fd_frame
+from evaluation.loss_mse import rmse_td, rmse_fd, rmse_frame
+from evaluation.loss_stoi import stoi
 
 
 # find config file path and network weight file in a directory
@@ -68,7 +70,9 @@ def resynthesis(cfg_file, weight_file, audio_file_list):
     # print('win shape: {}'.format(win.shape))
 
     # Create a dictionary for evaluation results
-    eval_dic = {'rmse_td': [], 'rmse_fd_frame':[], 'rmse_fd_mag':[]}
+    eval_dic = {'rmse_td': [], 'rmse_fd':[], 
+                'rmse_td_frame': [], 'rmse_fd_frame':[],
+                'stoi':[]}
     fig = plt.figure()
     
     # Loop over audio files
@@ -127,10 +131,10 @@ def resynthesis(cfg_file, weight_file, audio_file_list):
         # plt.savefig(plot_file)
         
         # Re-mapping audio vector to (-0.9, 0.9) and save wav file
-        # dir_name, file_name = os.path.split(weight_file)
-        # dir_name = os.path.join(dir_name, 'test')
-        # if not os.path.isdir(dir_name):
-        #     os.mkdir(dir_name)
+        dir_name, file_name = os.path.split(weight_file)
+        dir_name = os.path.join(dir_name, 'test')
+        if not os.path.isdir(dir_name):
+            os.mkdir(dir_name)
         # scale_norm = 1 / (np.maximum(np.max(np.abs(x_recon)), np.max(np.abs(x_orig)))) * 0.9
         # orig_file = os.path.join(dir_name, '{}_origin-{}.wav'.format(tag, num))
         # recon_file = os.path.join(dir_name, '{}_recon-{}.wav'.format(tag, num))
@@ -140,13 +144,17 @@ def resynthesis(cfg_file, weight_file, audio_file_list):
         # print('=====> {} file {} reconstruction finished'.format(num, file_name))
 
         # Error estimate
-        error_rmse_td = '{:.6f}'.format(rmse_td(x, x_recon))
-        error_rmse_fd_frame = '{:.6f}'.format(rmse_fd_frame(x, x_recon, nfft, hop, wlen, win))
-        error_rmse_fd_mag = '{:.6f}'.format(rmse_fd_mag(X, X_recon))
-        eval_dic['rmse_td'].append(error_rmse_td)
-        eval_dic['rmse_fd_frame'].append(error_rmse_fd_frame)
-        eval_dic['rmse_fd_mag'].append(error_rmse_fd_mag)
-
+        eval_rmse_td = '{:.6f}'.format(rmse_td(x, x_recon))
+        eval_rmse_fd = '{:.6f}'.format(rmse_fd(x, x_recon, wlen_sec, nfft, hop, wlen, win))
+        eval_rmse_td_frame, eval_rmse_fd_frame = rmse_frame(x, x_recon, nfft, win)
+        eval_rmse_td_frame = '{:.6f}'.format(eval_rmse_td_frame)
+        eval_rmse_fd_frame = '{:.6f}'.format(eval_rmse_fd_frame)
+        eval_stoi = '{:.6f}'.format(stoi(x, x_recon, fs=fs))
+        eval_dic['rmse_td'].append(eval_rmse_td)
+        eval_dic['rmse_fd'].append(eval_rmse_fd)
+        eval_dic['rmse_td_frame'].append(eval_rmse_td_frame)
+        eval_dic['rmse_fd_frame'].append(eval_rmse_fd_frame)
+        eval_dic['stoi'].append(eval_stoi)
     return eval_dic, model_class.tag_simple
 
 

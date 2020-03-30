@@ -29,6 +29,10 @@ def write_eval(eval_dic, audio_list, save_path):
 def write_eval_latex(result_dir, eval_dic_list, tag_list, audio_list):
     eval_list = list(eval_dic_list[0].keys())
     for eval_item in eval_list:
+        if eval_item in ['stoi', 'pesq', 'pemoQ']:
+            judging = 'max'
+        else:
+            judging = 'min'
         file_name = os.path.join(result_dir, '{}.tex'.format(eval_item))
         with open(file_name, 'w') as f:
             f.write('\\begin{table}[H]\n')             # \begin{table}[H]
@@ -47,7 +51,11 @@ def write_eval_latex(result_dir, eval_dic_list, tag_list, audio_list):
                 eval_models = []
                 for i in range(len(eval_dic_list)):
                     eval_models.append(float(eval_dic_list[i][eval_item][n]))
-                idx_least = np.argmin(np.array(eval_models)) # bold the best eval model
+                if judging == 'min':
+                    idx_least = np.argmin(np.array(eval_models))
+                else:
+                    idx_least = np.argmax(np.array(eval_models))
+                # bold the best eval model
                 for j in range(len(eval_models)):
                     if j == idx_least:
                         f.write(' & \\textbf{{{}}}'.format(eval_dic_list[j][eval_item][n]))

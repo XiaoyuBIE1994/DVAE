@@ -53,11 +53,11 @@ class RVAE(nn.Module):
         # Encoder: part RNN of x
         self.bidir_enc_x = bidir_enc_x
         self.h_dim_x = h_dim_x
-        self.num_LSTM_x = 1
+        self.num_LSTM_x = num_LSTM_x
         # Encoder: part RNN of z
         self.rec_over_z = rec_over_z
         self.h_dim_z = h_dim_z
-        self.num_LSTM_z = 1
+        self.num_LSTM_z = num_LSTM_z
         # Encoder: part dense layer 
         self.hidden_dim_enc = hidden_dim_enc
         # Decoer
@@ -83,19 +83,19 @@ class RVAE(nn.Module):
 
         # 3. Define the dense layer fusing the output of two above-mentioned LSTM blocks
         if self.bidir_enc_x:
-            num_directions_x = 2
+            num_dir_x = 2
         else:
-            num_directions_x = 1
+            num_dir_x = 1
         
         self.dict_enc_dense = OrderedDict()
 
-        for n, hidden_layer_dim in enumerate(self.hidden_dim_enc):
+        for n in range(len(self.hidden_dim_enc)):
             if n == 0: # the first layer
                 if self.rec_over_z:
-                    tmp_dense_dim = num_directions_x * self.h_dim_x + self.h_dim_z
+                    tmp_dense_dim = num_dir_x * self.h_dim_x + self.h_dim_z
                 else:
-                    tmp_dense_dim = num_directions_x * self.h_dim_x
-                self.dict_enc_dense['linear'+str(n)] = nn.Linear(tmp_dense_dim, hidden_layer_dim)
+                    tmp_dense_dim = num_dir_x * self.h_dim_x
+                self.dict_enc_dense['linear'+str(n)] = nn.Linear(tmp_dense_dim, self.hidden_dim_enc[n])
 
             else:
                 self.dict_enc_dense['linear'+str(n)] = nn.Linear(self.hidden_dim_enc[n-1], self.hidden_dim_enc[n])
@@ -103,10 +103,8 @@ class RVAE(nn.Module):
 
         self.enc_dense = nn.Sequential(self.dict_enc_dense)
 
-        # 4. Define the linear layer for mean value
+        # 4. Define the linear layer for mean and log-variance
         self.enc_mean = nn.Linear(self.hidden_dim_enc[-1], self.z_dim)
-
-        # 5. Define the linear layer for the log-variance
         self.enc_logvar = nn.Linear(self.hidden_dim_enc[-1], self.z_dim)
 
         ##### Decoder #####
@@ -194,7 +192,8 @@ class RVAE(nn.Module):
             # sampling
             z = self.reparatemize(all_enc_mean, all_enc_logvar)
 
-        return (torch.squeeze(all_enc_mean), torch.squeeze(all_enc_logvar), torch.squeeze(z))
+        # return (torch.squeeze(all_enc_mean), torch.squeeze(all_enc_logvar), torch.squeeze(z))
+        return (all_enc_mean, all_enc_logvar, z)
 
 
     def reparatemize(self, mean, logvar):
@@ -204,8 +203,8 @@ class RVAE(nn.Module):
 
     def decode(self, z):
         
-        if len(z.shape) == 2:
-            z = z.unsqueeze(1)
+        # if len(z.shape) == 2:
+        #     z = z.unsqueeze(1)
         
         batch_size = z.shape[1]
 
@@ -231,13 +230,17 @@ class RVAE(nn.Module):
         # tansform log-variance to variance
         y = torch.exp(log_y)
 
-        return torch.squeeze(y)
+        return y
 
     def forward(self, x):
         mean, logvar, z = self.encode(x)
         y = self.decode(z)
         # y/z is (seq_len, batch_size, y/z_dim), we want to change back to
         # (batch_size, y/z_dim, seq_len)
+        mean = torch.squeeze(mean)
+        logvar = torch.squeeze(logvar)
+        z = torch.squeeze(z)
+        y = torch.squeeze(y)
         if len(z.shape) == 3:
             z = z.permute(1,-1,0)
         if len(y.shape) == 3:    
@@ -276,8 +279,10 @@ if __name__ == '__main__':
     z_dim = 16
     batch_size = 32
     device = 'cpu'
-    vae = RVAE(x_dim = x_dim,
+    rvae = RVAE(x_dim = x_dim,
                z_dim = z_dim,
                batch_size = batch_size).to(device)
-    vae.print_model()
+    model_finfo = rvae.get_info()
+    for i in model_finfo:
+        print(i)
 

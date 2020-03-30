@@ -132,5 +132,7 @@ if __name__ == '__main__':
               hidden_dim_enc = hidden_dim_enc,
               batch_size = batch_size,
               activation = activation).to(device)
-    vae.print_model()
+    model_finfo = vae.get_info()
+    for i in model_finfo:
+        print(i)
     

@@ -72,12 +72,7 @@ verbose = False
 
 #%% training parameters
 
-if hostname=='virgo':
-    device = 'cpu'
-else:
-    device = 'cuda'
-
-device = 'cpu'
+device = 'cuda' if torch.cuda.is_available() else 'cpu'
     
 train_file_list = librosa.util.find_files(train_data_dir, ext='wav')
 val_file_list = librosa.util.find_files(val_data_dir, ext='wav')

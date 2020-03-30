@@ -1,0 +1,4 @@
+REFERENCE	 DEGRADED	 PESQMOS	 MOSLQO	 SAMPLE_FREQ	 MODE
+speech.WAV	 source_est.WAV	 4.500	 4.549	 16000	nb
+speech.WAV	 source_est.WAV	 4.500	 4.549	 16000	nb
+speech.WAV	 source_est.WAV	 4.500	 4.549	 16000	nb
