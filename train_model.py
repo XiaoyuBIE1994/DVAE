@@ -123,9 +123,9 @@ def train_model(config_file):
     plt.legend(('train loss', 'val loss'))
     plt.xlabel('epochs')
     plt.ylabel('loss')
-    plt.title(model_class.tag)
-    loss_figure_file = os.path.join(model_class.save_dir, 'loss.pdf')
-    plt.savefig(loss_figure_file)
+    plt.title(model_class.filename)
+    loss_figure_file = os.path.join(model_class.save_dir, 'loss_{}.png'.format(model_class.tag))
+    plt.savefig(loss_figure_file) 
 
 if __name__ == '__main__':
     if len(sys.argv) == 2:

@@ -75,9 +75,9 @@ class BuildBasic():
 
         # Create saved_model directory if not exist, and find dataset
         self.save_dir = self.cfg.get('User', 'save_dir')
-        # self.saved_root, self.train_data_dir, self.val_data_dir = perpare_dataset(self.dataset_name, self.hostname, self.save_dir)
-        self.train_data_dir = '/mnt/xbie/Data/clean_speech/wsj0_si_dt_05'
-        self.val_data_dir = '/mnt/xbie/Data/clean_speech/wsj0_si_et_05'
+        self.saved_root, self.train_data_dir, self.val_data_dir = perpare_dataset(self.dataset_name, self.hostname, self.save_dir)
+        # self.train_data_dir = '/mnt/xbie/Data/clean_speech/wsj0_si_dt_05'
+        # self.val_data_dir = '/mnt/xbie/Data/clean_speech/wsj0_si_et_05'
 
         # Choose to use gpu or cpu
         self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -198,14 +198,20 @@ class BuildFFNN(BuildBasic):
         self.activation = eval(self.cfg.get('Network', 'activation'))
         
         # Create directory for results
-        self.tag = "{}_{}_{}_z_dim={}".format(self.dataset_name, 
-                                              self.date, 
-                                              self.model_name, 
-                                              self.z_dim)
-        self.tag_simple = self.model_name
-        self.save_dir = os.path.join(self.saved_root, self.tag)
+        self.filename = "{}_{}_{}_z_dim={}".format(self.dataset_name, 
+                                                   self.date, 
+                                                   self.model_name, 
+                                                   self.z_dim)
+        
+        self.save_dir = os.path.join(self.saved_root, self.filename)
         if not(os.path.isdir(self.save_dir)):
             os.makedirs(self.save_dir)
+
+        # Model tag, used in loss figure and evaluation table
+        if self.cfg.has_option('Network', 'tag'):
+            self.tag = self.cfg.get('Network', 'tag')
+        else:
+            self.tag = self.model_name
 
         # Create logger
         log_file = os.path.join(self.save_dir, 'log.txt')
@@ -278,15 +284,20 @@ class BuildRVAE(BuildBasic):
         else:
             posterior_type = 'NoRecZ'
         fullname = '{}_{}_{}'.format(enc_type, dec_type, posterior_type)
-        self.tag = "{}_{}_{}_{}_z_dim={}".format(self.dataset_name, 
-                                                 self.date,
-                                                 self.model_name,
-                                                 fullname, 
-                                                 self.z_dim)
-        self.tag_simple = '{}{} {}'.format(enc_type[:-3], 'RNN', posterior_type)                                     
-        self.save_dir = os.path.join(self.saved_root, self.tag)
+        self.filename = "{}_{}_{}_{}_z_dim={}".format(self.dataset_name, 
+                                                      self.date,
+                                                      self.model_name,
+                                                      fullname, 
+                                                      self.z_dim)                             
+        self.save_dir = os.path.join(self.saved_root, self.filename)
         if not(os.path.isdir(self.save_dir)):
             os.makedirs(self.save_dir)
+
+        # Model tag, used in loss figure and evaluation table
+        if self.cfg.has_option('Network', 'tag'):
+            self.tag = self.cfg.get('Network', 'tag')
+        else:
+            self.tag = '{}{} {}'.format(enc_type[:-3], 'RNN', posterior_type) 
 
         # Create logger
         log_file = os.path.join(self.save_dir, 'log.txt')
@@ -371,15 +382,20 @@ class BuildSTORN(BuildBasic):
         else:
             fullname = 'act={}_dense={}'.format(self.activation, num_dense)
         
-        self.tag = "{}_{}_{}_{}_z_dim={}".format(self.dataset_name, 
-                                                 self.date,
-                                                 self.model_name,
-                                                 fullname, 
-                                                 self.z_dim)
-        self.tag_simple = '{}{}'.format(enc_type[:-3], self.model_name)                                     
-        self.save_dir = os.path.join(self.saved_root, self.tag)
+        self.filename = "{}_{}_{}_{}_z_dim={}".format(self.dataset_name, 
+                                                      self.date,
+                                                      self.model_name,
+                                                      fullname, 
+                                                      self.z_dim)
+        self.save_dir = os.path.join(self.saved_root, self.filename)
         if not(os.path.isdir(self.save_dir)):
             os.makedirs(self.save_dir)
+
+        # Model tag, used in loss figure and evaluation table
+        if self.cfg.has_option('Network', 'tag'):
+            self.tag = self.cfg.get('Network', 'tag')
+        else:
+            self.tag = '{}{}'.format(enc_type[:-3], self.model_name)
 
         # Create logger
         log_file = os.path.join(self.save_dir, 'log.txt')

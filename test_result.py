@@ -78,12 +78,12 @@ def resynthesis(cfg_file, weight_file, audio_file_list):
     # Loop over audio files
     for num, file in enumerate(audio_file_list):
         
-        # Allocate tag
+        # Allocate attribute
         root_dir, filename = os.path.split(file)
         if filename[:3] == '440':
-            tag = 'male_440'
+            att = 'male_440'
         elif filename[:3] == '441':
-            tag = 'female_441'
+            att = 'female_441'
 
         # Read audio file and transform via stft
         x, fs_x = sf.read(file)
@@ -136,9 +136,9 @@ def resynthesis(cfg_file, weight_file, audio_file_list):
         if not os.path.isdir(dir_name):
             os.mkdir(dir_name)
         # scale_norm = 1 / (np.maximum(np.max(np.abs(x_recon)), np.max(np.abs(x_orig)))) * 0.9
-        # orig_file = os.path.join(dir_name, '{}_origin-{}.wav'.format(tag, num))
-        # recon_file = os.path.join(dir_name, '{}_recon-{}.wav'.format(tag, num))
-        # plot_file = os.path.join(dir_name, '{}_resynthesis-{}.png'.format(tag, num))
+        # orig_file = os.path.join(dir_name, '{}_origin-{}.wav'.format(att, num))
+        # recon_file = os.path.join(dir_name, '{}_recon-{}.wav'.format(att, num))
+        # plot_file = os.path.join(dir_name, '{}_resynthesis-{}.png'.format(att, num))
         # librosa.output.write_wav(orig_file, scale_norm*x_orig, fs)
         # librosa.output.write_wav(recon_file, scale_norm*x_recon, fs)
         # print('=====> {} file {} reconstruction finished'.format(num, file_name))
@@ -155,7 +155,7 @@ def resynthesis(cfg_file, weight_file, audio_file_list):
         eval_dic['rmse_td_frame'].append(eval_rmse_td_frame)
         eval_dic['rmse_fd_frame'].append(eval_rmse_fd_frame)
         eval_dic['stoi'].append(eval_stoi)
-    return eval_dic, model_class.tag_simple
+    return eval_dic, model_class.tag
 
 
 # test
