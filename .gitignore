@@ -1,6 +1,5 @@
 OAR.*
 *.ipynb
-*/__pycache__
 *.pyc
 config/cfg_debug*
 .DS_Store
