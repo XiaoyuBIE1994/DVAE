@@ -74,7 +74,10 @@ class BuildBasic():
         self.save_frequency = self.cfg.getint('Training', 'save_frequency')
 
         # Create saved_model directory if not exist, and find dataset
-        self.saved_root, self.train_data_dir, self.val_data_dir = perpare_dataset(self.dataset_name, self.hostname)
+        self.save_dir = self.cfg.get('User', 'save_dir')
+        # self.saved_root, self.train_data_dir, self.val_data_dir = perpare_dataset(self.dataset_name, self.hostname, self.save_dir)
+        self.train_data_dir = '/mnt/xbie/Data/clean_speech/wsj0_si_dt_05'
+        self.val_data_dir = '/mnt/xbie/Data/clean_speech/wsj0_si_et_05'
 
         # Choose to use gpu or cpu
         self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
