@@ -88,14 +88,15 @@ class STORN(nn.Module):
         self.enc_dense_PostRNN = nn.Sequential(dic_layers)
         # 5. Define the linear layer for mean and log-variance
         self.enc_mean = nn.Linear(self.hidden_dim_enc_post[-1], self.z_dim)
-        self.enc_logvar = nn.Sequential(nn.Linear(self.hidden_dim_enc_post[-1], self.z_dim),
-                                        nn.Softplus())
+        self.enc_logvar = nn.Linear(self.hidden_dim_enc_post[-1], self.z_dim)
+        # self.enc_var = nn.Sequential(nn.Linear(self.hidden_dim_enc_post[-1], self.z_dim),
+        #                                 nn.Softplus())
 
         #################
         #### Decoder ####
         #################
         # 1. Whether apply bi-directional over z (not indicate in the paper)
-        if self.bidir_enc:
+        if self.bidir_dec:
             num_dir_dec = 2
         else:
             num_dir_dec = 1
@@ -123,8 +124,9 @@ class STORN(nn.Module):
             dic_layers['dropout'+str(n)] = nn.Dropout(p=self.dropout_p)
         self.dec_dense_PostRNN = nn.Sequential(dic_layers)
         # 5. Define the linear layer for output (variance only)
-        self.dec_logvar = nn.Sequential(nn.Linear(self.hidden_dim_dec_post[-1], self.y_dim),
-                                        nn.Softplus())
+        # self.dec_logvar = nn.Sequential(nn.Linear(self.hidden_dim_dec_post[-1], self.y_dim),
+        #                                 nn.Softplus())
+        self.dec_logvar = nn.Linear(self.hidden_dim_dec_post[-1], self.y_dim)
 
     def encode(self, x):
         # print('shape of x: {}'.format(x.shape)) # used for debug only
