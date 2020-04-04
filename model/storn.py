@@ -88,10 +88,12 @@ class STORN(nn.Module):
         self.enc_dense_PostRNN = nn.Sequential(dic_layers)
         # 5. Define the linear layer for mean and log-variance
         self.enc_mean = nn.Linear(self.hidden_dim_enc_post[-1], self.z_dim)
-        self.enc_logvar = nn.Linear(self.hidden_dim_enc_post[-1], self.z_dim)
+        # self.enc_logvar = nn.Linear(self.hidden_dim_enc_post[-1], self.z_dim)
         # self.enc_var = nn.Sequential(nn.Linear(self.hidden_dim_enc_post[-1], self.z_dim),
         #                                 nn.Softplus())
-
+        self.enc_sigma = nn.Sequential(nn.Linear(self.hidden_dim_enc_post[-1], self.z_dim),
+                                        nn.Softplus())
+        
         #################
         #### Decoder ####
         #################
@@ -124,9 +126,11 @@ class STORN(nn.Module):
             dic_layers['dropout'+str(n)] = nn.Dropout(p=self.dropout_p)
         self.dec_dense_PostRNN = nn.Sequential(dic_layers)
         # 5. Define the linear layer for output (variance only)
+        # self.dec_logvar = nn.Linear(self.hidden_dim_dec_post[-1], self.y_dim)
         # self.dec_logvar = nn.Sequential(nn.Linear(self.hidden_dim_dec_post[-1], self.y_dim),
         #                                 nn.Softplus())
-        self.dec_logvar = nn.Linear(self.hidden_dim_dec_post[-1], self.y_dim)
+        self.dec_sigma = nn.Sequential(nn.Linear(self.hidden_dim_dec_post[-1], self.y_dim),
+                                       nn.Softplus())
 
     def encode(self, x):
         # print('shape of x: {}'.format(x.shape)) # used for debug only
@@ -169,15 +173,20 @@ class STORN(nn.Module):
 
         # 4. output mean and logvar
         all_enc_mean = self.enc_mean(x_PostRNN)
-        all_enc_logvar = self.enc_logvar(x_PostRNN)
+        # all_enc_logvar = self.enc_logvar(x_PostRNN)
+        all_enc_sigma = self.enc_sigma(x_PostRNN)
 
-        return (all_enc_mean, all_enc_logvar, x_tm1)
+        # return (all_enc_mean, all_enc_logvar, x_tm1)
+        return (all_enc_mean, all_enc_sigma, x_tm1)
 
-    def reparatemize(self, mean, logvar):
-        std = torch.exp(0.5*logvar)
-        eps = torch.randn_like(std)
-        return eps.mul(std).add_(mean)
+    # def reparatemize(self, mean, logvar):
+    #     std = torch.exp(0.5*logvar)
+    #     eps = torch.randn_like(std)
+    #     return eps.mul(std).add_(mean)
 
+    def reparatemize(self, mean, sigma):
+        eps = torch.randn_like(sigma)
+        return eps.mul(sigma).add_(mean)
     
     def decode(self, dec_input):
         
@@ -201,17 +210,20 @@ class STORN(nn.Module):
         y_PostRNN = self.dec_dense_PostRNN(h_y)
 
         # 4. output mean and logvar
-        log_y = self.dec_logvar(y_PostRNN)
+        # log_y = self.dec_logvar(y_PostRNN)
 
         # 5. transform log-variance to variance
-        y = torch.exp(log_y)
+        # y = torch.exp(log_y)
+        y = self.dec_sigma(y_PostRNN)
+
         return torch.squeeze(y)
 
     def forward(self, x):
         mean, logvar, x_tm1 = self.encode(x)
-        z = torch.squeeze(self.reparatemize(mean, logvar))
+        z = self.reparatemize(mean, logvar)
         dec_input = torch.cat((z, x_tm1), 2)
         y = self.decode(dec_input)
+        z = torch.squeeze(z)
         # y/z is (seq_len, batch_size, y/z_dim), we want to change back to
         # (batch_size, y/z_dim, seq_len)
         if len(z.shape) == 3:
@@ -234,7 +246,8 @@ class STORN(nn.Module):
         
         info.append("----- Bottleneck -----")
         info.append('mean: ' + str(self.enc_mean))
-        info.append('logvar: ' + str(self.enc_logvar))
+        # info.append('logvar: ' + str(self.enc_logvar))
+        info.append('logvar: ' + str(self.enc_sigma))
 
         info.append("----- Decoder -----")
         info.append('>>>> Dense before RNN')
@@ -245,7 +258,8 @@ class STORN(nn.Module):
         info.append('>>>> Dense after RNN')
         for layer in self.dec_dense_PostRNN:
             info.append(str(layer))
-        info.append('Output: ' + str(self.dec_logvar))
+        # info.append('Output: ' + str(self.dec_logvar))
+        info.append('Output: ' + str(self.dec_sigma))
 
         return info
 

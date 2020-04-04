@@ -76,6 +76,7 @@ class BuildBasic():
         # Create saved_model directory if not exist, and find dataset
         self.save_dir = self.cfg.get('User', 'save_dir')
         self.saved_root, self.train_data_dir, self.val_data_dir = perpare_dataset(self.dataset_name, self.hostname, self.save_dir)
+        # self.saved_root = '/mnt/xbie/Code/saved_model_smallset'
         # self.train_data_dir = '/mnt/xbie/Data/clean_speech/wsj0_si_dt_05'
         # self.val_data_dir = '/mnt/xbie/Data/clean_speech/wsj0_si_et_05'
 

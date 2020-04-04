@@ -8,7 +8,6 @@ License agreement in LICENSE.txt
 
 import os
 import sys
-sys.path.append(os.path.join(os.getcwd(), 'evaluation'))
 import random
 import torch
 import numpy as np
