@@ -527,6 +527,8 @@ class BuildVRNN(BuildBasic):
 
 
 def build_model(config_file='config_default.ini'):
+    if not os.path.isfile(config_file):
+        raise ValueError('Invalid config file path')    
     cfg = myconf()
     cfg.read(config_file)
     model_name = cfg.get('Network', 'name')
