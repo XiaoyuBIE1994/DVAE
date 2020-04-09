@@ -164,7 +164,7 @@ class RVAE(nn.Module):
                 
                 # Get output of the last layer
                 # h_z_n.view(num_layers, num_directions, batch, hidden_size)
-                h_z_n_last = h_z_n.view(self.num_LSTM_z, 1, batch_size, self.h_dim_z)[-1, :,:,:]
+                h_z_n_last = h_z_n.view(self.num_LSTM_z, 1, batch_size, self.h_dim_z)[-1,:,:,:]
                 # delete the first two dimension (both are 1)
                 h_z_n_last = h_z_n.view(batch_size, self.h_dim_z)
                 # concatenate h_s and h_z for time step n

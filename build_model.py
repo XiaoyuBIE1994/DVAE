@@ -20,6 +20,7 @@ from pre.prepare_dataset import perpare_dataset
 from model.vae import VAE
 from model.rvae import RVAE
 from model.storn import STORN
+from model.vrnn import VRNN
 
 
 from backup_simon.speech_dataset import *
@@ -84,10 +85,17 @@ class BuildBasic():
         self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
         # Define loss function
-        def loss_function(recon_x, x, mu, logvar):
+        # we assume recon_x and x are complex-Gaussian
+        # and z is Gaussian
+        def loss_function(recon_x, x, mu, logvar, mu_prior=None, logvar_prior=None):
+            if mu_prior is None:
+                mu_prior = torch.zeros_like(mu)
+            if logvar_prior is None:
+                logvar_prior = torch.zeros_like(logvar)
             recon = torch.sum(  x/recon_x - torch.log(x/recon_x) - 1 ) 
-            KLD = -0.5 * torch.sum(logvar - mu.pow(2) - logvar.exp())
+            KLD = -0.5 * torch.sum(logvar - logvar_prior - torch.div((logvar.exp() + (mu - mu_prior).pow(2)), logvar_prior.exp()))
             return recon + KLD
+
         self.loss_function = loss_function
 
         # Define dataloader type
@@ -180,6 +188,7 @@ class BuildBasic():
             basic_info.append('Cuda verion: {}'.format(torch.version.cuda))
         basic_info.append('Model name: {}'.format(self.model_name))
         return basic_info
+
 
 class BuildFFNN(BuildBasic):
 
@@ -336,12 +345,12 @@ class BuildRVAE(BuildBasic):
         else:
             self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
 
+
 class BuildSTORN(BuildBasic):
     """
-    Reccurrent (uni- or bi-directional LSTM) VAE (RVAE)
-    We can choose wheter there is a recurrence over z
+    Stochastic Recurrent Networks (STORN)
     """
-    def __init__(self, cfg = myconf()):
+    def __init__(self, cfg=myconf()):
 
         super().__init__(cfg)
 
@@ -438,6 +447,85 @@ class BuildSTORN(BuildBasic):
             self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
 
 
+class BuildVRNN(BuildBasic):
+    """
+    Variational RNN (VRNN)
+    """
+    def __init__(self, cfg=myconf()):
+
+        super().__init__(cfg)
+
+        ### Load parameters for VRNN
+        # General
+        self.x_dim = self.cfg.getint('Network', 'x_dim')
+        self.z_dim = self.cfg.getint('Network','z_dim')
+        self.activation = self.cfg.get('Network', 'activation')
+        # Feature extractor
+        self.hidden_x = [int(i) for i in self.cfg.get('Network', 'hidden_x').split(',')]
+        self.hidden_z = [int(i) for i in self.cfg.get('Network', 'hidden_z').split(',')]
+        # Dense layers
+        self.hidden_enc = [int(i) for i in self.cfg.get('Network', 'hidden_enc').split(',')]
+        self.hidden_dec = [int(i) for i in self.cfg.get('Network', 'hidden_dec').split(',')]
+        self.hidden_prior = [int(i) for i in self.cfg.get('Network', 'hidden_prior').split(',')]
+        # RNN
+        self.h_dim = self.cfg.getint('Network', 'h_dim')
+        self.num_LSTM = self.cfg.getint('Network', 'num_LSTM')
+        # Dropout
+        self.dropout_p = self.cfg.getfloat('Network', 'dropout_p')
+
+        # Create directory for results
+        num_dense = len(self.hidden_enc)
+        fullname = 'act={}_dense={}'.format(self.activation, num_dense)
+        self.filename = "{}_{}_{}_{}_z_dim={}".format(self.dataset_name, 
+                                                      self.date,
+                                                      self.model_name,
+                                                      fullname, 
+                                                      self.z_dim)
+        self.save_dir = os.path.join(self.saved_root, self.filename)
+        if not(os.path.isdir(self.save_dir)):
+            os.makedirs(self.save_dir)                                              
+
+        # Model tag, used in loss figure and evaluation table
+        if self.cfg.has_option('Network', 'tag'):
+            self.tag = self.cfg.get('Network', 'tag')
+        else:
+            self.tag = self.model_name
+
+        # Create logger
+        log_file = os.path.join(self.save_dir, 'log.txt')
+        logger = get_logger(log_file, self.logger_type)
+        for log in self.get_basic_info():
+            logger.info(log)
+        logger.info('In this experiment, result will be saved in: ' + self.save_dir)
+        self.logger = logger
+
+        # Re-define data type
+        self.get_seq = True
+
+        self.build()
+
+    def build(self):
+        # Init RVAE network
+        self.logger.info('===== Init VRNN =====')
+        self.model = VRNN(x_dim=self.x_dim, z_dim=self.z_dim, 
+                          activation=self.activation,
+                          hidden_x=self.hidden_x, hidden_z=self.hidden_z,
+                          hidden_enc=self.hidden_enc, hidden_dec=self.hidden_dec, 
+                          hidden_prior=self.hidden_prior,
+                          h_dim=self.h_dim, num_LSTM=self.num_LSTM,
+                          dropout_p = self.dropout_p,
+                          device=self.device).to(self.device)
+        # Print model information
+        for log in self.model.get_info():
+            self.logger.info(log)
+            
+        # Init optimizer (Adam by default)
+        if self.optimization == 'adam':
+            self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
+        else:
+            self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
+
+
 def build_model(config_file='config_default.ini'):
     cfg = myconf()
     cfg.read(config_file)
@@ -448,6 +536,8 @@ def build_model(config_file='config_default.ini'):
         model = BuildRVAE(cfg)
     elif model_name == 'STORN':
         model = BuildSTORN(cfg)
+    elif model_name == 'VRNN':
+        model = BuildVRNN(cfg)
     return model
 
 

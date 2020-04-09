@@ -40,7 +40,6 @@ def train_model(config_file):
 
     # Create dataloader
     train_dataloader, val_dataloader, train_num, val_num = model_class.build_dataloader()
-    
     # Create python list for loss
     train_loss = np.zeros((epochs,))
     val_loss = np.zeros((epochs,))
@@ -58,8 +57,12 @@ def train_model(config_file):
         for batch_idx, batch_data in enumerate(train_dataloader):
             batch_data = batch_data.to(model_class.device)
             optimizer.zero_grad()
-            recon_batch_data, mean, logvar, z = model(batch_data)
-            loss = loss_function(recon_batch_data, batch_data, mean, logvar)
+            if model_class.model_name == 'VRNN':
+                recon_batch_data, mean, logvar, mean_prior, logvar_prior, z = model(batch_data)
+                loss = loss_function(recon_batch_data, batch_data, mean, logvar, mean_prior, logvar_prior)
+            else:
+                recon_batch_data, mean, logvar, z = model(batch_data)
+                loss = loss_function(recon_batch_data, batch_data, mean, logvar)
             loss.backward()
             train_loss[epoch] += loss.item()
             optimizer.step()
@@ -67,8 +70,12 @@ def train_model(config_file):
         # Cross validation
         for batch_idx, batch_data in enumerate(val_dataloader):
             batch_data = batch_data.to(model_class.device)
-            recon_batch_data, mean, logvar, z = model(batch_data)
-            loss = loss_function(recon_batch_data, batch_data, mean, logvar)
+            if model_class.model_name == 'VRNN':
+                recon_batch_data, mean, logvar, mean_prior, logvar_prior, z = model(batch_data)
+                loss = loss_function(recon_batch_data, batch_data, mean, logvar, mean_prior, logvar_prior)
+            else:
+                recon_batch_data, mean, logvar, z = model(batch_data)
+                loss = loss_function(recon_batch_data, batch_data, mean, logvar)
             val_loss[epoch] += loss.item()
 
         # Early stop patiance
@@ -81,7 +88,7 @@ def train_model(config_file):
             cpt_patience += 1
 
 
-        train_loss[epoch] = train_loss[epoch] / train_num
+        train_loss[epoch] = train_loss[epoch]/ train_num
         val_loss[epoch] = val_loss[epoch] / val_num
 
         end_time = datetime.datetime.now()

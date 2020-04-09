@@ -7,7 +7,13 @@ License agreement in LICENSE.txt
 
 The code in this file is based on:
 - “Learning Stochastic Recurrent Networks” ICLR, 2015
+
+To campare log-parameterization and softplus, one should change the last layer
+in the build() function and take care of the output in the decode() function and reparameterize() function,
+the get_info() should also be adapted
 """
+
+
 
 from torch import nn
 import numpy as np
@@ -17,7 +23,7 @@ from collections import OrderedDict
 
 class STORN(nn.Module):
 
-    def __init__(self, x_dim, z_dim=16, batch_size=16, activation = 'relu',
+    def __init__(self, x_dim, z_dim=16, batch_size=16, activation = 'tanh',
                  bidir_enc=False, h_dim_enc=128, num_LSTM_enc=1,
                  hidden_dim_enc_pre=[128], hidden_dim_enc_post=[128],
                  bidir_dec=False, h_dim_dec=128, num_LSTM_dec=1,
@@ -88,11 +94,12 @@ class STORN(nn.Module):
         self.enc_dense_PostRNN = nn.Sequential(dic_layers)
         # 5. Define the linear layer for mean and log-variance
         self.enc_mean = nn.Linear(self.hidden_dim_enc_post[-1], self.z_dim)
-        # self.enc_logvar = nn.Linear(self.hidden_dim_enc_post[-1], self.z_dim)
+        self.enc_logvar = nn.Linear(self.hidden_dim_enc_post[-1], self.z_dim) # log-params
+        # self.enc_sigma = nn.Sequential(nn.Linear(self.hidden_dim_enc_post[-1], self.z_dim),
+        #                                 nn.Softplus()) # softplus   
         # self.enc_var = nn.Sequential(nn.Linear(self.hidden_dim_enc_post[-1], self.z_dim),
-        #                                 nn.Softplus())
-        self.enc_sigma = nn.Sequential(nn.Linear(self.hidden_dim_enc_post[-1], self.z_dim),
-                                        nn.Softplus())
+        #                                 nn.Softplus()) # log-params + softplus
+        
         
         #################
         #### Decoder ####
@@ -126,11 +133,12 @@ class STORN(nn.Module):
             dic_layers['dropout'+str(n)] = nn.Dropout(p=self.dropout_p)
         self.dec_dense_PostRNN = nn.Sequential(dic_layers)
         # 5. Define the linear layer for output (variance only)
-        # self.dec_logvar = nn.Linear(self.hidden_dim_dec_post[-1], self.y_dim)
+        self.dec_logvar = nn.Linear(self.hidden_dim_dec_post[-1], self.y_dim) # log-params
+        # self.dec_sigma = nn.Sequential(nn.Linear(self.hidden_dim_dec_post[-1], self.y_dim),
+        #                                nn.Softplus()) # softplus
         # self.dec_logvar = nn.Sequential(nn.Linear(self.hidden_dim_dec_post[-1], self.y_dim),
-        #                                 nn.Softplus())
-        self.dec_sigma = nn.Sequential(nn.Linear(self.hidden_dim_dec_post[-1], self.y_dim),
-                                       nn.Softplus())
+        #                                 nn.Softplus()) # log-params + softplus
+        
 
     def encode(self, x):
         # print('shape of x: {}'.format(x.shape)) # used for debug only
@@ -173,20 +181,20 @@ class STORN(nn.Module):
 
         # 4. output mean and logvar
         all_enc_mean = self.enc_mean(x_PostRNN)
-        # all_enc_logvar = self.enc_logvar(x_PostRNN)
-        all_enc_sigma = self.enc_sigma(x_PostRNN)
+        all_enc_logvar = self.enc_logvar(x_PostRNN)
+        # all_enc_sigma = self.enc_sigma(x_PostRNN)
 
-        # return (all_enc_mean, all_enc_logvar, x_tm1)
-        return (all_enc_mean, all_enc_sigma, x_tm1)
+        return (all_enc_mean, all_enc_logvar, x_tm1)
+        # return (all_enc_mean, all_enc_sigma, x_tm1)
 
-    # def reparatemize(self, mean, logvar):
-    #     std = torch.exp(0.5*logvar)
+    def reparatemize(self, mean, logvar):
+        std = torch.exp(0.5*logvar)
+        eps = torch.randn_like(std)
+        return eps.mul(std).add_(mean)
+
+    # def reparatemize(self, mean, std):
     #     eps = torch.randn_like(std)
     #     return eps.mul(std).add_(mean)
-
-    def reparatemize(self, mean, sigma):
-        eps = torch.randn_like(sigma)
-        return eps.mul(sigma).add_(mean)
     
     def decode(self, dec_input):
         
@@ -210,11 +218,11 @@ class STORN(nn.Module):
         y_PostRNN = self.dec_dense_PostRNN(h_y)
 
         # 4. output mean and logvar
-        # log_y = self.dec_logvar(y_PostRNN)
+        log_y = self.dec_logvar(y_PostRNN)
 
         # 5. transform log-variance to variance
-        # y = torch.exp(log_y)
-        y = self.dec_sigma(y_PostRNN)
+        y = torch.exp(log_y)
+        # y = self.dec_sigma(y_PostRNN)
 
         return torch.squeeze(y)
 
@@ -246,8 +254,8 @@ class STORN(nn.Module):
         
         info.append("----- Bottleneck -----")
         info.append('mean: ' + str(self.enc_mean))
-        # info.append('logvar: ' + str(self.enc_logvar))
-        info.append('logvar: ' + str(self.enc_sigma))
+        info.append('logvar: ' + str(self.enc_logvar))
+        # info.append('logvar: ' + str(self.enc_sigma))
 
         info.append("----- Decoder -----")
         info.append('>>>> Dense before RNN')
@@ -258,8 +266,8 @@ class STORN(nn.Module):
         info.append('>>>> Dense after RNN')
         for layer in self.dec_dense_PostRNN:
             info.append(str(layer))
-        # info.append('Output: ' + str(self.dec_logvar))
-        info.append('Output: ' + str(self.dec_sigma))
+        info.append('Output: ' + str(self.dec_logvar))
+        # info.append('Output: ' + str(self.dec_sigma))
 
         return info
 
@@ -270,6 +278,25 @@ if __name__ == '__main__':
     device = 'cpu'
     storn = STORN(x_dim=x_dim, z_dim=z_dim, batch_size=batch_size).to(device)
     model_info = storn.get_info()
-    for i in model_info:
-        print(i)
+    # for i in model_info:
+    #     print(i)
+
+    x = torch.ones((2,513,3))
+    y, mean, logvar, z = storn.forward(x)
+    print(x.shape)
+    print(y.shape)
+    print(mean.shape)
+    print(logvar.shape)
+    print(z.shape)
+    print(y[0,:5,0])
+    def loss(recon_x, x, mu, logvar, mu_prior=None, logvar_prior=None):
+        if mu_prior is None:
+            mu_prior = torch.zeros_like(mu)
+        if logvar_prior is None:
+            logvar_prior = torch.zeros_like(logvar)
+        recon = torch.sum(  x/recon_x - torch.log(x/recon_x) - 1 ) 
+        KLD = -0.5 * torch.sum(logvar - logvar_prior - torch.div((logvar.exp() + (mu - mu_prior).pow(2)), logvar_prior.exp()))
+        return recon + KLD
+
+    print(loss(y,x,mean,logvar)/6)
 
