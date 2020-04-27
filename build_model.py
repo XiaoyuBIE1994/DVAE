@@ -92,9 +92,9 @@ class BuildBasic():
         # 9. Define loss function (recon_x/x: complex-Gaussian, z: Gaussian)
         def loss_function(recon_x, x, mu, logvar, mu_prior=None, logvar_prior=None, batch_size=32, seq_len=50):
             if mu_prior is None:
-                mu_prior = torch.zeros_like(mu)
+                mu_prior = torch.zeros_like(mu).to(self.device)
             if logvar_prior is None:
-                logvar_prior = torch.zeros(logvar.shape)
+                logvar_prior = torch.zeros(logvar.shape).to(self.device)
             recon = torch.sum(  x/recon_x - torch.log(x/recon_x) - 1 ) 
             KLD = -0.5 * torch.sum(logvar - logvar_prior - torch.div((logvar.exp() + (mu - mu_prior).pow(2)), logvar_prior.exp()))
             return (recon + KLD) / (batch_size * seq_len)
