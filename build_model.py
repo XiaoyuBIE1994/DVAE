@@ -191,7 +191,7 @@ class BuildBasic():
         return basic_info
 
 
-class BuildFFNN(BuildBasic):
+class BuildVAE(BuildBasic):
 
     def __init__(self, cfg=myconf()):
         
@@ -569,8 +569,8 @@ def build_model(config_file='config_default.ini'):
     cfg = myconf()
     cfg.read(config_file)
     model_name = cfg.get('Network', 'name')
-    if model_name == 'FFNN':
-        model_class = BuildFFNN(cfg)
+    if model_name == 'VAE':
+        model_class = BuildVAE(cfg)
     elif model_name == 'RVAE':
         model_class = BuildRVAE(cfg)
     elif model_name == 'STORN':
