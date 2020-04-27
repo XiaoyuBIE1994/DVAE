@@ -6,7 +6,7 @@ Authoried by Xiaoyu BIE (xiaoyu.bie@inrai.fr)
 License agreement in LICENSE.txt
 
 The code in this file is based on:
-- “Learning Stochastic Recurrent Networks” ICLR, 2015
+- “Learning Stochastic Recurrent Networks” ICLR, 2015, Justin Bayer et al.
 
 To campare log-parameterization and softplus, one should change the last layer
 in the build() function and take care of the output in the decode() function and reparameterize() function,
@@ -23,18 +23,17 @@ from collections import OrderedDict
 
 class STORN(nn.Module):
 
-    def __init__(self, x_dim, z_dim=16, batch_size=16, activation = 'tanh',
-                 bidir_enc=False, h_dim_enc=128, num_LSTM_enc=1,
-                 hidden_dim_enc_pre=[128], hidden_dim_enc_post=[128],
-                 bidir_dec=False, h_dim_dec=128, num_LSTM_dec=1,
-                 hidden_dim_dec_pre=[128], hidden_dim_dec_post=[128],
+    def __init__(self, x_dim, z_dim=16, activation = 'tanh',
+                 dim_RNN_enc=128, num_RNN_enc=1,
+                 dense_enc_pre=[128], dense_enc_post=[128],
+                 dim_RNN_dec=128, num_RNN_dec=1,
+                 dense_dec_pre=[128], dense_dec_post=[128],
                  dropout_p = 0,
                  device='cpu'):
         super().__init__()
         ### General parameters for storn        
         self.x_dim = x_dim
         self.z_dim = z_dim
-        self.batch_size = batch_size
         self.dropout_p = dropout_p
         if activation == 'relu':
             self.activation = nn.ReLU()
@@ -44,17 +43,15 @@ class STORN(nn.Module):
             raise SystemExit('Wrong activation type!')
         self.device = device
         ### Encoder parameters
-        self.bidir_enc = bidir_enc
-        self.h_dim_enc = h_dim_enc
-        self.num_LSTM_enc = num_LSTM_enc
-        self.hidden_dim_enc_pre = hidden_dim_enc_pre
-        self.hidden_dim_enc_post = hidden_dim_enc_post
+        self.dim_RNN_enc = dim_RNN_enc
+        self.num_RNN_enc = num_RNN_enc
+        self.dense_enc_pre = dense_enc_pre
+        self.dense_enc_post = dense_enc_post
         ### Decoder parameters
-        self.bidir_dec = bidir_dec
-        self.h_dim_dec = h_dim_dec
-        self.num_LSTM_dec = num_LSTM_dec
-        self.hidden_dim_dec_pre = hidden_dim_dec_pre
-        self.hidden_dim_dec_post = hidden_dim_dec_post
+        self.dim_RNN_dec = dim_RNN_dec
+        self.num_RNN_dec = num_RNN_dec
+        self.dense_dec_pre = dense_dec_pre
+        self.dense_dec_post = dense_dec_post
         self.y_dim = self.x_dim
 
         self.build()
@@ -64,114 +61,84 @@ class STORN(nn.Module):
         #################
         #### Encoder ####
         #################
-        # 1. Whether apply bi-directional over x (not indicate in the paper)
-        if self.bidir_enc:
-            num_dir_enc = 2
-        else:
-            num_dir_enc = 1
-        # 2. Define the dense layer before RNN block
+        # 1. Dense layers before RNN
         dic_layers = OrderedDict()
-        for n in range(len(self.hidden_dim_enc_pre)):
+        for n in range(len(self.dense_enc_pre)):
             if n == 0:
-                dic_layers['linear'+str(n)] = nn.Linear(self.x_dim, self.hidden_dim_enc_pre[n])
+                dic_layers['linear'+str(n)] = nn.Linear(self.x_dim, self.dense_enc_pre[n])
             else:
-                dic_layers['linear'+str(n)] = nn.Linear(self.hidden_dim_enc_pre[n-1], self.hidden_dim_enc_pre[n])
+                dic_layers['linear'+str(n)] = nn.Linear(self.dense_enc_pre[n-1], self.dense_enc_pre[n])
             dic_layers['activation'+str(n)] = self.activation
             dic_layers['dropout'+str(n)] = nn.Dropout(p=self.dropout_p)
         self.enc_dense_PreRNN = nn.Sequential(dic_layers)
-        # 3. Define the RNN block
-        self.enc_rnn = nn.LSTM(self.hidden_dim_enc_pre[-1], self.h_dim_enc, self.num_LSTM_enc,
-                               bidirectional = self.bidir_enc)
-        # 4. Define the dense layer after RNN block
+        # 2. RNN
+        self.enc_rnn = nn.LSTM(self.dense_enc_pre[-1], self.dim_RNN_enc, self.num_RNN_enc)
+        # 3 Dense layers after RNN
         dic_layers = OrderedDict()
-        for n in range(len(self.hidden_dim_enc_post)):
+        for n in range(len(self.dense_enc_post)):
             if n == 0:
-                dic_layers['linear'+str(n)] = nn.Linear(num_dir_enc*self.h_dim_enc, self.hidden_dim_enc_post[n])
+                dic_layers['linear'+str(n)] = nn.Linear(self.dim_RNN_enc, self.dense_enc_post[n])
             else:
-                dic_layers['linear'+str(n)] = nn.Linear(self.hidden_dim_enc_post[n-1], self.hidden_dim_enc_post[n])
+                dic_layers['linear'+str(n)] = nn.Linear(self.dense_enc_post[n-1], self.dense_enc_post[n])
             dic_layers['activation'+str(n)] = self.activation
             dic_layers['dropout'+str(n)] = nn.Dropout(p=self.dropout_p)
         self.enc_dense_PostRNN = nn.Sequential(dic_layers)
-        # 5. Define the linear layer for mean and log-variance
-        self.enc_mean = nn.Linear(self.hidden_dim_enc_post[-1], self.z_dim)
-        self.enc_logvar = nn.Linear(self.hidden_dim_enc_post[-1], self.z_dim) # log-params
-        # self.enc_sigma = nn.Sequential(nn.Linear(self.hidden_dim_enc_post[-1], self.z_dim),
-        #                                 nn.Softplus()) # softplus   
-        # self.enc_var = nn.Sequential(nn.Linear(self.hidden_dim_enc_post[-1], self.z_dim),
-        #                                 nn.Softplus()) # log-params + softplus
-        
+        # 4. Generate statistic properties for z (mean, log-var)
+        self.enc_mean = nn.Linear(self.dense_enc_post[-1], self.z_dim)
+        self.enc_logvar = nn.Linear(self.dense_enc_post[-1], self.z_dim)
         
         #################
         #### Decoder ####
         #################
-        # 1. Whether apply bi-directional over z (not indicate in the paper)
-        if self.bidir_dec:
-            num_dir_dec = 2
-        else:
-            num_dir_dec = 1
-        # 2. Define the dense layer before RNN block
+        # 1. Dense layers before RNN
         dic_layers = OrderedDict()
-        for n in range(len(self.hidden_dim_dec_pre)):
+        for n in range(len(self.dense_dec_pre)):
             if n == 0:
-                dic_layers['linear'+str(n)] = nn.Linear(self.x_dim+self.z_dim, self.hidden_dim_dec_pre[n])
+                dic_layers['linear'+str(n)] = nn.Linear(self.x_dim+self.z_dim, self.dense_dec_pre[n])
             else:
-                dic_layers['linear'+str(n)] = nn.Linear(self.hidden_dim_dec_pre[n-1], self.hidden_dim_dec_pre[n])
+                dic_layers['linear'+str(n)] = nn.Linear(self.dense_dec_pre[n-1], self.dense_dec_pre[n])
             dic_layers['activation'+str(n)] = self.activation
             dic_layers['dropout'+str(n)] = nn.Dropout(p=self.dropout_p)
         self.dec_dense_PreRNN = nn.Sequential(dic_layers)
-        # 3. Define the RNN block
-        self.dec_rnn = nn.LSTM(self.hidden_dim_dec_pre[-1], self.h_dim_dec, self.num_LSTM_dec,
-                               bidirectional = self.bidir_dec)
-        # 4. Define the dense layer after RNN block
+        # 2. RNN
+        self.dec_rnn = nn.LSTM(self.dense_dec_pre[-1], self.dim_RNN_dec, self.num_RNN_dec)
+        # 3. Dense layers after RNN
         dic_layers = OrderedDict()
-        for n in range(len(self.hidden_dim_dec_post)):
+        for n in range(len(self.dense_dec_post)):
             if n == 0:
-                dic_layers['linear'+str(n)] = nn.Linear(num_dir_dec*self.h_dim_dec, self.hidden_dim_dec_post[n])
+                dic_layers['linear'+str(n)] = nn.Linear(self.dim_RNN_dec, self.dense_dec_post[n])
             else:
-                dic_layers['linear'+str(n)] = nn.Linear(self.hidden_dim_dec_post[n-1], self.hidden_dim_dec_post[n])
+                dic_layers['linear'+str(n)] = nn.Linear(self.dense_dec_post[n-1], self.dense_dec_post[n])
             dic_layers['activation'+str(n)] = self.activation
             dic_layers['dropout'+str(n)] = nn.Dropout(p=self.dropout_p)
         self.dec_dense_PostRNN = nn.Sequential(dic_layers)
-        # 5. Define the linear layer for output (variance only)
-        self.dec_logvar = nn.Linear(self.hidden_dim_dec_post[-1], self.y_dim) # log-params
-        # self.dec_sigma = nn.Sequential(nn.Linear(self.hidden_dim_dec_post[-1], self.y_dim),
-        #                                nn.Softplus()) # softplus
-        # self.dec_logvar = nn.Sequential(nn.Linear(self.hidden_dim_dec_post[-1], self.y_dim),
-        #                                 nn.Softplus()) # log-params + softplus
+        # 4. Generate statistic properties for y_t (log-var)
+        self.dec_logvar = nn.Linear(self.dense_dec_post[-1], self.y_dim)
         
 
     def encode(self, x):
-        # print('shape of x: {}'.format(x.shape)) # used for debug only
-
-        # case1: input x is (batch_size, x_dim, seq_len)
-        #        we want to change it to (seq_len, batch_size, x_dim)
-        # case2: shape of x is (seq_len, x_dim) but we need 
-        #        (seq_len, batch_size, x_dim)
+        # train input: (batch_size, x_dim, seq_len)
+        # test input:  (seq_len, x_dim) 
+        # need input:  (seq_len, batch_size, x_dim)
         if len(x.shape) == 3:
             x = x.permute(-1, 0, 1)
         elif len(x.shape) == 2:
             x = x.unsqueeze(1)
 
-        # print('shape of input: {}'.format(x.shape)) # used for debug only
-        # input('stop')
         seq_len = x.shape[0]
         batch_size = x.shape[1]
         x_dim = x.shape[2]
 
-        # create x_tm1 for decoder
+        # create x_tm1
         x_0 = torch.zeros(1, batch_size, x_dim).to(self.device)
         x_tm1 = torch.cat((x_0, x[1:,:,:]), 0)
 
         # create variable holder and send to GPU if needed
-        if self.bidir_enc:
-            h0_enc = torch.zeros(self.num_LSTM_enc*2, batch_size, self.h_dim_enc).to(self.device)
-            c0_enc = torch.zeros(self.num_LSTM_enc*2, batch_size, self.h_dim_enc).to(self.device)
-        else:
-            h0_enc = torch.zeros(self.num_LSTM_enc, batch_size, self.h_dim_enc).to(self.device)
-            c0_enc = torch.zeros(self.num_LSTM_enc, batch_size, self.h_dim_enc).to(self.device)
+        h0_enc = torch.zeros(self.num_RNN_enc, batch_size, self.dim_RNN_enc).to(self.device)
+        c0_enc = torch.zeros(self.num_RNN_enc, batch_size, self.dim_RNN_enc).to(self.device)
 
         # 1. Linear layers before RNN block
-        x_PreRNN = self.enc_dense_PreRNN(x)
+        x_PreRNN = self.enc_dense_PreRNN(x_tm1)
 
         # 2. RNN with input x_PreRNN, return x_PostRNN
         h_x, _ = self.enc_rnn(x_PreRNN, (h0_enc, c0_enc))
@@ -182,31 +149,21 @@ class STORN(nn.Module):
         # 4. output mean and logvar
         all_enc_mean = self.enc_mean(x_PostRNN)
         all_enc_logvar = self.enc_logvar(x_PostRNN)
-        # all_enc_sigma = self.enc_sigma(x_PostRNN)
 
         return (all_enc_mean, all_enc_logvar, x_tm1)
-        # return (all_enc_mean, all_enc_sigma, x_tm1)
 
     def reparatemize(self, mean, logvar):
         std = torch.exp(0.5*logvar)
         eps = torch.randn_like(std)
         return eps.mul(std).add_(mean)
-
-    # def reparatemize(self, mean, std):
-    #     eps = torch.randn_like(std)
-    #     return eps.mul(std).add_(mean)
     
     def decode(self, dec_input):
         
         batch_size = dec_input.shape[1]
 
         # create variable holder and send to GPU if needed
-        if self.bidir_dec:
-            h0_dec = torch.zeros(self.num_LSTM_enc*2, batch_size, self.h_dim_dec).to(self.device)
-            c0_dec = torch.zeros(self.num_LSTM_enc*2, batch_size, self.h_dim_dec).to(self.device)
-        else:
-            h0_dec = torch.zeros(self.num_LSTM_enc, batch_size, self.h_dim_dec).to(self.device)
-            c0_dec = torch.zeros(self.num_LSTM_enc, batch_size, self.h_dim_dec).to(self.device)
+        h0_dec = torch.zeros(self.num_RNN_enc, batch_size, self.dim_RNN_dec).to(self.device)
+        c0_dec = torch.zeros(self.num_RNN_enc, batch_size, self.dim_RNN_dec).to(self.device)
 
         # 1. Linear layers before RNN block
         y_PreRNN = self.dec_dense_PreRNN(dec_input)
@@ -232,8 +189,8 @@ class STORN(nn.Module):
         dec_input = torch.cat((z, x_tm1), 2)
         y = self.decode(dec_input)
         z = torch.squeeze(z)
-        # y/z is (seq_len, batch_size, y/z_dim), we want to change back to
-        # (batch_size, y/z_dim, seq_len)
+        # y/z dimension:    (seq_len, batch_size, y/z_dim)
+        # output dimension: (batch_size, y/z_dim, seq_len)
         if len(z.shape) == 3:
             z = z.permute(1,-1,0)
         if len(y.shape) == 3:    

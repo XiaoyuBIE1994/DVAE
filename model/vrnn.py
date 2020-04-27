@@ -6,7 +6,7 @@ Authoried by Xiaoyu BIE (xiaoyu.bie@inrai.fr)
 License agreement in LICENSE.txt
 
 The code in this file is based on:
-- “A Recurrent Latent Variable Model for Sequential Data” ICLR, 2015
+- “A Recurrent Latent Variable Model for Sequential Data” ICLR, 2015, Junyoung Chung et al.
 """
 
 from torch import nn
@@ -17,10 +17,10 @@ from collections import OrderedDict
 
 class VRNN(nn.Module):
 
-    def __init__(self, x_dim, z_dim=16, activation = 'relu',
-                 hidden_x=[128], hidden_z=[128],
-                 hidden_enc=[128], hidden_dec=[128], hidden_prior=[128],
-                 h_dim=128, num_LSTM=1,
+    def __init__(self, x_dim, z_dim=16, activation = 'tanh',
+                 dense_x=[128], dense_z=[128],
+                 dense_enc=[128], dense_dec=[128], dense_prior=[128],
+                 dim_RNN=128, num_RNN=1,
                  dropout_p = 0, device='cpu'):
 
         super().__init__()
@@ -37,19 +37,15 @@ class VRNN(nn.Module):
             raise SystemExit('Wrong activation type!')
         self.device = device
         ### Feature extractors parameters
-        self.hidden_x = hidden_x
-        self.hidden_z = hidden_z
+        self.dense_x = dense_x
+        self.dense_z = dense_z
         #### Dense layers (encode, decode and prior) parameters
-        self.hidden_enc = hidden_enc
-        self.hidden_dec = hidden_dec
-        self.hidden_prior = hidden_prior
-        ### Encoder parameters
-
-
+        self.dense_enc = dense_enc
+        self.dense_dec = dense_dec
+        self.dense_prior = dense_prior
         ### Recurrence parameters
-        self.h_dim = h_dim
-        self.num_LSTM = num_LSTM
-        ### Decoder parameters
+        self.dim_RNN = dim_RNN
+        self.num_RNN = num_RNN
 
         self.build()
 
@@ -57,21 +53,21 @@ class VRNN(nn.Module):
         #### Feature extractor
         # x
         dic_layers = OrderedDict()
-        for n in range(len(self.hidden_x)):
+        for n in range(len(self.dense_x)):
             if n == 0:
-                dic_layers['linear'+str(n)] = nn.Linear(self.x_dim, self.hidden_x[n])
+                dic_layers['linear'+str(n)] = nn.Linear(self.x_dim, self.dense_x[n])
             else:
-                dic_layers['linear'+str(n)] = nn.Linear(self.hidden_x[n-1], self.hidden_x[n])
+                dic_layers['linear'+str(n)] = nn.Linear(self.dense_x[n-1], self.dense_x[n])
             dic_layers['activation'+str(n)] = self.activation
             dic_layers['dropout'+str(n)] = nn.Dropout(p=self.dropout_p)
         self.feature_extractor_x = nn.Sequential(dic_layers)
         # z
         dic_layers = OrderedDict()
-        for n in range(len(self.hidden_z)):
+        for n in range(len(self.dense_z)):
             if n == 0:
-                dic_layers['linear'+str(n)] = nn.Linear(self.z_dim, self.hidden_z[n])
+                dic_layers['linear'+str(n)] = nn.Linear(self.z_dim, self.dense_z[n])
             else:
-                dic_layers['linear'+str(n)] = nn.Linear(self.hidden_z[n-1], self.hidden_z[n])
+                dic_layers['linear'+str(n)] = nn.Linear(self.dense_z[n-1], self.dense_z[n])
             dic_layers['activation'+str(n)] = self.activation
             dic_layers['dropout'+str(n)] = nn.Dropout(p=self.dropout_p)
         self.feature_extractor_z = nn.Sequential(dic_layers)
@@ -79,42 +75,42 @@ class VRNN(nn.Module):
         ### Dense layers (encode, decode and prior) 
         # encode
         dic_layers = OrderedDict()
-        for n in range(len(self.hidden_enc)):
+        for n in range(len(self.dense_enc)):
             if n == 0:
-                dic_layers['linear'+str(n)] = nn.Linear(self.hidden_x[-1] + self.h_dim, self.hidden_enc[n])
+                dic_layers['linear'+str(n)] = nn.Linear(self.dense_x[-1] + self.dim_RNN, self.dense_enc[n])
             else:
-                dic_layers['linear'+str(n)] = nn.Linear(self.hidden_enc[n-1], self.hidden_enc[n])
+                dic_layers['linear'+str(n)] = nn.Linear(self.dense_enc[n-1], self.dense_enc[n])
             dic_layers['activation'+str(n)] = self.activation
             dic_layers['dropout'+str(n)] = nn.Dropout(p=self.dropout_p)
         self.enc_dense = nn.Sequential(dic_layers)
-        self.enc_mean = nn.Linear(self.hidden_enc[-1], self.z_dim)
-        self.enc_logvar = nn.Linear(self.hidden_enc[-1], self.z_dim)
+        self.enc_mean = nn.Linear(self.dense_enc[-1], self.z_dim)
+        self.enc_logvar = nn.Linear(self.dense_enc[-1], self.z_dim)
         # decode
         dic_layers = OrderedDict()
-        for n in range(len(self.hidden_dec)):
+        for n in range(len(self.dense_dec)):
             if n == 0:
-                dic_layers['linear'+str(n)] = nn.Linear(self.hidden_z[-1] + self.h_dim, self.hidden_dec[n])
+                dic_layers['linear'+str(n)] = nn.Linear(self.dense_z[-1] + self.dim_RNN, self.dense_dec[n])
             else:
-                dic_layers['linear'+str(n)] = nn.Linear(self.hidden_dec[n-1], self.hidden_dec[n])
+                dic_layers['linear'+str(n)] = nn.Linear(self.dense_dec[n-1], self.dense_dec[n])
             dic_layers['activation'+str(n)] = self.activation
             dic_layers['dropout'+str(n)] = nn.Dropout(p=self.dropout_p)
         self.dec_dense = nn.Sequential(dic_layers)
-        self.dec_logvar = nn.Linear(self.hidden_dec[-1], self.y_dim)
+        self.dec_logvar = nn.Linear(self.dense_dec[-1], self.y_dim)
         # prior
         dic_layers = OrderedDict()
-        for n in range(len(self.hidden_prior)):
+        for n in range(len(self.dense_prior)):
             if n == 0:
-                dic_layers['linear'+str(n)] = nn.Linear(self.h_dim, self.hidden_prior[n])
+                dic_layers['linear'+str(n)] = nn.Linear(self.dim_RNN, self.dense_prior[n])
             else:
-                dic_layers['linear'+str(n)] = nn.Linear(self.hidden_prior[n-1], self.hidden_prior[n])
+                dic_layers['linear'+str(n)] = nn.Linear(self.dense_prior[n-1], self.dense_prior[n])
             dic_layers['activation'+str(n)] = self.activation
             dic_layers['dropout'+str(n)] = nn.Dropout(p=self.dropout_p)
         self.prior_dense = nn.Sequential(dic_layers)
-        self.prior_mean = nn.Linear(self.hidden_prior[-1], self.z_dim)
-        self.prior_logvar = nn.Linear(self.hidden_prior[-1], self.z_dim)
+        self.prior_mean = nn.Linear(self.dense_prior[-1], self.z_dim)
+        self.prior_logvar = nn.Linear(self.dense_prior[-1], self.z_dim)
         
         #### Recurrent layer
-        self.rnn = nn.LSTM(self.hidden_x[-1]+self.hidden_z[-1], self.h_dim, self.num_LSTM, bidirectional=False)
+        self.rnn = nn.LSTM(self.dense_x[-1]+self.dense_z[-1], self.dim_RNN, self.num_RNN, bidirectional=False)
 
     def inference(self, feature_xt, h_t):
         enc_input = torch.cat((feature_xt, h_t), 2)
@@ -165,15 +161,15 @@ class VRNN(nn.Module):
         all_enc_mean = torch.zeros((seq_len, batch_size, self.z_dim)).to(self.device)
         y = torch.zeros((seq_len, batch_size, self.y_dim)).to(self.device)
         z = torch.zeros((seq_len, batch_size, self.z_dim)).to(self.device)
-        h = torch.zeros((seq_len, batch_size, self.h_dim)).to(self.device)
+        h = torch.zeros((seq_len, batch_size, self.dim_RNN)).to(self.device)
         z_t = torch.zeros(batch_size, self.z_dim).to(self.device)
-        h_t = torch.zeros(self.num_LSTM, batch_size, self.h_dim).to(self.device)
-        c_t = torch.zeros(self.num_LSTM, batch_size, self.h_dim).to(self.device)
+        h_t = torch.zeros(self.num_RNN, batch_size, self.dim_RNN).to(self.device)
+        c_t = torch.zeros(self.num_RNN, batch_size, self.dim_RNN).to(self.device)
 
         feature_x = self.feature_extractor_x(x)
         for t in range(seq_len):
             feature_xt = feature_x[t,:,:].unsqueeze(0)
-            h_t_last = h_t.view(self.num_LSTM, 1, batch_size, self.h_dim)[-1,:,:,:]
+            h_t_last = h_t.view(self.num_RNN, 1, batch_size, self.dim_RNN)[-1,:,:,:]
             mean_zt, logvar_zt = self.inference(feature_xt, h_t_last)
             std_zt = torch.exp(0.5*logvar_zt)
             z_t = self.reparatemize(mean_zt, std_zt)

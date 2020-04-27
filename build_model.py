@@ -21,6 +21,7 @@ from model.vae import VAE
 from model.rvae import RVAE
 from model.storn import STORN
 from model.vrnn import VRNN
+from model.srnn import SRNN
 
 
 from backup_simon.speech_dataset import *
@@ -46,19 +47,19 @@ class BuildBasic():
 
     def __init__(self, cfg = myconf()):
 
-        # Load config parser
+        # 1. Load config parser
         self.cfg = cfg
         self.model_name = self.cfg.get('Network', 'name')
         self.dataset_name = self.cfg.get('DataFrame', 'dataset_name')
 
-        # Get host name and date
+        # 2. Get host name and date
         self.hostname = socket.gethostname()
         self.date = datetime.datetime.now().strftime("%Y-%m-%d-%Hh%M")
 
-        # Get logger type
+        # 3. Get logger type
         self.logger_type = self.cfg.getint('User', 'logger_type')
 
-        # Load STFT parameters
+        # 4. Load STFT parameters
         self.wlen_sec = self.cfg.getfloat('STFT', 'wlen_sec')
         self.hop_percent = self.cfg.getfloat('STFT', 'hop_percent')
         self.fs = self.cfg.getint('STFT', 'fs')
@@ -66,39 +67,41 @@ class BuildBasic():
         self.trim = self.cfg.getboolean('STFT', 'trim')
         self.verbose = self.cfg.getboolean('STFT', 'verbose')
 
-        # Load training parameters
+        # 5. Load training parameters
         self.lr = self.cfg.getfloat('Training', 'lr')
         self.epochs = self.cfg.getint('Training', 'epochs')
         self.batch_size = self.cfg.getint('Training', 'batch_size')
+        self.sequence_len = self.cfg.getint('DataFrame','sequence_len')
         self.optimization  = self.cfg.get('Training', 'optimization')
         self.early_stop_patience = self.cfg.getint('Training', 'early_stop_patience')
         self.save_frequency = self.cfg.getint('Training', 'save_frequency')
 
-        # Create saved_model directory if not exist, and find dataset
+        # 6. Create saved_model directory if not exist, and find dataset
         self.save_dir = self.cfg.get('User', 'save_dir')
         self.saved_root, self.train_data_dir, self.val_data_dir = perpare_dataset(self.dataset_name, self.hostname, self.save_dir)
-        # self.saved_root = '/mnt/xbie/Code/saved_model_smallset'
-        # self.train_data_dir = '/mnt/xbie/Data/clean_speech/wsj0_si_dt_05'
-        # self.val_data_dir = '/mnt/xbie/Data/clean_speech/wsj0_si_et_05'
 
-        # Choose to use gpu or cpu
+        # 7. Choose to use gpu or cpu
         self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
-        # Define loss function
-        # we assume recon_x and x are complex-Gaussian
-        # and z is Gaussian
-        def loss_function(recon_x, x, mu, logvar, mu_prior=None, logvar_prior=None):
+        # 8. Get model tag, used in loss figure and evaluation table
+        if self.cfg.has_option('Network', 'tag'):
+            self.tag = self.cfg.get('Network', 'tag')
+        else:
+            self.tag = '{}'.format(self.model_name)
+
+        # 9. Define loss function (recon_x/x: complex-Gaussian, z: Gaussian)
+        def loss_function(recon_x, x, mu, logvar, mu_prior=None, logvar_prior=None, batch_size=32, seq_len=50):
             if mu_prior is None:
                 mu_prior = torch.zeros_like(mu)
             if logvar_prior is None:
-                logvar_prior = torch.zeros_like(logvar)
+                logvar_prior = torch.zeros(logvar.shape)
             recon = torch.sum(  x/recon_x - torch.log(x/recon_x) - 1 ) 
             KLD = -0.5 * torch.sum(logvar - logvar_prior - torch.div((logvar.exp() + (mu - mu_prior).pow(2)), logvar_prior.exp()))
-            return recon + KLD
+            return (recon + KLD) / (batch_size * seq_len)
 
         self.loss_function = loss_function
 
-        # Define dataloader type
+        # 10. Define dataloader type
         self.get_seq = False
 
     def build_dataloader(self):
@@ -124,7 +127,6 @@ class BuildBasic():
                                                 shuffle_file_list = self.shuffle_file_list,
                                                 name = self.dataset_name)
         else:
-            self.sequence_len = self.cfg.getint('DataFrame','sequence_len')
             train_dataset = SpeechDatasetSequences(file_list=self.train_file_list,
                                                    sequence_len=self.sequence_len,
                                                    wlen_sec=self.wlen_sec,
@@ -151,7 +153,6 @@ class BuildBasic():
                                               shuffle_file_list = self.shuffle_file_list,
                                               name = self.dataset_name)
         else:
-            self.sequence_len = self.cfg.getint('DataFrame','sequence_len')
             val_dataset = SpeechDatasetSequences(file_list=self.val_file_list,
                                                  sequence_len=self.sequence_len,
                                                  wlen_sec=self.wlen_sec,
@@ -192,11 +193,6 @@ class BuildBasic():
 
 class BuildFFNN(BuildBasic):
 
-    """
-    Feed-forward fully-connected VAE
-    Implementation of FFNN in rvae
-    """
-
     def __init__(self, cfg=myconf()):
         
         super().__init__(cfg)
@@ -216,12 +212,6 @@ class BuildFFNN(BuildBasic):
         self.save_dir = os.path.join(self.saved_root, self.filename)
         if not(os.path.isdir(self.save_dir)):
             os.makedirs(self.save_dir)
-
-        # Model tag, used in loss figure and evaluation table
-        if self.cfg.has_option('Network', 'tag'):
-            self.tag = self.cfg.get('Network', 'tag')
-        else:
-            self.tag = self.model_name
 
         # Create logger
         log_file = os.path.join(self.save_dir, 'log.txt')
@@ -243,7 +233,6 @@ class BuildFFNN(BuildBasic):
         self.model = VAE(x_dim = self.x_dim,
                          z_dim = self.z_dim,
                          hidden_dim_enc = self.hidden_dim_enc,
-                         batch_size = self.batch_size,
                          activation = self.activation).to(self.device)
         
         # Print model information
@@ -258,10 +247,7 @@ class BuildFFNN(BuildBasic):
 
 
 class BuildRVAE(BuildBasic):
-    """
-    Reccurrent (uni- or bi-directional LSTM) VAE (RVAE)
-    We can choose wheter there is a recurrence over z
-    """
+
     def __init__(self, cfg = myconf()):
 
         super().__init__(cfg)
@@ -270,15 +256,15 @@ class BuildRVAE(BuildBasic):
         self.x_dim = self.cfg.getint('Network', 'x_dim')
         self.z_dim = self.cfg.getint('Network','z_dim')
         self.bidir_enc_x = self.cfg.getboolean('Network', 'bidir_enc_x')
-        self.h_dim_x = self.cfg.getint('Network', 'h_dim_x')
-        self.num_LSTM_x = self.cfg.getint('Network', 'num_LSTM_x')
+        self.dim_RNN_x = self.cfg.getint('Network', 'dim_RNN_x')
+        self.num_RNN_x = self.cfg.getint('Network', 'num_RNN_x')
         self.rec_over_z = self.cfg.getboolean('Network', 'rec_over_z')
-        self.h_dim_z = self.cfg.getint('Network', 'h_dim_z')
-        self.num_LSTM_z = self.cfg.getint('Network', 'num_LSTM_z')
+        self.dim_RNN_z = self.cfg.getint('Network', 'dim_RNN_z')
+        self.num_RNN_z = self.cfg.getint('Network', 'num_RNN_z')
         self.hidden_dim_enc = [int(i) for i in self.cfg.get('Network', 'hidden_dim_enc').split(',')] # this parameter is a python list
         self.bidir_dec = self.cfg.getboolean('Network', 'bidir_dec')
-        self.h_dim_dec = self.cfg.getint('Network', 'h_dim_dec')
-        self.num_LSTM_dec = self.cfg.getint('Network', 'num_LSTM_dec')
+        self.dim_RNN_dec = self.cfg.getint('Network', 'dim_RNN_dec')
+        self.num_RNN_dec = self.cfg.getint('Network', 'num_RNN_dec')
 
         # Create directory for results
         if self.bidir_enc_x:
@@ -303,12 +289,6 @@ class BuildRVAE(BuildBasic):
         if not(os.path.isdir(self.save_dir)):
             os.makedirs(self.save_dir)
 
-        # Model tag, used in loss figure and evaluation table
-        if self.cfg.has_option('Network', 'tag'):
-            self.tag = self.cfg.get('Network', 'tag')
-        else:
-            self.tag = '{}{} {}'.format(enc_type[:-3], 'RNN', posterior_type) 
-
         # Create logger
         log_file = os.path.join(self.save_dir, 'log.txt')
         logger = get_logger(log_file, self.logger_type)
@@ -326,14 +306,14 @@ class BuildRVAE(BuildBasic):
         
         # Init RVAE network
         self.logger.info('===== Init RVAE =====')
-        self.model = RVAE(x_dim=self.x_dim, z_dim=self.z_dim, batch_size=self.batch_size, 
-                          bidir_enc_x=self.bidir_enc_x, h_dim_x=self.h_dim_x, 
-                          num_LSTM_x=self.num_LSTM_x,
-                          rec_over_z=self.rec_over_z, h_dim_z=self.h_dim_z, 
-                          num_LSTM_z=self.num_LSTM_z,
+        self.model = RVAE(x_dim=self.x_dim, z_dim=self.z_dim,
+                          bidir_enc_x=self.bidir_enc_x, dim_RNN_x=self.dim_RNN_x, 
+                          num_RNN_x=self.num_RNN_x,
+                          rec_over_z=self.rec_over_z, dim_RNN_z=self.dim_RNN_z, 
+                          num_RNN_z=self.num_RNN_z,
                           hidden_dim_enc=self.hidden_dim_enc,
-                          bidir_dec=self.bidir_dec, h_dim_dec=self.h_dim_dec, 
-                          num_LSTM_dec=self.num_LSTM_dec,
+                          bidir_dec=self.bidir_dec, dim_RNN_dec=self.dim_RNN_dec, 
+                          num_RNN_dec=self.num_RNN_dec,
                           device=self.device).to(self.device)
         # Print model information
         for log in self.model.get_info():
@@ -347,9 +327,7 @@ class BuildRVAE(BuildBasic):
 
 
 class BuildSTORN(BuildBasic):
-    """
-    Stochastic Recurrent Networks (STORN)
-    """
+
     def __init__(self, cfg=myconf()):
 
         super().__init__(cfg)
@@ -360,37 +338,21 @@ class BuildSTORN(BuildBasic):
         self.z_dim = self.cfg.getint('Network','z_dim')
         self.activation = self.cfg.get('Network', 'activation')
         # Encoder
-        self.bidir_enc = self.cfg.getboolean('Network', 'bidir_enc')
-        self.h_dim_enc = self.cfg.getint('Network', 'h_dim_enc')
-        self.num_LSTM_enc = self.cfg.getint('Network', 'num_LSTM_enc')
-        self.hidden_dim_enc_pre = [int(i) for i in self.cfg.get('Network', 'hidden_dim_enc_pre').split(',')] # list
-        self.hidden_dim_enc_post = [int(i) for i in self.cfg.get('Network', 'hidden_dim_enc_post').split(',')] # list
+        self.dim_RNN_enc = self.cfg.getint('Network', 'dim_RNN_enc')
+        self.num_RNN_enc = self.cfg.getint('Network', 'num_RNN_enc')
+        self.dense_enc_pre = [int(i) for i in self.cfg.get('Network', 'dense_enc_pre').split(',')] # list
+        self.dense_enc_post = [int(i) for i in self.cfg.get('Network', 'dense_enc_post').split(',')] # list
         # Decoder
-        self.bidir_dec = self.cfg.getboolean('Network', 'bidir_dec')
-        self.h_dim_dec = self.cfg.getint('Network', 'h_dim_dec')
-        self.num_LSTM_dec = self.cfg.getint('Network', 'num_LSTM_dec')
-        self.hidden_dim_dec_pre = [int(i) for i in self.cfg.get('Network', 'hidden_dim_dec_pre').split(',')] # list
-        self.hidden_dim_dec_post = [int(i) for i in self.cfg.get('Network', 'hidden_dim_dec_post').split(',')] # list
+        self.dim_RNN_dec = self.cfg.getint('Network', 'dim_RNN_dec')
+        self.num_RNN_dec = self.cfg.getint('Network', 'num_RNN_dec')
+        self.dense_dec_pre = [int(i) for i in self.cfg.get('Network', 'dense_dec_pre').split(',')] # list
+        self.dense_dec_post = [int(i) for i in self.cfg.get('Network', 'dense_dec_post').split(',')] # list
         # Dropout
         self.dropout_p = self.cfg.getfloat('Network', 'dropout_p')
 
         # Create directory for results
-        if self.bidir_enc:
-            enc_type = 'BiEnc'
-        else:
-            enc_type = 'UniEnc'
-        if self.bidir_dec:
-            dec_type = 'BiDec'
-        else:
-            dec_type = 'UniDec'
-
-        num_dense = len(self.hidden_dim_enc_pre)
-
-
-        if self.bidir_enc or self.bidir_dec:
-            fullname = '{}_{}_act={}_dense={}'.format(enc_type, dec_type, self.activation, num_dense)
-        else:
-            fullname = 'act={}_dense={}'.format(self.activation, num_dense)
+        num_dense = len(self.dense_enc_pre)
+        fullname = 'act={}_dense={}'.format(self.activation, num_dense)
         
         self.filename = "{}_{}_{}_{}_z_dim={}".format(self.dataset_name, 
                                                       self.date,
@@ -400,12 +362,6 @@ class BuildSTORN(BuildBasic):
         self.save_dir = os.path.join(self.saved_root, self.filename)
         if not(os.path.isdir(self.save_dir)):
             os.makedirs(self.save_dir)
-
-        # Model tag, used in loss figure and evaluation table
-        if self.cfg.has_option('Network', 'tag'):
-            self.tag = self.cfg.get('Network', 'tag')
-        else:
-            self.tag = '{}{}'.format(enc_type[:-3], self.model_name)
 
         # Create logger
         log_file = os.path.join(self.save_dir, 'log.txt')
@@ -425,15 +381,15 @@ class BuildSTORN(BuildBasic):
         # Init RVAE network
         self.logger.info('===== Init STORN =====')
         self.model = STORN(x_dim=self.x_dim, z_dim=self.z_dim, 
-                           batch_size=self.batch_size, activation=self.activation,
-                           bidir_enc=self.bidir_enc, h_dim_enc=self.h_dim_enc,
-                           num_LSTM_enc=self.num_LSTM_enc,
-                           hidden_dim_enc_pre=self.hidden_dim_enc_pre,
-                           hidden_dim_enc_post=self.hidden_dim_enc_post,
-                           bidir_dec=self.bidir_dec, h_dim_dec=self.h_dim_dec,
-                           num_LSTM_dec=self.num_LSTM_dec,
-                           hidden_dim_dec_pre=self.hidden_dim_dec_pre,
-                           hidden_dim_dec_post=self.hidden_dim_dec_post,
+                           activation=self.activation,
+                           dim_RNN_enc=self.dim_RNN_enc,
+                           num_RNN_enc=self.num_RNN_enc,
+                           dense_enc_pre=self.dense_enc_pre,
+                           dense_enc_post=self.dense_enc_post,
+                           dim_RNN_dec=self.dim_RNN_dec,
+                           num_RNN_dec=self.num_RNN_dec,
+                           dense_dec_pre=self.dense_dec_pre,
+                           dense_dec_post=self.dense_dec_post,
                            dropout_p = self.dropout_p,
                            device=self.device).to(self.device)
         # Print model information
@@ -448,9 +404,7 @@ class BuildSTORN(BuildBasic):
 
 
 class BuildVRNN(BuildBasic):
-    """
-    Variational RNN (VRNN)
-    """
+
     def __init__(self, cfg=myconf()):
 
         super().__init__(cfg)
@@ -461,20 +415,20 @@ class BuildVRNN(BuildBasic):
         self.z_dim = self.cfg.getint('Network','z_dim')
         self.activation = self.cfg.get('Network', 'activation')
         # Feature extractor
-        self.hidden_x = [int(i) for i in self.cfg.get('Network', 'hidden_x').split(',')]
-        self.hidden_z = [int(i) for i in self.cfg.get('Network', 'hidden_z').split(',')]
+        self.dense_x = [int(i) for i in self.cfg.get('Network', 'dense_x').split(',')]
+        self.dense_z = [int(i) for i in self.cfg.get('Network', 'dense_z').split(',')]
         # Dense layers
-        self.hidden_enc = [int(i) for i in self.cfg.get('Network', 'hidden_enc').split(',')]
-        self.hidden_dec = [int(i) for i in self.cfg.get('Network', 'hidden_dec').split(',')]
-        self.hidden_prior = [int(i) for i in self.cfg.get('Network', 'hidden_prior').split(',')]
+        self.dense_enc = [int(i) for i in self.cfg.get('Network', 'dense_enc').split(',')]
+        self.dense_dec = [int(i) for i in self.cfg.get('Network', 'dense_dec').split(',')]
+        self.dense_prior = [int(i) for i in self.cfg.get('Network', 'dense_prior').split(',')]
         # RNN
-        self.h_dim = self.cfg.getint('Network', 'h_dim')
-        self.num_LSTM = self.cfg.getint('Network', 'num_LSTM')
+        self.dim_RNN = self.cfg.getint('Network', 'dim_RNN')
+        self.num_RNN = self.cfg.getint('Network', 'num_RNN')
         # Dropout
         self.dropout_p = self.cfg.getfloat('Network', 'dropout_p')
 
         # Create directory for results
-        num_dense = len(self.hidden_enc)
+        num_dense = len(self.dense_enc)
         fullname = 'act={}_dense={}'.format(self.activation, num_dense)
         self.filename = "{}_{}_{}_{}_z_dim={}".format(self.dataset_name, 
                                                       self.date,
@@ -484,12 +438,6 @@ class BuildVRNN(BuildBasic):
         self.save_dir = os.path.join(self.saved_root, self.filename)
         if not(os.path.isdir(self.save_dir)):
             os.makedirs(self.save_dir)                                              
-
-        # Model tag, used in loss figure and evaluation table
-        if self.cfg.has_option('Network', 'tag'):
-            self.tag = self.cfg.get('Network', 'tag')
-        else:
-            self.tag = self.model_name
 
         # Create logger
         log_file = os.path.join(self.save_dir, 'log.txt')
@@ -509,10 +457,10 @@ class BuildVRNN(BuildBasic):
         self.logger.info('===== Init VRNN =====')
         self.model = VRNN(x_dim=self.x_dim, z_dim=self.z_dim, 
                           activation=self.activation,
-                          hidden_x=self.hidden_x, hidden_z=self.hidden_z,
-                          hidden_enc=self.hidden_enc, hidden_dec=self.hidden_dec, 
-                          hidden_prior=self.hidden_prior,
-                          h_dim=self.h_dim, num_LSTM=self.num_LSTM,
+                          dense_x=self.dense_x, dense_z=self.dense_z,
+                          dense_enc=self.dense_enc, dense_dec=self.dense_dec, 
+                          dense_prior=self.dense_prior,
+                          dim_RNN=self.dim_RNN, num_RNN=self.num_RNN,
                           dropout_p = self.dropout_p,
                           device=self.device).to(self.device)
         # Print model information
@@ -526,6 +474,95 @@ class BuildVRNN(BuildBasic):
             self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
 
 
+class BuildSRNN(BuildBasic):
+
+    def __init__(self, cfg=myconf()):
+
+        super().__init__(cfg)
+        ### Load parameters for SRNN
+        # General
+        self.x_dim = self.cfg.getint('Network', 'x_dim')
+        self.z_dim = self.cfg.getint('Network','z_dim')
+        self.activation = self.cfg.get('Network', 'activation')
+
+        # Dense layer
+        if self.cfg.has_option('Network', 'dense_x_h'):
+            self.dense_x_h = [int(i) for i in self.cfg.get('Network', 'dense_x_h').split(',')]
+        else:
+            self.dense_x_h = []
+
+        if self.cfg.has_option('Network', 'dense_hx_g'):
+            self.dense_hx_g = [int(i) for i in self.cfg.get('Network', 'dense_hx_g').split(',')]
+        else:
+            self.dense_hx_g = []
+
+        self.dense_gz_z = [int(i) for i in self.cfg.get('Network', 'dense_gz_z').split(',')]
+        self.dense_hz_x = [int(i) for i in self.cfg.get('Network', 'dense_hz_x').split(',')]
+        self.dense_hz_z = [int(i) for i in self.cfg.get('Network', 'dense_hz_z').split(',')]
+
+        # RNN
+        self.dim_RNN_h = self.cfg.getint('Network', 'dim_RNN_h')
+        self.num_RNN_h = self.cfg.getint('Network', 'num_RNN_h')
+        self.dim_RNN_g = self.cfg.getint('Network', 'dim_RNN_g')
+        self.num_RNN_g = self.cfg.getint('Network', 'num_RNN_g')
+
+        # Dropout
+        self.dropout_p = self.cfg.getfloat('Network', 'dropout_p')
+        
+        # Create direcotry for results
+        fullname = 'act={}'.format(self.activation)
+        self.filename = "{}_{}_{}_{}_z_dim={}".format(self.dataset_name, 
+                                                      self.date,
+                                                      self.model_name,
+                                                      fullname, 
+                                                      self.z_dim)
+        self.save_dir = os.path.join(self.saved_root, self.filename)
+        if not(os.path.isdir(self.save_dir)):
+            os.makedirs(self.save_dir)
+
+        # Create logger
+        log_file = os.path.join(self.save_dir, 'log.txt')
+        logger = get_logger(log_file, self.logger_type)
+        for log in self.get_basic_info():
+            logger.info(log)
+        logger.info('In this experiment, result will be saved in: ' + self.save_dir)
+        self.logger = logger
+
+        # Re-define data type
+        self.get_seq = True
+
+        self.build()
+
+    def build(self):
+        # Init RVAE network
+        self.logger.info('===== Init SRNN =====')
+        self.model = SRNN(x_dim=self.x_dim, z_dim=self.z_dim, 
+                           activation=self.activation,
+                           dense_x_h=self.dense_x_h,
+                           dense_hx_g=self.dense_hx_g,
+                           dense_gz_z=self.dense_gz_z,
+                           dense_hz_x=self.dense_hz_x,
+                           dense_hz_z=self.dense_hz_z,
+                           dim_RNN_h=self.dim_RNN_h,
+                           num_RNN_h=self.num_RNN_h,
+                           dim_RNN_g=self.dim_RNN_g,
+                           num_RNN_g=self.num_RNN_g,
+                           dropout_p = self.dropout_p,
+                           device=self.device).to(self.device)
+        # Print model information
+        for log in self.model.get_info():
+            self.logger.info(log)
+            
+        # Init optimizer (Adam by default)
+        if self.optimization == 'adam':
+            self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
+        else:
+            self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
+
+
+
+
+
 def build_model(config_file='config_default.ini'):
     if not os.path.isfile(config_file):
         raise ValueError('Invalid config file path')    
@@ -533,19 +570,20 @@ def build_model(config_file='config_default.ini'):
     cfg.read(config_file)
     model_name = cfg.get('Network', 'name')
     if model_name == 'FFNN':
-        model = BuildFFNN(cfg)
+        model_class = BuildFFNN(cfg)
     elif model_name == 'RVAE':
-        model = BuildRVAE(cfg)
+        model_class = BuildRVAE(cfg)
     elif model_name == 'STORN':
-        model = BuildSTORN(cfg)
+        model_class = BuildSTORN(cfg)
     elif model_name == 'VRNN':
-        model = BuildVRNN(cfg)
-    return model
+        model_class = BuildVRNN(cfg)
+    elif model_name == 'SRNN':
+        model_class = BuildSRNN(cfg)
+    return model_class
 
 
 if __name__ == '__main__':
-    model = build_model('cfg_debug_ffnn.ini')
-    net = model.net
-    optimizer = model.optimizer
-    model.print_model()
+    model_class = build_model('config/cfg_debug_srnn.ini')
+    model = model_class.model
+    optimizer = model_class.optimizer
     train_dataloader, _, _, _ = model_class.build_dataloader()

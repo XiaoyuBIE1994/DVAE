@@ -30,7 +30,7 @@ class VAE(nn.Module):
     '''
 
     def __init__(self, x_dim=None, z_dim=None,
-                 hidden_dim_enc=None, batch_size=None,
+                 hidden_dim_enc=None,
                  activation=None):
         super().__init__()
 
@@ -38,7 +38,6 @@ class VAE(nn.Module):
         self.z_dim = z_dim
         self.hidden_dim_enc = hidden_dim_enc
         self.hidden_dim_dec = list(reversed(hidden_dim_enc))
-        self.batch_size = batch_size
         self.activation = activation
         self.model = None
         self.history = None

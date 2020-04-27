@@ -34,6 +34,8 @@ def train_model(config_file):
     model = model_class.model
     optimizer = model_class.optimizer
     loss_function = model_class.loss_function
+    batch_size = model_class.batch_size
+    seq_len = model_class.sequence_len
     epochs = model_class.epochs
     logger = model_class.logger
     num_parameters = sum(p.numel() for p in model.parameters() if p.requires_grad)
@@ -57,12 +59,16 @@ def train_model(config_file):
         for batch_idx, batch_data in enumerate(train_dataloader):
             batch_data = batch_data.to(model_class.device)
             optimizer.zero_grad()
-            if model_class.model_name == 'VRNN':
+            if model_class.model_name in ['VRNN', 'SRNN']:
                 recon_batch_data, mean, logvar, mean_prior, logvar_prior, z = model(batch_data)
-                loss = loss_function(recon_batch_data, batch_data, mean, logvar, mean_prior, logvar_prior)
+                loss = loss_function(recon_batch_data, batch_data, 
+                                     mean, logvar, mean_prior, logvar_prior,
+                                     batch_size = batch_size, seq_len=seq_len)
             else:
                 recon_batch_data, mean, logvar, z = model(batch_data)
-                loss = loss_function(recon_batch_data, batch_data, mean, logvar)
+                loss = loss_function(recon_batch_data, batch_data, 
+                                     mean, logvar,
+                                     batch_size = batch_size, seq_len=seq_len)
             loss.backward()
             train_loss[epoch] += loss.item()
             optimizer.step()
@@ -70,12 +76,16 @@ def train_model(config_file):
         # Cross validation
         for batch_idx, batch_data in enumerate(val_dataloader):
             batch_data = batch_data.to(model_class.device)
-            if model_class.model_name == 'VRNN':
+            if model_class.model_name in ['VRNN', 'SRNN']:
                 recon_batch_data, mean, logvar, mean_prior, logvar_prior, z = model(batch_data)
-                loss = loss_function(recon_batch_data, batch_data, mean, logvar, mean_prior, logvar_prior)
+                loss = loss_function(recon_batch_data, batch_data, 
+                                     mean, logvar, mean_prior, logvar_prior,
+                                     batch_size = batch_size, seq_len=seq_len)
             else:
                 recon_batch_data, mean, logvar, z = model(batch_data)
-                loss = loss_function(recon_batch_data, batch_data, mean, logvar)
+                loss = loss_function(recon_batch_data, batch_data, 
+                                     mean, logvar,
+                                     batch_size = batch_size, seq_len=seq_len)
             val_loss[epoch] += loss.item()
 
         # Early stop patiance

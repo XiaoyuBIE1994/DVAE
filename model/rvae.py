@@ -26,44 +26,43 @@ class RVAE(nn.Module):
         batch_size: batch size for training
         
         bidir_enc_x: boolen, true if the RNN of x is bi-directional
-        h_dim_x: dimension of hidden state for the RNN of x
-        num_LSTM_x: number of LSTMs of x
+        dim_RNN_x: dimension of hidden state for the RNN of x
+        num_RNN_x: number of LSTMs of x
         
         rec_over_z: boolen, true if z_n depend on former state
-        h_dim_z: dimension of hidden state for the RNN of z
-        num_LSTM_z: number of LSTMs of z
+        dim_RNN_z: dimension of hidden state for the RNN of z
+        num_RNN_z: number of LSTMs of z
 
         hidden_dim_enc: python list, indicate the dimensions of hidden dense layers of encoder
 
-        num_LSTM_dec: number of LSTMs of decoder
+        num_RNN_dec: number of LSTMs of decoder
         bidir_dec: boolen, true if the RNN for decoder is bi-directional
     """
-    def __init__(self, x_dim, z_dim=16, batch_size=16,
-                 bidir_enc_x=False, h_dim_x=128, num_LSTM_x=1,
-                 rec_over_z=True, h_dim_z=128, num_LSTM_z=1,
+    def __init__(self, x_dim, z_dim=16,
+                 bidir_enc_x=False, dim_RNN_x=128, num_RNN_x=1,
+                 rec_over_z=True, dim_RNN_z=128, num_RNN_z=1,
                  hidden_dim_enc=[128],
-                 bidir_dec=False, h_dim_dec=128, num_LSTM_dec=1, 
+                 bidir_dec=False, dim_RNN_dec=128, num_RNN_dec=1, 
                  device='cpu'):
                  
         super().__init__()
         # General parameters for rvae
         self.x_dim = x_dim
         self.z_dim = z_dim
-        self.batch_size = batch_size
         # Encoder: part RNN of x
         self.bidir_enc_x = bidir_enc_x
-        self.h_dim_x = h_dim_x
-        self.num_LSTM_x = num_LSTM_x
+        self.dim_RNN_x = dim_RNN_x
+        self.num_RNN_x = num_RNN_x
         # Encoder: part RNN of z
         self.rec_over_z = rec_over_z
-        self.h_dim_z = h_dim_z
-        self.num_LSTM_z = num_LSTM_z
+        self.dim_RNN_z = dim_RNN_z
+        self.num_RNN_z = num_RNN_z
         # Encoder: part dense layer 
         self.hidden_dim_enc = hidden_dim_enc
         # Decoer
         self.bidir_dec = bidir_dec
-        self.h_dim_dec = h_dim_dec
-        self.num_LSTM_dec = num_LSTM_dec
+        self.dim_RNN_dec = dim_RNN_dec
+        self.num_RNN_dec = num_RNN_dec
         # Training device 
         self.device = device
 
@@ -75,11 +74,11 @@ class RVAE(nn.Module):
         ###### Encoder #####
         
         # 1. Define the RNN block for x (input data)
-        self.enc_rnn_x = nn.LSTM(self.x_dim, self.h_dim_x, self.num_LSTM_x,
+        self.enc_rnn_x = nn.LSTM(self.x_dim, self.dim_RNN_x, self.num_RNN_x,
                                  bidirectional = self.bidir_enc_x)
         # 2. Define the RNN block for z (previous latent variables)
         if self.rec_over_z:
-            self.enc_rnn_z  = nn.LSTM(self.z_dim, self.h_dim_z, self.num_LSTM_z)
+            self.enc_rnn_z  = nn.LSTM(self.z_dim, self.dim_RNN_z, self.num_RNN_z)
 
         # 3. Define the dense layer fusing the output of two above-mentioned LSTM blocks
         if self.bidir_enc_x:
@@ -92,9 +91,9 @@ class RVAE(nn.Module):
         for n in range(len(self.hidden_dim_enc)):
             if n == 0: # the first layer
                 if self.rec_over_z:
-                    tmp_dense_dim = num_dir_x * self.h_dim_x + self.h_dim_z
+                    tmp_dense_dim = num_dir_x * self.dim_RNN_x + self.dim_RNN_z
                 else:
-                    tmp_dense_dim = num_dir_x * self.h_dim_x
+                    tmp_dense_dim = num_dir_x * self.dim_RNN_x
                 self.dict_enc_dense['linear'+str(n)] = nn.Linear(tmp_dense_dim, self.hidden_dim_enc[n])
 
             else:
@@ -109,14 +108,14 @@ class RVAE(nn.Module):
 
         ##### Decoder #####
         # 1. Define the LSTM procesing the latent variables
-        self.dec_rnn = nn.LSTM(self.z_dim, self.h_dim_dec, self.num_LSTM_dec,
+        self.dec_rnn = nn.LSTM(self.z_dim, self.dim_RNN_dec, self.num_RNN_dec,
                                bidirectional = self.bidir_dec)
 
         # 2. Define the linear layer outputing the log-variance
         if self.bidir_dec:
-            self.dec_logvar = nn.Linear(2*self.h_dim_dec, self.y_dim)
+            self.dec_logvar = nn.Linear(2*self.dim_RNN_dec, self.y_dim)
         else:
-            self.dec_logvar = nn.Linear(self.h_dim_dec, self.y_dim)
+            self.dec_logvar = nn.Linear(self.dim_RNN_dec, self.y_dim)
 
             
     def encode(self, x):
@@ -141,14 +140,14 @@ class RVAE(nn.Module):
         all_enc_mean = torch.zeros((seq_len, batch_size, self.z_dim)).to(self.device)
         z = torch.zeros((seq_len, batch_size, self.z_dim)).to(self.device)
         z_n = torch.zeros(batch_size, self.z_dim).to(self.device)
-        h_z_n = torch.zeros(self.num_LSTM_z, batch_size, self.h_dim_z).to(self.device)
-        c_z_n = torch.zeros(self.num_LSTM_z, batch_size, self.h_dim_z).to(self.device)
+        h_z_n = torch.zeros(self.num_RNN_z, batch_size, self.dim_RNN_z).to(self.device)
+        c_z_n = torch.zeros(self.num_RNN_z, batch_size, self.dim_RNN_z).to(self.device)
         if self.bidir_enc_x:
-            h0_x = torch.zeros(self.num_LSTM_x*2, batch_size, self.h_dim_x).to(self.device)
-            c0_x = torch.zeros(self.num_LSTM_x*2, batch_size, self.h_dim_x).to(self.device)
+            h0_x = torch.zeros(self.num_RNN_x*2, batch_size, self.dim_RNN_x).to(self.device)
+            c0_x = torch.zeros(self.num_RNN_x*2, batch_size, self.dim_RNN_x).to(self.device)
         else:
-            h0_x = torch.zeros(self.num_LSTM_x, batch_size, self.h_dim_x).to(self.device)
-            c0_x = torch.zeros(self.num_LSTM_x, batch_size, self.h_dim_x).to(self.device)
+            h0_x = torch.zeros(self.num_RNN_x, batch_size, self.dim_RNN_x).to(self.device)
+            c0_x = torch.zeros(self.num_RNN_x, batch_size, self.dim_RNN_x).to(self.device)
         
         # rnn over x, return h_x
         h_x, _ = self.enc_rnn_x(torch.flip(x, [0]), (h0_x, c0_x))
@@ -164,9 +163,9 @@ class RVAE(nn.Module):
                 
                 # Get output of the last layer
                 # h_z_n.view(num_layers, num_directions, batch, hidden_size)
-                h_z_n_last = h_z_n.view(self.num_LSTM_z, 1, batch_size, self.h_dim_z)[-1,:,:,:]
+                h_z_n_last = h_z_n.view(self.num_RNN_z, 1, batch_size, self.dim_RNN_z)[-1,:,:,:]
                 # delete the first two dimension (both are 1)
-                h_z_n_last = h_z_n.view(batch_size, self.h_dim_z)
+                h_z_n_last = h_z_n.view(batch_size, self.dim_RNN_z)
                 # concatenate h_s and h_z for time step n
                 h_xz = torch.cat([h_x[n, :,:], h_z_n_last], 1)
 
@@ -211,15 +210,15 @@ class RVAE(nn.Module):
         # reset initial states
 
         if self.bidir_dec:
-            h0_dec = torch.zeros(self.num_LSTM_dec*2, 
-                                 batch_size, self.h_dim_dec).to(self.device)
-            c0_dec = torch.zeros(self.num_LSTM_dec*2, 
-                                 batch_size, self.h_dim_dec).to(self.device)
+            h0_dec = torch.zeros(self.num_RNN_dec*2, 
+                                 batch_size, self.dim_RNN_dec).to(self.device)
+            c0_dec = torch.zeros(self.num_RNN_dec*2, 
+                                 batch_size, self.dim_RNN_dec).to(self.device)
         else:
-            h0_dec = torch.zeros(self.num_LSTM_dec, 
-                                 batch_size, self.h_dim_dec).to(self.device)
-            c0_dec = torch.zeros(self.num_LSTM_dec, 
-                                 batch_size, self.h_dim_dec).to(self.device)
+            h0_dec = torch.zeros(self.num_RNN_dec, 
+                                 batch_size, self.dim_RNN_dec).to(self.device)
+            c0_dec = torch.zeros(self.num_RNN_dec, 
+                                 batch_size, self.dim_RNN_dec).to(self.device)
 
         # apply LSTM block to the input sequence of latent variable
         h_dec, _ = self.dec_rnn(z, (h0_dec, c0_dec))
