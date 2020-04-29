@@ -131,7 +131,7 @@ class STORN(nn.Module):
 
         # create x_tm1
         x_0 = torch.zeros(1, batch_size, x_dim).to(self.device)
-        x_tm1 = torch.cat((x_0, x[1:,:,:]), 0)
+        x_tm1 = torch.cat((x_0, x[:-1,:,:]), 0)
 
         # create variable holder and send to GPU if needed
         h0_enc = torch.zeros(self.num_RNN_enc, batch_size, self.dim_RNN_enc).to(self.device)

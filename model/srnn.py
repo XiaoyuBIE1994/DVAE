@@ -191,7 +191,7 @@ class SRNN(nn.Module):
 
         # 1. Generate h_t from x_tm1
         x_0 = torch.zeros(1, batch_size, x_dim).to(self.device)
-        x_tm1 = torch.cat((x_0, x[1:,:,:]), 0)
+        x_tm1 = torch.cat((x_0, x[:-1,:,:]), 0)
         x_h = self.denselayer_x_h(x_tm1)
         h, _ = self.rnn_h(x_h, (h_0_h, c_0_h))
 

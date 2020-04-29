@@ -9,6 +9,8 @@ The code in this file is based on:
 - “Deep Kalman Filter” arXiv, 2015, Rahul G.Krishnan et al.
 - "Structured Inference Networks for Nonlinear State Space Models" AAAI, 2017, Rahul G.Krishnan et al.
 
+DKS refers to the deep kalman smoother in the second paper, it is the one with the inference model
+that respects the stucture of the true posterior 
 """
 
 
@@ -18,9 +20,10 @@ import torch
 from collections import OrderedDict
 
 
-class DKF(nn.Module):
+class DKS(nn.Module):
 
-    def __init__(self, x_dim, z_dim=32, batch_size=16,
+    def __init__(self, x_dim, z_dim=32, activation='tanh',
+    
                  device='cpu'):
 
         super().__init__()
