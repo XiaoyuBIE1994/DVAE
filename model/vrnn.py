@@ -19,7 +19,7 @@ class VRNN(nn.Module):
 
     def __init__(self, x_dim, z_dim=16, activation = 'tanh',
                  dense_x=[128], dense_z=[128],
-                 dense_enc=[128], dense_dec=[128], dense_prior=[128],
+                 dense_hx_z=[128], dense_hz_x=[128], dense_h_z=[128],
                  dim_RNN=128, num_RNN=1,
                  dropout_p = 0, device='cpu'):
 
@@ -36,21 +36,24 @@ class VRNN(nn.Module):
         else:
             raise SystemExit('Wrong activation type!')
         self.device = device
-        ### Feature extractors parameters
+        ### Feature extractors
         self.dense_x = dense_x
         self.dense_z = dense_z
-        #### Dense layers (encode, decode and prior) parameters
-        self.dense_enc = dense_enc
-        self.dense_dec = dense_dec
-        self.dense_prior = dense_prior
-        ### Recurrence parameters
+        #### Dense layers
+        self.dense_hx_z = dense_hx_z
+        self.dense_hz_x = dense_hz_x
+        self.dense_h_z = dense_h_z
+        ### RNN
         self.dim_RNN = dim_RNN
         self.num_RNN = num_RNN
 
         self.build()
 
     def build(self):
-        #### Feature extractor
+
+        ###########################
+        #### Feature extractor ####
+        ###########################
         # x
         dic_layers = OrderedDict()
         for n in range(len(self.dense_x)):
@@ -72,75 +75,86 @@ class VRNN(nn.Module):
             dic_layers['dropout'+str(n)] = nn.Dropout(p=self.dropout_p)
         self.feature_extractor_z = nn.Sequential(dic_layers)
         
-        ### Dense layers (encode, decode and prior) 
-        # encode
+        ######################
+        #### Dense layers ####
+        ######################
+        # 1. Generation
         dic_layers = OrderedDict()
-        for n in range(len(self.dense_enc)):
+        for n in range(len(self.dense_hz_x)):
             if n == 0:
-                dic_layers['linear'+str(n)] = nn.Linear(self.dense_x[-1] + self.dim_RNN, self.dense_enc[n])
+                dic_layers['linear'+str(n)] = nn.Linear(self.dense_z[-1] + self.dim_RNN, self.dense_hz_x[n])
             else:
-                dic_layers['linear'+str(n)] = nn.Linear(self.dense_enc[n-1], self.dense_enc[n])
+                dic_layers['linear'+str(n)] = nn.Linear(self.dense_hz_x[n-1], self.dense_hz_x[n])
             dic_layers['activation'+str(n)] = self.activation
             dic_layers['dropout'+str(n)] = nn.Dropout(p=self.dropout_p)
-        self.enc_dense = nn.Sequential(dic_layers)
-        self.enc_mean = nn.Linear(self.dense_enc[-1], self.z_dim)
-        self.enc_logvar = nn.Linear(self.dense_enc[-1], self.z_dim)
-        # decode
+        self.mlp_hz_x = nn.Sequential(dic_layers)
+        self.gen_logvar = nn.Linear(self.dense_hz_x[-1], self.y_dim)
+        # 2. Prior
         dic_layers = OrderedDict()
-        for n in range(len(self.dense_dec)):
+        for n in range(len(self.dense_h_z)):
             if n == 0:
-                dic_layers['linear'+str(n)] = nn.Linear(self.dense_z[-1] + self.dim_RNN, self.dense_dec[n])
+                dic_layers['linear'+str(n)] = nn.Linear(self.dim_RNN, self.dense_h_z[n])
             else:
-                dic_layers['linear'+str(n)] = nn.Linear(self.dense_dec[n-1], self.dense_dec[n])
+                dic_layers['linear'+str(n)] = nn.Linear(self.dense_h_z[n-1], self.dense_h_z[n])
             dic_layers['activation'+str(n)] = self.activation
             dic_layers['dropout'+str(n)] = nn.Dropout(p=self.dropout_p)
-        self.dec_dense = nn.Sequential(dic_layers)
-        self.dec_logvar = nn.Linear(self.dense_dec[-1], self.y_dim)
-        # prior
+        self.mlp_h_z = nn.Sequential(dic_layers)
+        self.prior_mean = nn.Linear(self.dense_h_z[-1], self.z_dim)
+        self.prior_logvar = nn.Linear(self.dense_h_z[-1], self.z_dim)
+        # 3. Inference
         dic_layers = OrderedDict()
-        for n in range(len(self.dense_prior)):
+        for n in range(len(self.dense_hx_z)):
             if n == 0:
-                dic_layers['linear'+str(n)] = nn.Linear(self.dim_RNN, self.dense_prior[n])
+                dic_layers['linear'+str(n)] = nn.Linear(self.dense_x[-1] + self.dim_RNN, self.dense_hx_z[n])
             else:
-                dic_layers['linear'+str(n)] = nn.Linear(self.dense_prior[n-1], self.dense_prior[n])
+                dic_layers['linear'+str(n)] = nn.Linear(self.dense_hx_z[n-1], self.dense_hx_z[n])
             dic_layers['activation'+str(n)] = self.activation
             dic_layers['dropout'+str(n)] = nn.Dropout(p=self.dropout_p)
-        self.prior_dense = nn.Sequential(dic_layers)
-        self.prior_mean = nn.Linear(self.dense_prior[-1], self.z_dim)
-        self.prior_logvar = nn.Linear(self.dense_prior[-1], self.z_dim)
+        self.mlp_hx_z = nn.Sequential(dic_layers)
+        self.inf_mean = nn.Linear(self.dense_hx_z[-1], self.z_dim)
+        self.inf_logvar = nn.Linear(self.dense_hx_z[-1], self.z_dim)
         
-        #### Recurrent layer
+        ####################
+        #### Recurrence ####
+        ####################
         self.rnn = nn.LSTM(self.dense_x[-1]+self.dense_z[-1], self.dim_RNN, self.num_RNN, bidirectional=False)
+
 
     def inference(self, feature_xt, h_t):
         enc_input = torch.cat((feature_xt, h_t), 2)
-        enc_output = self.enc_dense(enc_input)
-        mean_zt = self.enc_mean(enc_output)
-        logvar_zt = self.enc_logvar(enc_output)
+        enc_output = self.mlp_hx_z(enc_input)
+        mean_zt = self.inf_mean(enc_output)
+        logvar_zt = self.inf_logvar(enc_output)
         return mean_zt, logvar_zt
+
 
     def generation(self, feature_zt, h_t):
         dec_input = torch.cat((feature_zt, h_t), 2)
-        dec_output = self.dec_dense(dec_input)
-        log_yt = self.dec_logvar(dec_output)
+        dec_output = self.mlp_hz_x(dec_input)
+        log_yt = self.gen_logvar(dec_output)
         return log_yt
+
 
     def recurrence(self, feature_xt, feature_zt, h_t, c_t):
         rnn_input = torch.cat((feature_xt, feature_zt), 2)
         _, (h_tp1, c_tp1) = self.rnn(rnn_input, (h_t, c_t))
         return h_tp1, c_tp1
 
+
     def prior(self, h):
-        prior_output = self.prior_dense(h)
-        mean_prior = self.enc_mean(prior_output)
-        logvar_prior = self.enc_logvar(prior_output)
+        prior_output = self.mlp_h_z(h)
+        mean_prior = self.prior_mean(prior_output)
+        logvar_prior = self.prior_logvar(prior_output)
         return mean_prior, logvar_prior
+
 
     def reparatemize(self, mean, std):
         eps = torch.randn_like(std)
         return eps.mul(std).add_(mean)
 
+
     def forward(self, x):
+
         # case1: input x is (batch_size, x_dim, seq_len)
         #        we want to change it to (seq_len, batch_size, x_dim)
         # case2: shape of x is (seq_len, x_dim) but we need 
@@ -150,15 +164,13 @@ class VRNN(nn.Module):
         elif len(x.shape) == 2:
             x = x.unsqueeze(1)
 
-        # print('shape of input: {}'.format(x.shape)) # used for debug only
-        # input('stop')
         seq_len = x.shape[0]
         batch_size = x.shape[1]
         x_dim = x.shape[2]
 
         # create variable holder and send to GPU if needed
-        all_enc_logvar = torch.zeros((seq_len, batch_size, self.z_dim)).to(self.device)
-        all_enc_mean = torch.zeros((seq_len, batch_size, self.z_dim)).to(self.device)
+        z_mean = torch.zeros((seq_len, batch_size, self.z_dim)).to(self.device)
+        z_logvar = torch.zeros((seq_len, batch_size, self.z_dim)).to(self.device)
         y = torch.zeros((seq_len, batch_size, self.y_dim)).to(self.device)
         z = torch.zeros((seq_len, batch_size, self.z_dim)).to(self.device)
         h = torch.zeros((seq_len, batch_size, self.dim_RNN)).to(self.device)
@@ -176,8 +188,8 @@ class VRNN(nn.Module):
             feature_zt = self.feature_extractor_z(z_t)
             log_yt = self.generation(feature_zt, h_t_last)
             y_t = torch.exp(log_yt)
-            all_enc_mean[t,:,:] = mean_zt
-            all_enc_logvar[t,:,:] = logvar_zt
+            z_mean[t,:,:] = mean_zt
+            z_logvar[t,:,:] = logvar_zt
             z[t,:,:] = torch.squeeze(z_t)
             y[t,:,:] = torch.squeeze(y_t)
             h[t,:,:] = torch.squeeze(h_t_last)
@@ -187,16 +199,18 @@ class VRNN(nn.Module):
         
         # y/z is (seq_len, batch_size, y/z_dim), we want to change back to
         # (batch_size, y/z_dim, seq_len)
-        mean = torch.squeeze(all_enc_mean)
-        logvar = torch.squeeze(all_enc_logvar)
+        mean = torch.squeeze(z_mean)
+        logvar = torch.squeeze(z_logvar)
         mean_prior = torch.squeeze(mean_prior)
         logvar_prior = torch.squeeze(logvar_prior)
         z = torch.squeeze(z)
         y = torch.squeeze(y)
+
         if len(z.shape) == 3:
             z = z.permute(1,-1,0)
         if len(y.shape) == 3:    
             y = y.permute(1,-1,0)
+
         return y, mean, logvar, mean_prior, logvar_prior, z
 
 
@@ -208,18 +222,18 @@ class VRNN(nn.Module):
         for layer in self.feature_extractor_z:
             info.append(str(layer))
         info.append("----- Inference -----")
-        for layer in self.enc_dense:
+        for layer in self.mlp_hx_z:
             info.append(str(layer))
-        info.append(str(self.enc_mean))
-        info.append(str(self.enc_logvar))
+        info.append(str(self.inf_mean))
+        info.append(str(self.inf_logvar))
         info.append("----- Generation -----")
-        for layer in self.dec_dense:
+        for layer in self.mlp_hz_x:
             info.append(str(layer))
-        info.append(str(self.dec_logvar))
+        info.append(str(self.gen_logvar))
         info.append("----- Recurrence -----")
         info.append(str(self.rnn))
         info.append("----- Prior -----")
-        for layer in self.prior_dense:
+        for layer in self.mlp_h_z:
             info.append(str(layer))
         info.append(str(self.prior_mean))
         info.append(str(self.prior_logvar))

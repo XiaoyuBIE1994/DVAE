@@ -8,9 +8,9 @@ License agreement in LICENSE.txt
 The code in this file is based on:
 - “Learning Stochastic Recurrent Networks” ICLR, 2015, Justin Bayer et al.
 
-To campare log-parameterization and softplus, one should change the last layer
-in the build() function and take care of the output in the decode() function and reparameterize() function,
-the get_info() should also be adapted
+Note:
+In the original paper, the input of inference is ￼x_tm1 in order to do prediction
+Here, we use x_t￼ instead to have a faire comparison with other models
 """
 
 
@@ -24,15 +24,16 @@ from collections import OrderedDict
 class STORN(nn.Module):
 
     def __init__(self, x_dim, z_dim=16, activation = 'tanh',
-                 dim_RNN_enc=128, num_RNN_enc=1,
-                 dense_enc_pre=[128], dense_enc_post=[128],
-                 dim_RNN_dec=128, num_RNN_dec=1,
-                 dense_dec_pre=[128], dense_dec_post=[128],
-                 dropout_p = 0,
-                 device='cpu'):
+                 dense_zx_h=[128], dense_h_x=[128],
+                 dim_RNN_h=128, num_RNN_h=1,             
+                 dense_x_g=[128], dense_g_z=[128],
+                 dim_RNN_g=128, num_RNN_g=1,
+                 dropout_p = 0, device='cpu'):
+
         super().__init__()
         ### General parameters for storn        
         self.x_dim = x_dim
+        self.y_dim = x_dim
         self.z_dim = z_dim
         self.dropout_p = dropout_p
         if activation == 'relu':
@@ -42,81 +43,121 @@ class STORN(nn.Module):
         else:
             raise SystemExit('Wrong activation type!')
         self.device = device
-        ### Encoder parameters
-        self.dim_RNN_enc = dim_RNN_enc
-        self.num_RNN_enc = num_RNN_enc
-        self.dense_enc_pre = dense_enc_pre
-        self.dense_enc_post = dense_enc_post
-        ### Decoder parameters
-        self.dim_RNN_dec = dim_RNN_dec
-        self.num_RNN_dec = num_RNN_dec
-        self.dense_dec_pre = dense_dec_pre
-        self.dense_dec_post = dense_dec_post
-        self.y_dim = self.x_dim
+        ### Generation
+        self.dense_zx_h = dense_zx_h
+        self.dense_h_x = dense_h_x
+        self.dim_RNN_h = dim_RNN_h
+        self.num_RNN_h = num_RNN_h
+        ### Inference
+        self.dense_x_g = dense_x_g
+        self.dense_g_z = dense_g_z
+        self.dim_RNN_g = dim_RNN_g
+        self.num_RNN_g = num_RNN_g
 
         self.build()
 
+
     def build(self):
 
-        #################
-        #### Encoder ####
-        #################
-        # 1. Dense layers before RNN
+        ####################
+        #### Generation ####
+        ####################
+        # 1. MLP from z_t and x_tm1 to h_t
         dic_layers = OrderedDict()
-        for n in range(len(self.dense_enc_pre)):
+        for n in range(len(self.dense_zx_h)):
             if n == 0:
-                dic_layers['linear'+str(n)] = nn.Linear(self.x_dim, self.dense_enc_pre[n])
+                dic_layers['linear'+str(n)] = nn.Linear(self.z_dim+self.x_dim, self.dense_zx_h[n])
             else:
-                dic_layers['linear'+str(n)] = nn.Linear(self.dense_enc_pre[n-1], self.dense_enc_pre[n])
+                dic_layers['linear'+str(n)] = nn.Linear(self.dense_zx_h[n-1], self.dense_zx_h[n])
             dic_layers['activation'+str(n)] = self.activation
             dic_layers['dropout'+str(n)] = nn.Dropout(p=self.dropout_p)
-        self.enc_dense_PreRNN = nn.Sequential(dic_layers)
-        # 2. RNN
-        self.enc_rnn = nn.LSTM(self.dense_enc_pre[-1], self.dim_RNN_enc, self.num_RNN_enc)
-        # 3 Dense layers after RNN
+        self.mlp_zx_h = nn.Sequential(dic_layers)
+        # 2. RNN, output h_t
+        self.rnn_h = nn.LSTM(self.dense_zx_h[-1], self.dim_RNN_h, self.num_RNN_h)
+        # 3. MLP from h_t to y_t (log-variance of x_t)
         dic_layers = OrderedDict()
-        for n in range(len(self.dense_enc_post)):
+        for n in range(len(self.dense_h_x)):
             if n == 0:
-                dic_layers['linear'+str(n)] = nn.Linear(self.dim_RNN_enc, self.dense_enc_post[n])
+                dic_layers['linear'+str(n)] = nn.Linear(self.dim_RNN_h, self.dense_h_x[n])
             else:
-                dic_layers['linear'+str(n)] = nn.Linear(self.dense_enc_post[n-1], self.dense_enc_post[n])
+                dic_layers['linear'+str(n)] = nn.Linear(self.dense_h_x[n-1], self.dense_h_x[n])
             dic_layers['activation'+str(n)] = self.activation
             dic_layers['dropout'+str(n)] = nn.Dropout(p=self.dropout_p)
-        self.enc_dense_PostRNN = nn.Sequential(dic_layers)
-        # 4. Generate statistic properties for z (mean, log-var)
-        self.enc_mean = nn.Linear(self.dense_enc_post[-1], self.z_dim)
-        self.enc_logvar = nn.Linear(self.dense_enc_post[-1], self.z_dim)
+        self.mlp_h_x = nn.Sequential(dic_layers)
+        self.gen_logvar = nn.Linear(self.dense_h_x[-1], self.y_dim)
         
-        #################
-        #### Decoder ####
-        #################
-        # 1. Dense layers before RNN
+        ###################
+        #### Inference ####
+        ###################
+        # 1. MLP from x_t to RNN_g
         dic_layers = OrderedDict()
-        for n in range(len(self.dense_dec_pre)):
+        for n in range(len(self.dense_x_g)):
             if n == 0:
-                dic_layers['linear'+str(n)] = nn.Linear(self.x_dim+self.z_dim, self.dense_dec_pre[n])
+                dic_layers['linear'+str(n)] = nn.Linear(self.x_dim, self.dense_x_g[n])
             else:
-                dic_layers['linear'+str(n)] = nn.Linear(self.dense_dec_pre[n-1], self.dense_dec_pre[n])
+                dic_layers['linear'+str(n)] = nn.Linear(self.dense_x_g[n-1], self.dense_x_g[n])
             dic_layers['activation'+str(n)] = self.activation
             dic_layers['dropout'+str(n)] = nn.Dropout(p=self.dropout_p)
-        self.dec_dense_PreRNN = nn.Sequential(dic_layers)
-        # 2. RNN
-        self.dec_rnn = nn.LSTM(self.dense_dec_pre[-1], self.dim_RNN_dec, self.num_RNN_dec)
-        # 3. Dense layers after RNN
+        self.mlp_x_g = nn.Sequential(dic_layers)
+        # 2. RNN, output g_t
+        self.rnn_g = nn.LSTM(self.dense_x_g[-1], self.dim_RNN_g, self.num_RNN_g)
+        # 3. MLP from g_t to z_t
         dic_layers = OrderedDict()
-        for n in range(len(self.dense_dec_post)):
+        for n in range(len(self.dense_g_z)):
             if n == 0:
-                dic_layers['linear'+str(n)] = nn.Linear(self.dim_RNN_dec, self.dense_dec_post[n])
+                dic_layers['linear'+str(n)] = nn.Linear(self.dim_RNN_g, self.dense_g_z[n])
             else:
-                dic_layers['linear'+str(n)] = nn.Linear(self.dense_dec_post[n-1], self.dense_dec_post[n])
+                dic_layers['linear'+str(n)] = nn.Linear(self.dense_g_z[n-1], self.dense_g_z[n])
             dic_layers['activation'+str(n)] = self.activation
             dic_layers['dropout'+str(n)] = nn.Dropout(p=self.dropout_p)
-        self.dec_dense_PostRNN = nn.Sequential(dic_layers)
-        # 4. Generate statistic properties for y_t (log-var)
-        self.dec_logvar = nn.Linear(self.dense_dec_post[-1], self.y_dim)
-        
+        self.mlp_g_z = nn.Sequential(dic_layers)
+        self.inf_mean = nn.Linear(self.dense_g_z[-1], self.z_dim)
+        self.inf_logvar = nn.Linear(self.dense_g_z[-1], self.z_dim)
 
-    def encode(self, x):
+
+    def generation(self, z, x_tm1):
+        
+        zx = torch.cat((z, x_tm1), 2)
+        batch_size = zx.shape[1]
+
+        # 1. From z_t and x_tm1 to h_t
+        zx_h = self.mlp_zx_h(zx)
+        h, _ = self.rnn_h(zx_h)
+
+        # 2. From h_t to y_t
+        h_x = self.mlp_h_x(h)
+        log_y = self.gen_logvar(h_x)
+
+        # 3. Transform log-variance to variance
+        y = torch.exp(log_y)
+
+        return torch.squeeze(y)
+
+
+    def inference(self, x):
+
+        # 1. From x_t to g_t
+        g, _ = self.rnn_g(self.mlp_x_g(x))
+
+        # 2. From g_t to z_t
+        g_z = self.mlp_g_z(g)
+        z_mean = self.inf_mean(g_z)
+        z_logvar = self.inf_logvar(g_z)
+        z = self.reparatemize(z_mean, z_logvar)
+
+        return z, z_mean, z_logvar
+
+
+    def reparatemize(self, mean, logvar):
+
+        std = torch.exp(0.5*logvar)
+        eps = torch.randn_like(std)
+        
+        return eps.mul(std).add_(mean)
+
+
+    def forward(self, x):
+
         # train input: (batch_size, x_dim, seq_len)
         # test input:  (seq_len, x_dim) 
         # need input:  (seq_len, batch_size, x_dim)
@@ -133,127 +174,70 @@ class STORN(nn.Module):
         x_0 = torch.zeros(1, batch_size, x_dim).to(self.device)
         x_tm1 = torch.cat((x_0, x[:-1,:,:]), 0)
 
-        # create variable holder and send to GPU if needed
-        h0_enc = torch.zeros(self.num_RNN_enc, batch_size, self.dim_RNN_enc).to(self.device)
-        c0_enc = torch.zeros(self.num_RNN_enc, batch_size, self.dim_RNN_enc).to(self.device)
+        # main part
+        z, z_mean, z_logvar = self.inference(x)
+        y = self.generation(z, x_tm1)
 
-        # 1. Linear layers before RNN block
-        x_PreRNN = self.enc_dense_PreRNN(x_tm1)
-
-        # 2. RNN with input x_PreRNN, return x_PostRNN
-        h_x, _ = self.enc_rnn(x_PreRNN, (h0_enc, c0_enc))
-
-        # 3. Linear layer after RNN block
-        x_PostRNN = self.enc_dense_PostRNN(h_x)
-
-        # 4. output mean and logvar
-        all_enc_mean = self.enc_mean(x_PostRNN)
-        all_enc_logvar = self.enc_logvar(x_PostRNN)
-
-        return (all_enc_mean, all_enc_logvar, x_tm1)
-
-    def reparatemize(self, mean, logvar):
-        std = torch.exp(0.5*logvar)
-        eps = torch.randn_like(std)
-        return eps.mul(std).add_(mean)
-    
-    def decode(self, dec_input):
-        
-        batch_size = dec_input.shape[1]
-
-        # create variable holder and send to GPU if needed
-        h0_dec = torch.zeros(self.num_RNN_enc, batch_size, self.dim_RNN_dec).to(self.device)
-        c0_dec = torch.zeros(self.num_RNN_enc, batch_size, self.dim_RNN_dec).to(self.device)
-
-        # 1. Linear layers before RNN block
-        y_PreRNN = self.dec_dense_PreRNN(dec_input)
-
-        # 2. RNN with input x_PreRNN, return x_PostRNN
-        h_y, _ = self.dec_rnn(y_PreRNN, (h0_dec, c0_dec))
-
-        # 3. Linear layer after RNN block
-        y_PostRNN = self.dec_dense_PostRNN(h_y)
-
-        # 4. output mean and logvar
-        log_y = self.dec_logvar(y_PostRNN)
-
-        # 5. transform log-variance to variance
-        y = torch.exp(log_y)
-        # y = self.dec_sigma(y_PostRNN)
-
-        return torch.squeeze(y)
-
-    def forward(self, x):
-        mean, logvar, x_tm1 = self.encode(x)
-        z = self.reparatemize(mean, logvar)
-        dec_input = torch.cat((z, x_tm1), 2)
-        y = self.decode(dec_input)
-        z = torch.squeeze(z)
         # y/z dimension:    (seq_len, batch_size, y/z_dim)
         # output dimension: (batch_size, y/z_dim, seq_len)
+        z = torch.squeeze(z)
+        y = torch.squeeze(y)
+        mean = torch.squeeze(z_mean)
+        logvar = torch.squeeze(z_logvar)
+
         if len(z.shape) == 3:
             z = z.permute(1,-1,0)
         if len(y.shape) == 3:    
             y = y.permute(1,-1,0)
-        return torch.squeeze(y), torch.squeeze(mean), torch.squeeze(logvar), torch.squeeze(z)
+        
+        return y, mean, logvar, z
+
 
     def get_info(self):
+
         info = []
-        info.append("----- Encoder -----")
-        info.append('>>>> Dense before RNN')
-        for layer in self.enc_dense_PreRNN:
+        info.append("----- Inference -----")
+        for layer in self.mlp_x_g:
             info.append(str(layer))
-        info.append('>>>> RNN')
-        info.append(self.enc_rnn)
-        info.append('>>>> Dense after RNN')
-        for layer in self.enc_dense_PostRNN:
+        info.append(self.rnn_g)
+        for layer in self.mlp_g_z:
             info.append(str(layer))
         
         info.append("----- Bottleneck -----")
-        info.append('mean: ' + str(self.enc_mean))
-        info.append('logvar: ' + str(self.enc_logvar))
-        # info.append('logvar: ' + str(self.enc_sigma))
+        info.append('mean: ' + str(self.inf_mean))
+        info.append('logvar: ' + str(self.inf_logvar))
 
-        info.append("----- Decoder -----")
-        info.append('>>>> Dense before RNN')
-        for layer in self.dec_dense_PreRNN:
+        info.append("----- Generation -----")
+        for layer in self.mlp_zx_h:
             info.append(str(layer))
-        info.append('>>>> RNN')
-        info.append(self.dec_rnn)
-        info.append('>>>> Dense after RNN')
-        for layer in self.dec_dense_PostRNN:
+        info.append(self.rnn_h)
+        for layer in self.mlp_h_x:
             info.append(str(layer))
-        info.append('Output: ' + str(self.dec_logvar))
-        # info.append('Output: ' + str(self.dec_sigma))
+        info.append('Output: ' + str(self.gen_logvar))
 
         return info
 
 if __name__ == '__main__':
     x_dim = 513
-    z_dim = 16
-    batch_size = 32
     device = 'cpu'
-    storn = STORN(x_dim=x_dim, z_dim=z_dim, batch_size=batch_size).to(device)
+    storn = STORN(x_dim=x_dim).to(device)
     model_info = storn.get_info()
-    # for i in model_info:
-    #     print(i)
 
     x = torch.ones((2,513,3))
     y, mean, logvar, z = storn.forward(x)
-    print(x.shape)
     print(y.shape)
     print(mean.shape)
     print(logvar.shape)
     print(z.shape)
-    print(y[0,:5,0])
-    def loss(recon_x, x, mu, logvar, mu_prior=None, logvar_prior=None):
+
+    def loss_vlb(recon_x, x, mu, logvar, mu_prior=None, logvar_prior=None, batch_size=32, seq_len=50):
         if mu_prior is None:
-            mu_prior = torch.zeros_like(mu)
+            mu_prior = torch.zeros_like(mu).to(device)
         if logvar_prior is None:
-            logvar_prior = torch.zeros_like(logvar)
+            logvar_prior = torch.zeros(logvar.shape).to(device)
         recon = torch.sum(  x/recon_x - torch.log(x/recon_x) - 1 ) 
         KLD = -0.5 * torch.sum(logvar - logvar_prior - torch.div((logvar.exp() + (mu - mu_prior).pow(2)), logvar_prior.exp()))
-        return recon + KLD
+        return (recon + KLD) / (batch_size * seq_len)
 
-    print(loss(y,x,mean,logvar)/6)
+    print(loss_vlb(y, x, mean, logvar))
 

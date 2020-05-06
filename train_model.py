@@ -27,13 +27,31 @@ my_seed = 0
 np.random.seed(my_seed)
 torch.manual_seed(my_seed)
 
+def loss_vlb(recon_x, x, mu, logvar, mu_prior=None, logvar_prior=None, batch_size=32, seq_len=50, device='cpu'):
+    if mu_prior is None:
+        mu_prior = torch.zeros_like(mu).to(device)
+    if logvar_prior is None:
+        logvar_prior = torch.zeros(logvar.shape).to(device)
+    recon = torch.sum(  x/recon_x - torch.log(x/recon_x) - 1 ) 
+    KLD = -0.5 * torch.sum(logvar - logvar_prior - torch.div((logvar.exp() + (mu - mu_prior).pow(2)), logvar_prior.exp()))
+    return (recon + KLD) / (batch_size * seq_len)
+
+def loss_vlb_beta(recon_x, x, mu, logvar, mu_prior=None, logvar_prior=None, beta=1, batch_size=32, seq_len=50, device='cpu'):
+    if mu_prior is None:
+        mu_prior = torch.zeros_like(mu).to(device)
+    if logvar_prior is None:
+        logvar_prior = torch.zeros(logvar.shape).to(device)
+    recon = torch.sum(  x/recon_x - torch.log(x/recon_x) - 1 ) 
+    KLD = -0.5 * torch.sum(logvar - logvar_prior - torch.div((logvar.exp() + (mu - mu_prior).pow(2)), logvar_prior.exp()))
+    return (recon + beta * KLD) / (batch_size * seq_len)
+
+
 def train_model(config_file):
-    
+    torch.autograd.set_detect_anomaly(True)
     # Build model using config_file
     model_class = build_model(config_file)
     model = model_class.model
     optimizer = model_class.optimizer
-    loss_function = model_class.loss_function
     batch_size = model_class.batch_size
     seq_len = model_class.sequence_len
     epochs = model_class.epochs
@@ -42,6 +60,7 @@ def train_model(config_file):
 
     # Create dataloader
     train_dataloader, val_dataloader, train_num, val_num = model_class.build_dataloader()
+
     # Create python list for loss
     train_loss = np.zeros((epochs,))
     val_loss = np.zeros((epochs,))
@@ -50,6 +69,7 @@ def train_model(config_file):
     cur_best_epoch = epochs
     best_state_dict = model.state_dict()
 
+    # Train with mini-batch SGD
     for epoch in range(epochs):
 
         start_time = datetime.datetime.now()
@@ -59,16 +79,16 @@ def train_model(config_file):
         for batch_idx, batch_data in enumerate(train_dataloader):
             batch_data = batch_data.to(model_class.device)
             optimizer.zero_grad()
-            if model_class.model_name in ['VRNN', 'SRNN']:
+            if model_class.model_name in ['VRNN', 'SRNN', 'DKS']:
                 recon_batch_data, mean, logvar, mean_prior, logvar_prior, z = model(batch_data)
-                loss = loss_function(recon_batch_data, batch_data, 
-                                     mean, logvar, mean_prior, logvar_prior,
-                                     batch_size = batch_size, seq_len=seq_len)
+                loss = loss_vlb(recon_batch_data, batch_data, 
+                                mean, logvar, mean_prior, logvar_prior,
+                                batch_size = batch_size, seq_len=seq_len)
             else:
                 recon_batch_data, mean, logvar, z = model(batch_data)
-                loss = loss_function(recon_batch_data, batch_data, 
-                                     mean, logvar,
-                                     batch_size = batch_size, seq_len=seq_len)
+                loss = loss_vlb(recon_batch_data, batch_data, 
+                                mean, logvar,
+                                batch_size = batch_size, seq_len=seq_len)
             loss.backward()
             train_loss[epoch] += loss.item()
             optimizer.step()
@@ -76,16 +96,16 @@ def train_model(config_file):
         # Cross validation
         for batch_idx, batch_data in enumerate(val_dataloader):
             batch_data = batch_data.to(model_class.device)
-            if model_class.model_name in ['VRNN', 'SRNN']:
+            if model_class.model_name in ['VRNN', 'SRNN', 'DKS']:
                 recon_batch_data, mean, logvar, mean_prior, logvar_prior, z = model(batch_data)
-                loss = loss_function(recon_batch_data, batch_data, 
-                                     mean, logvar, mean_prior, logvar_prior,
-                                     batch_size = batch_size, seq_len=seq_len)
+                loss = loss_vlb(recon_batch_data, batch_data, 
+                                mean, logvar, mean_prior, logvar_prior,
+                                batch_size = batch_size, seq_len=seq_len)
             else:
                 recon_batch_data, mean, logvar, z = model(batch_data)
-                loss = loss_function(recon_batch_data, batch_data, 
-                                     mean, logvar,
-                                     batch_size = batch_size, seq_len=seq_len)
+                loss = loss_vlb(recon_batch_data, batch_data, 
+                                mean, logvar,
+                                batch_size = batch_size, seq_len=seq_len)
             val_loss[epoch] += loss.item()
 
         # Early stop patiance

@@ -24,7 +24,7 @@ from collections import OrderedDict
 
 class SRNN(nn.Module):
 
-    def __init__(self, x_dim, z_dim=32, activation = 'tanh',
+    def __init__(self, x_dim, z_dim=16, activation = 'tanh',
                  dense_x_h=[], dense_hx_g=[], dense_gz_z=[128,128],
                  dense_hz_x=[128,128], dense_hz_z=[128,128],
                  dim_RNN_h=128, num_RNN_h=1,
@@ -34,7 +34,7 @@ class SRNN(nn.Module):
         super().__init__()
         ### General parameters for storn        
         self.x_dim = x_dim
-        self.y_dim = self.x_dim
+        self.y_dim = x_dim
         self.z_dim = z_dim
         self.dropout_p = dropout_p
         if activation == 'relu':
@@ -50,7 +50,6 @@ class SRNN(nn.Module):
         self.dense_gz_z = dense_gz_z
         self.dense_hz_x = dense_hz_x
         self.dense_hz_z = dense_hz_z
-        self.dense_hx_g = dense_hx_g 
         ### RNN
         # Forward RNN for h_t
         self.dim_RNN_h = dim_RNN_h
@@ -66,10 +65,10 @@ class SRNN(nn.Module):
 
     def build(self):
         
-        #####################
-        #### Dense Layer ####
-        #####################
-        # 1. x_tm1 -> rnn_h, encoder/decoder
+        ####################
+        #### MLP layers ####
+        ####################
+        # 1. x_tm1 -> rnn_h, inference/generation
         dic_layers = OrderedDict()
         if len(self.dense_x_h) == 0:
             dim_x_h = self.x_dim
@@ -83,9 +82,9 @@ class SRNN(nn.Module):
                     dic_layers['linear'+str(n)] = nn.Linear(self.dense_x_h[n-1], self.dense_x_h[n])
                 dic_layers['activation'+str(n)] = self.activation
                 dic_layers['dropout'+str(n)] = nn.Dropout(p=self.dropout_p)
-        self.denselayer_x_h = nn.Sequential(dic_layers)
+        self.mlp_x_h = nn.Sequential(dic_layers)
 
-        # 2. h_t x_t -> rnn_g, encoder
+        # 2. h_t x_t -> rnn_g, inference
         dic_layers = OrderedDict()
         if len(self.dense_hx_g) == 0:
             dim_hx_g = self.dim_RNN_h + self.x_dim
@@ -99,9 +98,9 @@ class SRNN(nn.Module):
                     dic_layers['linear'+str(n)] = nn.Linear(self.dense_hx_g[n-1], self.dense_hx_g[n])
                 dic_layers['activation'+str(n)] = self.activation
                 dic_layers['dropout'+str(n)] = nn.Dropout(p=self.dropout_p)
-        self.denselayer_hx_g = nn.Sequential(dic_layers)
+        self.mlp_hx_g = nn.Sequential(dic_layers)
             
-        # 3. g_t z_tm1 -> z_t, encoder
+        # 3. g_t z_tm1 -> z_t, inference
         dic_layers = OrderedDict()
         if len(self.dense_gz_z) == 0:
             dim_gz_z = self.dim_RNN_g + self.z_dim
@@ -115,11 +114,11 @@ class SRNN(nn.Module):
                     dic_layers['linear'+str(n)] = nn.Linear(self.dense_gz_z[n-1], self.dense_gz_z[n])
                 dic_layers['activation'+str(n)] = self.activation
                 dic_layers['dropout'+str(n)] = nn.Dropout(p=self.dropout_p)
-        self.denselayer_gz_z = nn.Sequential(dic_layers)
-        self.enc_mean = nn.Linear(dim_gz_z, self.z_dim)
-        self.enc_logvar = nn.Linear(dim_gz_z, self.z_dim)
+        self.mlp_gz_z = nn.Sequential(dic_layers)
+        self.inf_mean = nn.Linear(dim_gz_z, self.z_dim)
+        self.inf_logvar = nn.Linear(dim_gz_z, self.z_dim)
 
-        # 4. h_t z_t -> x_t
+        # 4. h_t z_t -> x_t, generation
         dic_layers = OrderedDict()
         if len(self.dense_hz_x) == 0:
             dim_hz_x = self.dim_RNN_h + self.z_dim
@@ -133,10 +132,10 @@ class SRNN(nn.Module):
                     dic_layers['linear'+str(n)] = nn.Linear(self.dense_hz_x[n-1], self.dense_hz_x[n])
                 dic_layers['activation'+str(n)] = self.activation
                 dic_layers['dropout'+str(n)] = nn.Dropout(p=self.dropout_p)
-        self.denselayer_hz_x = nn.Sequential(dic_layers)    
-        self.dec_logvar = nn.Linear(dim_hz_x, self.y_dim)
+        self.mlp_hz_x = nn.Sequential(dic_layers)    
+        self.gen_logvar = nn.Linear(dim_hz_x, self.y_dim)
 
-        # 5. h_t z_tm1 -> z_t
+        # 5. h_t z_tm1 -> z_t, prior
         dic_layers = OrderedDict()
         if len(self.dense_hz_z) == 0:
             dim_hz_z = self.dim_RNN_h + self.z_dim
@@ -150,96 +149,88 @@ class SRNN(nn.Module):
                     dic_layers['linear'+str(n)] = nn.Linear(self.dense_hz_z[n-1], self.dense_hz_z[n])
                 dic_layers['activation'+str(n)] = self.activation
                 dic_layers['dropout'+str(n)] = nn.Dropout(p=self.dropout_p)
-        self.denselayer_hz_z = nn.Sequential(dic_layers)    
+        self.mlp_hz_z = nn.Sequential(dic_layers)    
         self.prior_mean = nn.Linear(dim_hz_z, self.z_dim)
         self.prior_logvar = nn.Linear(dim_hz_z, self.z_dim)
         
         #############
         #### RNN ####
         #############
-        # 1. Forward RNN to generate h_t from x_tm1
+        # 1. Forward RNN h_t
         self.rnn_h = nn.LSTM(dim_x_h, self.dim_RNN_h, self.num_RNN_h)
-        # 2. Backward RNN to generate g_t from h_t and x_t
+        # 2. Backward RNN g_t
         self.rnn_g = nn.LSTM(dim_hx_g, self.dim_RNN_g, self.num_RNN_g)
 
 
-    def forward(self, x):
-        # case1: input x is (batch_size, x_dim, seq_len)
-        #        we want to change it to (seq_len, batch_size, x_dim)
-        # case2: shape of x is (seq_len, x_dim) but we need 
-        #        (seq_len, batch_size, x_dim)
-        if len(x.shape) == 3:
-            x = x.permute(-1, 0, 1)
-        elif len(x.shape) == 2:
-            x = x.unsqueeze(1)
+    def generation(self, z, h):
+        
+        seq_len = z.shape[0]
+        batch_size = z.shape[1]
+        z_dim = z.shape[2]
+
+        # 1. reate variable holder and send to GPU if needed
+        z_0 = torch.zeros(batch_size, self.z_dim).to(self.device)
+
+        # 2. reate variable holder and send to GPU if needed
+        mean_prior = torch.zeros(seq_len, batch_size, z_dim).to(self.device)
+        logvar_prior = torch.zeros(seq_len, batch_size, z_dim).to(self.device)
+
+        # 3. From z_t and h_t to y_t
+        zh_x = self.mlp_hz_x(torch.cat((z, h), -1))
+        log_y = self.gen_logvar(zh_x)
+        y = torch.exp(log_y)
+
+        # 4. Generate prior of z_t from h_t and z_tm1 (Prior)
+        for t in range(0, seq_len):
+            if t == 0:
+                hz_z = self.mlp_hz_z(torch.cat((h[0, :, :], z_0), -1))
+                mean_prior[t, :, :] = self.prior_mean(hz_z)
+                logvar_prior[t, :, :] = self.prior_logvar(hz_z)
+            else:
+                hz_z = self.mlp_hz_z(torch.cat((h[t, :, :], z[t-1, :, :]), -1))
+                mean_prior[t, :, :] = self.prior_mean(hz_z)
+                logvar_prior[t, :, :] = self.prior_logvar(hz_z)
+        
+        return y, mean_prior, logvar_prior 
+
+    def inference(self, x):
         
         seq_len = x.shape[0]
         batch_size = x.shape[1]
         x_dim = x.shape[2]
 
-        # reate variable holder and send to GPU if needed
-        h_0_h = torch.zeros(self.num_RNN_h, batch_size, self.dim_RNN_h).to(self.device)
-        c_0_h = torch.zeros(self.num_RNN_h, batch_size, self.dim_RNN_h).to(self.device)
-        h_0_g = torch.zeros(self.num_RNN_g, batch_size, self.dim_RNN_g).to(self.device)
-        c_0_g = torch.zeros(self.num_RNN_g, batch_size, self.dim_RNN_g).to(self.device)
+        # 1. reate variable holder and send to GPU if needed
+        z_mean = torch.zeros(seq_len, batch_size, self.z_dim).to(self.device)
+        z_logvar = torch.zeros(seq_len, batch_size, self.z_dim).to(self.device)
         z_0 = torch.zeros(batch_size, self.z_dim).to(self.device)
         z = torch.zeros(seq_len, batch_size, self.z_dim).to(self.device)
-        mean_enc = torch.zeros(seq_len, batch_size, self.z_dim).to(self.device)
-        logvar_enc = torch.zeros(seq_len, batch_size, self.z_dim).to(self.device)
-        mean_prior = torch.zeros(seq_len, batch_size, self.z_dim).to(self.device)
-        logvar_prior = torch.zeros(seq_len, batch_size, self.z_dim).to(self.device)
-
-        # 1. Generate h_t from x_tm1
+        
+        # 2. From x_tm1 to h_t
         x_0 = torch.zeros(1, batch_size, x_dim).to(self.device)
         x_tm1 = torch.cat((x_0, x[:-1,:,:]), 0)
-        x_h = self.denselayer_x_h(x_tm1)
-        h, _ = self.rnn_h(x_h, (h_0_h, c_0_h))
+        x_h = self.mlp_x_h(x_tm1)
+        h, _ = self.rnn_h(x_h)
 
-        # 2. Generate g_t from h_t and x_t 
-        hx_g = self.denselayer_hx_g(torch.cat((h, x), -1))
-        g_inverse, _ = self.rnn_g(torch.flip(hx_g, [0]), (h_0_g, c_0_g))
+        # 3. From h_t and x_t to g_t
+        hx_g = self.mlp_hx_g(torch.cat((h, x), -1))
+        g_inverse, _ = self.rnn_g(torch.flip(hx_g, [0]))
         g = torch.flip(g_inverse, [0])
 
-        # 3. Infer z_t from g_t and z_tm1 (Inference/Encoder)
+        # 4. Infer z_t from g_t and z_tm1 (Inference/Encoder)
         for t in range(0, seq_len):
             if t == 0:
-                tmp_enc = self.denselayer_gz_z(torch.cat((h[0, :, :], z_0), -1))
-                mean_enc[t,:,:] = self.enc_mean(tmp_enc)
-                logvar_enc[t,:,:] = self.enc_logvar(tmp_enc)
-                z[t,:,:] = self.reparatemize(mean_enc[t,:,:], logvar_enc[t,:,:])
+                gz_z = self.mlp_gz_z(torch.cat((g[0, :, :], z_0), -1))
+                z_mean[t,:,:] = self.inf_mean(gz_z)
+                z_logvar[t,:,:] = self.inf_logvar(gz_z)
+                z[t,:,:] = self.reparatemize(z_mean[t,:,:], z_logvar[t,:,:])
             else:
-                tmp_enc = self.denselayer_gz_z(torch.cat((h[t, :, :], z[t, :, :]), -1))
-                mean_enc[t,:,:] = self.enc_mean(tmp_enc)
-                logvar_enc[t,:,:] = self.enc_logvar(tmp_enc)
-                z[t,:,:] = self.reparatemize(mean_enc[t,:,:], logvar_enc[t,:,:])
-
-        # 4. Generate x_t from z_t and h_t (Generation/Decoder)
-        tmp_dec = self.denselayer_hz_x(torch.cat((z, h), -1))
-        dec_logvar = self.dec_logvar(tmp_dec)
-        y = torch.exp(dec_logvar)
-
-        # 5. Generate prior of z_t from h_t and z_tm1 (Prior)
-        for t in range(0, seq_len):
-            if t == 0:
-                tmp_prior = self.denselayer_hz_z(torch.cat((h[0, :, :], z_0), -1))
-                mean_prior[t, :, :] = self.prior_mean(tmp_prior)
-                logvar_prior[t, :, :] = self.prior_logvar(tmp_prior)
-            else:
-                tmp_prior = self.denselayer_hz_z(torch.cat((h[t, :, :], z[t-1, :, :]), -1))
-                mean_prior[t, :, :] = self.prior_mean(tmp_prior)
-                logvar_prior[t, :, :] = self.prior_logvar(tmp_prior)
+                gz_z = self.mlp_gz_z(torch.cat((g[t, :, :], z[t, :, :]), -1))
+                z_mean[t,:,:] = self.inf_mean(gz_z)
+                z_logvar[t,:,:] = self.inf_logvar(gz_z)
+                z[t,:,:] = self.reparatemize(z_mean[t,:,:], z_logvar[t,:,:])
         
-        if len(z.shape) == 3:
-            z = z.permute(1,-1,0)
-        if len(y.shape) == 3:    
-            y = y.permute(1,-1,0)
-        
-        mean = torch.squeeze(mean_enc)
-        logvar = torch.squeeze(logvar_enc)
-        mean_prior = torch.squeeze(mean_prior)
-        logvar_prior = torch.squeeze(logvar_prior)
+        return z, z_mean, z_logvar, h
 
-        return y, mean, logvar, mean_prior, logvar_prior, z 
 
     def reparatemize(self, mean, logvar):
         std = torch.exp(0.5*logvar)
@@ -247,35 +238,71 @@ class SRNN(nn.Module):
         return eps.mul(std).add_(mean)
 
 
+    def forward(self, x):
+        
+        # train input: (batch_size, x_dim, seq_len)
+        # test input:  (seq_len, x_dim) 
+        # need input:  (seq_len, batch_size, x_dim)
+        if len(x.shape) == 3:
+            x = x.permute(-1, 0, 1)
+        elif len(x.shape) == 2:
+            x = x.unsqueeze(1)
+
+        # main part
+        z, z_mean, z_logvar, h = self.inference(x)
+        y, mean_prior, logvar_prior = self.generation(z, h)
+        
+        # y/z dimension:    (seq_len, batch_size, y/z_dim)
+        # output dimension: (batch_size, y/z_dim, seq_len)
+        z = torch.squeeze(z)
+        y = torch.squeeze(y)
+        mean = torch.squeeze(z_mean)
+        logvar = torch.squeeze(z_logvar)
+        mean_prior = torch.squeeze(mean_prior)
+        logvar_prior = torch.squeeze(logvar_prior)
+
+        if len(z.shape) == 3:
+            z = z.permute(1,-1,0)
+        if len(y.shape) == 3:    
+            y = y.permute(1,-1,0)
+
+        return y, mean, logvar, mean_prior, logvar_prior, z 
+
+    
+
     def get_info(self):
         info = []
-        info.append('----- Encoder -----')
-        info.append('>>>> Dense layer x_tm1 to h_t')
-        for layer in self.denselayer_x_h:
+        info.append('----- Inference -----')
+        info.append('>>>> From x_tm1 to h_t')
+        for layer in self.mlp_x_h:
             info.append(str(layer))
         info.append('>>>> Forward RNN to generate h_t')
         info.append(str(self.rnn_h))
-        info.append('>>>> Dense layer h_t and x_t to g_t')
-        for layer in self.denselayer_hx_g:
+        info.append('>>>> From h_t and x_t to g_t')
+        for layer in self.mlp_hx_g:
             info.append(str(layer))
         info.append('>>>> Backward RNN to generate g_t')
         info.append(str(self.rnn_g))
-        info.append('>>>> Dense layer z_tm1 and g_t to z_t')
-        for layer in self.denselayer_gz_z:
+        info.append('>>>> From z_tm1 and g_t to z_t')
+        for layer in self.mlp_gz_z:
             info.append(str(layer))
-        info.append(str(self.enc_mean))
-        info.append(str(self.enc_logvar))
-        info.append('----- Decoder -----')
-        info.append('>>>> Dense layer h_t and z_t to x_t')
-        for layer in self.denselayer_hz_x:
+        
+        info.append("----- Bottleneck -----")
+        info.append('mean: ' + str(self.inf_mean))
+        info.append('logvar: ' + str(self.inf_logvar))
+
+        info.append('----- Generation -----')
+        info.append('>>>> From h_t and z_t to x_t')
+        for layer in self.mlp_hz_x:
             info.append(str(layer))
-        info.append(str(self.dec_logvar))
+        info.append(str(self.gen_logvar))
+
         info.append('----- Prior -----')
-        info.append('>>>> Dense layer h_t and z_tm1 to z_t')
-        for layer in self.denselayer_hz_z:
+        info.append('>>>> From h_t and z_tm1 to z_t')
+        for layer in self.mlp_hz_z:
             info.append(str(layer))
-        info.append(str(self.prior_mean))
-        info.append(str(self.prior_logvar))
+        info.append('prior mean: ' + str(self.prior_mean))
+        info.append('prior logvar: ' + str(self.prior_logvar))
 
         return info
 
