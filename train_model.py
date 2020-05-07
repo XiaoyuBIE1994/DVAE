@@ -57,6 +57,7 @@ def train_model(config_file):
     epochs = model_class.epochs
     logger = model_class.logger
     num_parameters = sum(p.numel() for p in model.parameters() if p.requires_grad)
+    device = model_class.device
 
     # Create dataloader
     train_dataloader, val_dataloader, train_num, val_num = model_class.build_dataloader()
@@ -83,12 +84,12 @@ def train_model(config_file):
                 recon_batch_data, mean, logvar, mean_prior, logvar_prior, z = model(batch_data)
                 loss = loss_vlb(recon_batch_data, batch_data, 
                                 mean, logvar, mean_prior, logvar_prior,
-                                batch_size = batch_size, seq_len=seq_len)
+                                batch_size = batch_size, seq_len=seq_len, device=device)
             else:
                 recon_batch_data, mean, logvar, z = model(batch_data)
                 loss = loss_vlb(recon_batch_data, batch_data, 
                                 mean, logvar,
-                                batch_size = batch_size, seq_len=seq_len)
+                                batch_size = batch_size, seq_len=seq_len, device=device)
             loss.backward()
             train_loss[epoch] += loss.item()
             optimizer.step()
@@ -100,12 +101,12 @@ def train_model(config_file):
                 recon_batch_data, mean, logvar, mean_prior, logvar_prior, z = model(batch_data)
                 loss = loss_vlb(recon_batch_data, batch_data, 
                                 mean, logvar, mean_prior, logvar_prior,
-                                batch_size = batch_size, seq_len=seq_len)
+                                batch_size = batch_size, seq_len=seq_len, device=device)
             else:
                 recon_batch_data, mean, logvar, z = model(batch_data)
                 loss = loss_vlb(recon_batch_data, batch_data, 
                                 mean, logvar,
-                                batch_size = batch_size, seq_len=seq_len)
+                                batch_size = batch_size, seq_len=seq_len, device=device)
             val_loss[epoch] += loss.item()
 
         # Early stop patiance

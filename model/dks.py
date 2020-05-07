@@ -149,9 +149,7 @@ class DKS(nn.Module):
                 z_logvar[t,:,:] = self.inf_logvar(g_t)
                 mean_prior[t,:,:], logvar_prior[t,:,:] = self.prior(z_t)
                 z_t = self.reparatemize(z_mean[t,:,:], z_logvar[t,:,:]) # 为什么 z[t,:,:] = z_t 互换就会报错
-                z[t,:,:] = z_t 
-                print(z_t.requires_grad)
-                input()
+                z[t,:,:] = z_t
         else:
             g, _ = self.rnn_g(torch.flip(x, [0]))
             g = torch.flip(g, [0])
