@@ -27,25 +27,29 @@ my_seed = 0
 np.random.seed(my_seed)
 torch.manual_seed(my_seed)
 
+"""
+Loss function
+"""
 def loss_vlb(recon_x, x, mu, logvar, mu_prior=None, logvar_prior=None, batch_size=32, seq_len=50, device='cpu'):
-    if mu_prior is None:
-        mu_prior = torch.zeros_like(mu).to(device)
-    if logvar_prior is None:
-        logvar_prior = torch.zeros(logvar.shape).to(device)
     recon = torch.sum(  x/recon_x - torch.log(x/recon_x) - 1 ) 
     KLD = -0.5 * torch.sum(logvar - logvar_prior - torch.div((logvar.exp() + (mu - mu_prior).pow(2)), logvar_prior.exp()))
     return (recon + KLD) / (batch_size * seq_len)
 
 def loss_vlb_beta(recon_x, x, mu, logvar, mu_prior=None, logvar_prior=None, beta=1, batch_size=32, seq_len=50, device='cpu'):
-    if mu_prior is None:
-        mu_prior = torch.zeros_like(mu).to(device)
-    if logvar_prior is None:
-        logvar_prior = torch.zeros(logvar.shape).to(device)
     recon = torch.sum(  x/recon_x - torch.log(x/recon_x) - 1 ) 
     KLD = -0.5 * torch.sum(logvar - logvar_prior - torch.div((logvar.exp() + (mu - mu_prior).pow(2)), logvar_prior.exp()))
     return (recon + beta * KLD) / (batch_size * seq_len)
 
 
+def loss_vlb_separate(recon_x, x, mu, logvar, mu_prior=None, logvar_prior=None, batch_size=32, seq_len=50, device='cpu'):
+    recon = torch.sum(  x/recon_x - torch.log(x/recon_x) - 1 )  / (batch_size * seq_len)
+    KLD = -0.5 * torch.sum(logvar - logvar_prior - torch.div((logvar.exp() + (mu - mu_prior).pow(2)), logvar_prior.exp())) / (batch_size * seq_len)
+    return recon, KLD
+
+
+"""
+Train
+"""
 def train_model(config_file):
     torch.autograd.set_detect_anomaly(True)
     # Build model using config_file
@@ -65,6 +69,10 @@ def train_model(config_file):
     # Create python list for loss
     train_loss = np.zeros((epochs,))
     val_loss = np.zeros((epochs,))
+    train_recon = np.zeros((epochs,))
+    train_KLD = np.zeros((epochs,))
+    val_recon = np.zeros((epochs,))
+    val_KLD = np.zeros((epochs,))
     best_val_loss = np.inf
     cpt_patience = 0
     cur_best_epoch = epochs
@@ -80,34 +88,48 @@ def train_model(config_file):
         for batch_idx, batch_data in enumerate(train_dataloader):
             batch_data = batch_data.to(model_class.device)
             optimizer.zero_grad()
+
             if model_class.model_name in ['VRNN', 'SRNN', 'DKS']:
                 recon_batch_data, mean, logvar, mean_prior, logvar_prior, z = model(batch_data)
-                loss = loss_vlb(recon_batch_data, batch_data, 
-                                mean, logvar, mean_prior, logvar_prior,
-                                batch_size = batch_size, seq_len=seq_len, device=device)
             else:
                 recon_batch_data, mean, logvar, z = model(batch_data)
-                loss = loss_vlb(recon_batch_data, batch_data, 
-                                mean, logvar,
-                                batch_size = batch_size, seq_len=seq_len, device=device)
+                mean_prior = torch.zeros_like(mean).to(device)
+                logvar_prior = torch.zeros_like(logvar).to(device)
+
+            # loss = loss_vlb(recon_batch_data, batch_data, 
+            #                 mean, logvar, mean_prior, logvar_prior,
+            #                 batch_size = batch_size, seq_len=seq_len, device=device)
+            recon, KLD = loss_vlb_separate(recon_batch_data, batch_data, 
+                                           mean, logvar, mean_prior, logvar_prior,
+                                           batch_size = batch_size, seq_len=seq_len, device=device)
+            loss = recon + KLD
             loss.backward()
             train_loss[epoch] += loss.item()
+            train_recon[epoch] += recon.item()
+            train_KLD[epoch] += KLD.item()
             optimizer.step()
         
         # Cross validation
         for batch_idx, batch_data in enumerate(val_dataloader):
             batch_data = batch_data.to(model_class.device)
+
             if model_class.model_name in ['VRNN', 'SRNN', 'DKS']:
                 recon_batch_data, mean, logvar, mean_prior, logvar_prior, z = model(batch_data)
-                loss = loss_vlb(recon_batch_data, batch_data, 
-                                mean, logvar, mean_prior, logvar_prior,
-                                batch_size = batch_size, seq_len=seq_len, device=device)
             else:
                 recon_batch_data, mean, logvar, z = model(batch_data)
-                loss = loss_vlb(recon_batch_data, batch_data, 
-                                mean, logvar,
-                                batch_size = batch_size, seq_len=seq_len, device=device)
+                mean_prior = torch.zeros_like(mean).to(device)
+                logvar_prior = torch.zeros_like(logvar).to(device)
+
+            # loss = loss_vlb(recon_batch_data, batch_data, 
+            #                 mean, logvar, mean_prior, logvar_prior,
+            #                 batch_size = batch_size, seq_len=seq_len, device=device)
+            recon, KLD = loss_vlb_separate(recon_batch_data, batch_data, 
+                                           mean, logvar, mean_prior, logvar_prior,
+                                           batch_size = batch_size, seq_len=seq_len, device=device)
+            loss = recon + KLD
             val_loss[epoch] += loss.item()
+            val_recon[epoch] += recon.item()
+            val_KLD[epoch] += KLD.item()
 
         # Early stop patiance
         if val_loss[epoch] < best_val_loss:
@@ -121,6 +143,10 @@ def train_model(config_file):
 
         train_loss[epoch] = train_loss[epoch]/ train_num
         val_loss[epoch] = val_loss[epoch] / val_num
+        train_loss[epoch] = train_loss[epoch] / train_num 
+        train_recon[epoch] = train_recon[epoch]/ train_num
+        val_recon[epoch] = val_recon[epoch] / val_num 
+        val_KLD[epoch] = val_KLD[epoch] / val_num
 
         end_time = datetime.datetime.now()
         interval = (end_time - start_time).seconds / 60
@@ -164,6 +190,27 @@ def train_model(config_file):
     plt.title(model_class.filename)
     loss_figure_file = os.path.join(model_class.save_dir, 'loss_{}.png'.format(model_class.tag))
     plt.savefig(loss_figure_file) 
+
+    plt.clf()
+    plt.plot(train_recon, '--o')
+    plt.plot(train_KLD, '--x')
+    plt.legend(('recon', 'KLD'))
+    plt.xlabel('epochs')
+    plt.ylabel('loss')
+    plt.title(model_class.filename + 'train loss')
+    loss_figure_file = os.path.join(model_class.save_dir, 'loss_train_{}.png'.format(model_class.tag))
+    plt.savefig(loss_figure_file) 
+
+    plt.clf()
+    plt.plot(val_recon, '--o')
+    plt.plot(val_KLD, '--x')
+    plt.legend(('recon', 'KLD'))
+    plt.xlabel('epochs')
+    plt.ylabel('loss')
+    plt.title(model_class.filename + 'validation loss')
+    loss_figure_file = os.path.join(model_class.save_dir, 'loss_val_{}.png'.format(model_class.tag))
+    plt.savefig(loss_figure_file) 
+
 
 if __name__ == '__main__':
     if len(sys.argv) == 2:
