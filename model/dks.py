@@ -79,7 +79,10 @@ class DKS(nn.Module):
         # 1. RNN of g_t
         self.rnn_g = nn.LSTM(self.x_dim, self.dim_RNN_g, self.num_RNN_g, bidirectional=self.bidir_g)
         # 2. dense layer of z_tm1
-        self.mlp_z_z = nn.Linear(self.z_dim, self.dim_RNN_g)
+        dic_layers = OrderedDict()
+        dic_layers['linear'] = nn.Linear(self.z_dim, self.dim_RNN_g)
+        dic_layers['activation'] = nn.Tanh()
+        self.mlp_z_z = nn.Sequential(dic_layers)
         # 3. Infer z
         self.inf_mean = nn.Linear(self.dim_RNN_g, self.z_dim)
         self.inf_logvar = nn.Linear(self.dim_RNN_g, self.z_dim)
@@ -144,7 +147,7 @@ class DKS(nn.Module):
             g_forward = g[:,:,0,:]
             g_backward = g[:,:,1,:]
             for t in range(seq_len):
-                g_t = torch.tanh(self.mlp_z_z(z_t) + g_forward[t,:,:] + g_backward[t,:,:]) / 3
+                g_t = (self.mlp_z_z(z_t) + g_forward[t,:,:] + g_backward[t,:,:]) / 3
                 z_mean[t,:,:] = self.inf_mean(g_t)
                 z_logvar[t,:,:] = self.inf_logvar(g_t)
                 mean_prior[t,:,:], logvar_prior[t,:,:] = self.prior(z_t)
@@ -154,7 +157,7 @@ class DKS(nn.Module):
             g, _ = self.rnn_g(torch.flip(x, [0]))
             g = torch.flip(g, [0])
             for t in range(seq_len):
-                g_t = torch.tanh(self.mlp_z_z(z_t) + g[t,:,:]) / 2
+                g_t = (self.mlp_z_z(z_t) + g[t,:,:]) / 2
                 z_mean[t,:,:] = self.inf_mean(g_t)
                 z_logvar[t,:,:] = self.inf_logvar(g_t)
                 mean_prior[t,:,:], logvar_prior[t,:,:] = self.prior(z_t)
@@ -171,6 +174,7 @@ class DKS(nn.Module):
 
 
     def forward(self, x):
+        
         # train input: (batch_size, x_dim, seq_len)
         # test input:  (seq_len, x_dim) 
         # need input:  (seq_len, batch_size, x_dim)

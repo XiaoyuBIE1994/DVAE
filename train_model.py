@@ -102,13 +102,14 @@ def train_model(config_file):
             recon, KLD = loss_vlb_separate(recon_batch_data, batch_data, 
                                            mean, logvar, mean_prior, logvar_prior,
                                            batch_size = batch_size, seq_len=seq_len, device=device)
+        
             loss = recon + KLD
             loss.backward()
             train_loss[epoch] += loss.item()
             train_recon[epoch] += recon.item()
             train_KLD[epoch] += KLD.item()
             optimizer.step()
-        
+            
         # Cross validation
         for batch_idx, batch_data in enumerate(val_dataloader):
             batch_data = batch_data.to(model_class.device)
@@ -143,8 +144,9 @@ def train_model(config_file):
 
         train_loss[epoch] = train_loss[epoch]/ train_num
         val_loss[epoch] = val_loss[epoch] / val_num
-        train_loss[epoch] = train_loss[epoch] / train_num 
-        train_recon[epoch] = train_recon[epoch]/ train_num
+
+        train_recon[epoch] = train_recon[epoch] / train_num 
+        train_KLD[epoch] = train_KLD[epoch]/ train_num
         val_recon[epoch] = val_recon[epoch] / val_num 
         val_KLD[epoch] = val_KLD[epoch] / val_num
 
