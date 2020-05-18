@@ -23,6 +23,7 @@ from model.storn import STORN
 from model.vrnn import VRNN
 from model.srnn import SRNN
 from model.dks import DKS
+from model.dsae import DSAE
 
 
 from backup_simon.speech_dataset import *
@@ -78,8 +79,8 @@ class BuildBasic():
         self.save_frequency = self.cfg.getint('Training', 'save_frequency')
 
         # 6. Create saved_model directory if not exist, and find dataset
-        self.save_dir = self.cfg.get('User', 'save_dir')
-        self.saved_root, self.train_data_dir, self.val_data_dir = perpare_dataset(self.dataset_name, self.hostname, self.save_dir)
+        save_dir = self.cfg.get('User', 'save_dir')
+        self.saved_root, self.train_data_dir, self.val_data_dir = perpare_dataset(self.dataset_name, self.hostname, save_dir)
 
         # 7. Choose to use gpu or cpu
         self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -564,6 +565,84 @@ class BuildDKS(BuildBasic):
             self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
 
 
+class BuildDSAE(BuildBasic):
+    
+    def __init__(self, cfg=myconf()):
+
+        super().__init__(cfg)
+
+        ### Load special parameters for DSAE
+        # General
+        self.x_dim = self.cfg.getint('Network', 'x_dim')
+        self.z_dim = self.cfg.getint('Network','z_dim')
+        self.v_dim = self.cfg.getint('Network','v_dim')
+        self.activation = self.cfg.get('Network', 'activation')
+        self.dropout_p = self.cfg.getfloat('Network', 'dropout_p')
+        # Generation
+        self.dense_vz_x = [int(i) for i in self.cfg.get('Network', 'dense_vz_x').split(',')]
+        # Inference
+        self.dim_RNN_gv = self.cfg.getint('Network', 'dim_RNN_gv')
+        self.num_RNN_gv = self.cfg.getint("Network", 'num_RNN_gv')
+        self.bidir_gv = self.cfg.getboolean('Network', 'bidir_gv')
+        self.dim_RNN_gx = self.cfg.getint('Network', 'dim_RNN_gx')
+        self.num_RNN_gx = self.cfg.getint('Network', 'num_RNN_gx')
+        self.bidir_gx = self.cfg.getboolean('Network', 'bidir_gx')
+        self.dim_RNN_total = self.cfg.getint('Network', 'dim_RNN_total')
+        self.num_RNN_total = self.cfg.getint('Network', 'num_RNN_total')
+        self.bidir_total = self.cfg.getboolean('Network', 'bidir_total')
+        # Prior
+        self.dim_RNN_prior = self.cfg.getint('Network', 'dim_RNN_prior')
+        self.num_RNN_prior = self.cfg.getint('Network', 'num_RNN_prior')
+        self.bidir_prior = self.cfg.getboolean('Network', 'bidir_prior')
+
+        #### Create directory for results
+        self.filename = "{}_{}_{}z_dim={}".format(self.dataset_name,
+                                                  self.date,
+                                                  self.tag,
+                                                  self.z_dim)
+        self.save_dir = os.path.join(self.saved_root, self.filename)
+        if not(os.path.isdir(self.save_dir)):
+            os.makedirs(self.save_dir)
+
+        #### Create logger
+        log_file = os.path.join(self.save_dir, 'log.txt')
+        logger = get_logger(log_file, self.logger_type)
+        for log in self.get_basic_info():
+            logger.info(log)
+        logger.info("In this experiment, result will be saved in: " + self.save_dir)
+        self.logger = logger
+        
+        self.build()
+
+
+    def build(self):
+
+        # Init DSAE network
+        self.logger.info('==== Init DSAE ====')
+        self.model = DSAE(x_dim=self.x_dim, z_dim=self.z_dim, v_dim=self.v_dim,
+                          activation=self.activation,
+                          dense_vz_x=self.dense_vz_x,
+                          dim_RNN_gv=self.dim_RNN_gv, num_RNN_gv=self.num_RNN_gv,
+                          bidir_gv=self.bidir_gv,
+                          dim_RNN_gx=self.dim_RNN_gx, num_RNN_gx=self.num_RNN_gx,
+                          bidir_gx=self.bidir_gx,
+                          dim_RNN_total=self.dim_RNN_total, num_RNN_total=self.num_RNN_total,
+                          bidir_total=self.bidir_total,
+                          dim_RNN_prior=self.dim_RNN_prior, num_RNN_prior=self.num_RNN_prior,
+                          bidir_prior=self.bidir_prior,
+                          dropout_p = self.dropout_p, device=self.device).to(self.device)
+        # Print model information
+        for log in self.model.get_info():
+            self.logger.info(log)
+
+        # Init optimizer (Adam by default):
+        if self.optimization == 'adam':
+            self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
+        else:
+            self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
+
+
+
 def build_model(config_file='config_default.ini'):
     if not os.path.isfile(config_file):
         raise ValueError('Invalid config file path')    
@@ -582,6 +661,8 @@ def build_model(config_file='config_default.ini'):
         model_class = BuildSRNN(cfg)
     elif model_name == 'DKS':
         model_class = BuildDKS(cfg)
+    elif model_name == 'DSAE':
+        model_class = BuildDSAE(cfg)
     return model_class
 
 

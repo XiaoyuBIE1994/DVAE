@@ -24,7 +24,7 @@ class VRNN(nn.Module):
                  dropout_p = 0, device='cpu'):
 
         super().__init__()
-        ### General parameters for vrnn
+        ### General parameters
         self.x_dim = x_dim
         self.z_dim = z_dim
         self.dropout_p = dropout_p

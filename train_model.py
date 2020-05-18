@@ -17,6 +17,7 @@ import torch
 from logger import get_logger
 from configparser import ConfigParser
 from build_model import build_model
+from loss import loss_vlb, loss_vlb_beta, loss_vlb_separate
 
 # import plot functions and disabhle the figure display
 import matplotlib
@@ -27,29 +28,7 @@ my_seed = 0
 np.random.seed(my_seed)
 torch.manual_seed(my_seed)
 
-"""
-Loss function
-"""
-def loss_vlb(recon_x, x, mu, logvar, mu_prior=None, logvar_prior=None, batch_size=32, seq_len=50, device='cpu'):
-    recon = torch.sum(  x/recon_x - torch.log(x/recon_x) - 1 ) 
-    KLD = -0.5 * torch.sum(logvar - logvar_prior - torch.div((logvar.exp() + (mu - mu_prior).pow(2)), logvar_prior.exp()))
-    return (recon + KLD) / (batch_size * seq_len)
 
-def loss_vlb_beta(recon_x, x, mu, logvar, mu_prior=None, logvar_prior=None, beta=1, batch_size=32, seq_len=50, device='cpu'):
-    recon = torch.sum(  x/recon_x - torch.log(x/recon_x) - 1 ) 
-    KLD = -0.5 * torch.sum(logvar - logvar_prior - torch.div((logvar.exp() + (mu - mu_prior).pow(2)), logvar_prior.exp()))
-    return (recon + beta * KLD) / (batch_size * seq_len)
-
-
-def loss_vlb_separate(recon_x, x, mu, logvar, mu_prior=None, logvar_prior=None, batch_size=32, seq_len=50, device='cpu'):
-    recon = torch.sum(  x/recon_x - torch.log(x/recon_x) - 1 )  / (batch_size * seq_len)
-    KLD = -0.5 * torch.sum(logvar - logvar_prior - torch.div((logvar.exp() + (mu - mu_prior).pow(2)), logvar_prior.exp())) / (batch_size * seq_len)
-    return recon, KLD
-
-
-"""
-Train
-"""
 def train_model(config_file):
     torch.autograd.set_detect_anomaly(True)
     # Build model using config_file
@@ -89,7 +68,7 @@ def train_model(config_file):
             batch_data = batch_data.to(model_class.device)
             optimizer.zero_grad()
 
-            if model_class.model_name in ['VRNN', 'SRNN', 'DKS']:
+            if model_class.model_name in ['VRNN', 'SRNN', 'DKS', 'DSAE']:
                 recon_batch_data, mean, logvar, mean_prior, logvar_prior, z = model(batch_data)
             else:
                 recon_batch_data, mean, logvar, z = model(batch_data)
@@ -98,10 +77,10 @@ def train_model(config_file):
 
             # loss = loss_vlb(recon_batch_data, batch_data, 
             #                 mean, logvar, mean_prior, logvar_prior,
-            #                 batch_size = batch_size, seq_len=seq_len, device=device)
+            #                 batch_size = batch_size, seq_len=seq_len)
             recon, KLD = loss_vlb_separate(recon_batch_data, batch_data, 
                                            mean, logvar, mean_prior, logvar_prior,
-                                           batch_size = batch_size, seq_len=seq_len, device=device)
+                                           batch_size = batch_size, seq_len=seq_len)
         
             loss = recon + KLD
             loss.backward()
@@ -114,7 +93,7 @@ def train_model(config_file):
         for batch_idx, batch_data in enumerate(val_dataloader):
             batch_data = batch_data.to(model_class.device)
 
-            if model_class.model_name in ['VRNN', 'SRNN', 'DKS']:
+            if model_class.model_name in ['VRNN', 'SRNN', 'DKS', 'DSAE']:
                 recon_batch_data, mean, logvar, mean_prior, logvar_prior, z = model(batch_data)
             else:
                 recon_batch_data, mean, logvar, z = model(batch_data)
@@ -123,10 +102,10 @@ def train_model(config_file):
 
             # loss = loss_vlb(recon_batch_data, batch_data, 
             #                 mean, logvar, mean_prior, logvar_prior,
-            #                 batch_size = batch_size, seq_len=seq_len, device=device)
+            #                 batch_size = batch_size, seq_len=seq_len)
             recon, KLD = loss_vlb_separate(recon_batch_data, batch_data, 
                                            mean, logvar, mean_prior, logvar_prior,
-                                           batch_size = batch_size, seq_len=seq_len, device=device)
+                                           batch_size = batch_size, seq_len=seq_len)
             loss = recon + KLD
             val_loss[epoch] += loss.item()
             val_recon[epoch] += recon.item()
@@ -169,14 +148,20 @@ def train_model(config_file):
     # Save the final weights of network with the best validation loss
     train_loss = train_loss[:epoch+1]
     val_loss = val_loss[:epoch+1]
+    train_recon = train_recon[:epoch+1]
+    train_KLD = train_KLD[:epoch+1]
+    val_recon = val_recon[:epoch+1]
+    val_KLD = val_KLD[:epoch+1]
     save_file = os.path.join(model_class.save_dir, 
                              model_class.model_name + '_final_epoch' + str(cur_best_epoch) + '.pt')
     torch.save(best_state_dict, save_file)
     
     # Save the training loss and validation loss
     loss_file = os.path.join(model_class.save_dir, 'loss_model.pckl')
+    # with open(loss_file, 'wb') as f:
+    #     pickle.dump([train_loss, val_loss], f)
     with open(loss_file, 'wb') as f:
-        pickle.dump([train_loss, val_loss], f)
+        pickle.dump([train_loss, val_loss, train_recon, train_KLD, val_recon, val_KLD], f)
 
     # Save the model parameters
     save_cfg = os.path.join(model_class.save_dir, 'config.ini')

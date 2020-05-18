@@ -34,7 +34,7 @@ class DKS(nn.Module):
                  dropout_p = 0, device='cpu'):
 
         super().__init__()
-        ### General parameters for storn        
+        ### General parameters  
         self.x_dim = x_dim
         self.y_dim = x_dim
         self.z_dim = z_dim
@@ -151,7 +151,7 @@ class DKS(nn.Module):
                 z_mean[t,:,:] = self.inf_mean(g_t)
                 z_logvar[t,:,:] = self.inf_logvar(g_t)
                 mean_prior[t,:,:], logvar_prior[t,:,:] = self.prior(z_t)
-                z_t = self.reparatemize(z_mean[t,:,:], z_logvar[t,:,:]) # 为什么 z[t,:,:] = z_t 互换就会报错
+                z_t = self.reparatemize(z_mean[t,:,:], z_logvar[t,:,:]) 
                 z[t,:,:] = z_t
         else:
             g, _ = self.rnn_g(torch.flip(x, [0]))
@@ -161,8 +161,10 @@ class DKS(nn.Module):
                 z_mean[t,:,:] = self.inf_mean(g_t)
                 z_logvar[t,:,:] = self.inf_logvar(g_t)
                 mean_prior[t,:,:], logvar_prior[t,:,:] = self.prior(z_t)
-                z_t = self.reparatemize(z_mean[t,:,:], z_logvar[t,:,:])
+                z_t = self.reparatemize(z_mean[t,:,:], z_logvar[t,:,:])# 为什么 z[t,:,:] = z_t 互换就会报错
                 z[t,:,:] = z_t
+                # z[t,:,:] = self.reparatemize(z_mean[t,:,:], z_logvar[t,:,:])
+                # z_t = z[t,:,:]
 
         return z, z_mean, z_logvar, mean_prior, logvar_prior
 

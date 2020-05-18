@@ -32,7 +32,7 @@ class SRNN(nn.Module):
                  dropout_p = 0, device='cpu'):
 
         super().__init__()
-        ### General parameters for storn        
+        ### General parameters      
         self.x_dim = x_dim
         self.y_dim = x_dim
         self.z_dim = z_dim
@@ -327,4 +327,4 @@ if __name__ == '__main__':
         KLD = -0.5 * torch.sum(logvar - logvar_prior - torch.div((logvar.exp() + (mu - mu_prior).pow(2)), logvar_prior.exp()))
         return (recon + KLD) / (batch_size * seq_len)
 
-    print(loss_function(y,x,mean,logvar,mean_prior,logvar)/6)
+    print(loss_function(y,x,mean,logvar,mean_prior,logvar_prior)/6)
