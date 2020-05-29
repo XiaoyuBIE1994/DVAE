@@ -596,7 +596,7 @@ class BuildDSAE(BuildBasic):
         self.bidir_prior = self.cfg.getboolean('Network', 'bidir_prior')
 
         #### Create directory for results
-        self.filename = "{}_{}_{}z_dim={}".format(self.dataset_name,
+        self.filename = "{}_{}_{}_z_dim={}".format(self.dataset_name,
                                                   self.date,
                                                   self.tag,
                                                   self.z_dim)
