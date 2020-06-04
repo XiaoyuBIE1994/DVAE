@@ -18,11 +18,11 @@ from configparser import ConfigParser
 from logger import get_logger
 from pre.prepare_dataset import perpare_dataset
 from model.vae import VAE
-from model.rvae import RVAE
+from model.dmm import DMM
 from model.storn import STORN
 from model.vrnn import VRNN
 from model.srnn import SRNN
-from model.dks import DKS
+from model.rvae import RVAE
 from model.dsae import DSAE
 
 
@@ -183,13 +183,14 @@ class BuildBasic():
         return basic_info
 
 
+
 class BuildVAE(BuildBasic):
 
     def __init__(self, cfg=myconf()):
         
         super().__init__(cfg)
 
-        # Load special parameters for FFNN
+        # Load special parameters
         self.x_dim = self.cfg.getint('Network', 'x_dim')
         self.z_dim = self.cfg.getint('Network','z_dim')
         self.hidden_dim_enc = [int(i) for i in self.cfg.get('Network', 'hidden_dim_enc').split(',')]
@@ -238,36 +239,32 @@ class BuildVAE(BuildBasic):
             self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
 
 
-class BuildRVAE(BuildBasic):
 
-    def __init__(self, cfg = myconf()):
+class BuildDMM(BuildBasic):
+
+    def __init__(self, cfg=myconf()):
 
         super().__init__(cfg)
 
-        ### Load special paramters for RVAE
+        ### Load parameters
         # General
         self.x_dim = self.cfg.getint('Network', 'x_dim')
         self.z_dim = self.cfg.getint('Network','z_dim')
         self.activation = self.cfg.get('Network', 'activation')
         self.dropout_p = self.cfg.getfloat('Network', 'dropout_p')
-        # Generation
-        self.bidir_h = self.cfg.getboolean('Network', 'bidir_h')
-        self.dim_RNN_h = self.cfg.getint('Network', 'dim_RNN_h')
-        self.num_RNN_h = self.cfg.getint('Network', 'num_RNN_h')
         # Inference
-        self.bidir_g_x = self.cfg.getboolean('Network', 'bidir_g_x')
-        self.dim_RNN_g_x = self.cfg.getint('Network', 'dim_RNN_g_x')
-        self.num_RNN_g_x = self.cfg.getint('Network', 'num_RNN_g_x')
-        self.rec_over_z = self.cfg.getboolean('Network', 'rec_over_z')
-        self.dim_RNN_g_z = self.cfg.getint('Network', 'dim_RNN_g_z')
-        self.num_RNN_g_z = self.cfg.getint('Network', 'num_RNN_g_z')
-        self.dense_inference = [int(i) for i in self.cfg.get('Network', 'dense_inference').split(',')]
-        
-        ### Create directory for results
+        self.dense_x_g = [int(i) for i in self.cfg.get('Network', 'dense_x_g').split(',')] if self.cfg.has_option('Network', 'dense_x_g') else []
+        self.dim_RNN_g = self.cfg.getint('Network', 'dim_RNN_g')
+        self.num_RNN_g = self.cfg.getint('Network', 'num_RNN_g')
+        self.bidir_g = self.cfg.getboolean('Network', 'bidir_g')
+        # Generation
+        self.dense_z_x = [int(i) for i in self.cfg.get('Network', 'dense_z_x').split(',')] if self.cfg.has_option('Network', 'dense_z_x') else []
+
+        ### Create direcotry for results
         self.filename = "{}_{}_{}_z_dim={}".format(self.dataset_name, 
                                                    self.date,
                                                    self.tag,
-                                                   self.z_dim)                             
+                                                   self.z_dim)
         self.save_dir = os.path.join(self.saved_root, self.filename)
         if not(os.path.isdir(self.save_dir)):
             os.makedirs(self.save_dir)
@@ -281,22 +278,19 @@ class BuildRVAE(BuildBasic):
         self.logger = logger
 
         self.build()
-    
+
 
     def build(self):
+
+        self.logger.info('===== Init DMM =====')
+
+        self.model = DMM(x_dim=self.x_dim, z_dim=self.z_dim, activation=self.activation,
+                         dense_x_g=self.dense_x_g,
+                         dim_RNN_g=self.dim_RNN_g, num_RNN_g=self.num_RNN_g,
+                         bidir_g=self.bidir_g,
+                         dense_z_x=self.dense_z_x,
+                         dropout_p = self.dropout_p, device=self.device).to(self.device)
         
-        # Init RVAE network
-        self.logger.info('===== Init RVAE =====')
-        self.model = RVAE(x_dim=self.x_dim, z_dim=self.z_dim, 
-                          activation=self.activation,
-                          bidir_g_x=self.bidir_g_x, 
-                          dim_RNN_g_x=self.dim_RNN_g_x, num_RNN_g_x=self.num_RNN_g_x,
-                          rec_over_z=self.rec_over_z, 
-                          dim_RNN_g_z=self.dim_RNN_g_z, num_RNN_g_z=self.num_RNN_g_z,
-                          dense_inference=self.dense_inference,
-                          bidir_h=self.bidir_h, 
-                          dim_RNN_h=self.dim_RNN_h, num_RNN_h=self.num_RNN_h,
-                          dropout_p = self.dropout_p, device=self.device).to(self.device)
         # Print model information
         for log in self.model.get_info():
             self.logger.info(log)
@@ -306,6 +300,7 @@ class BuildRVAE(BuildBasic):
             self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
         else:
             self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
+
 
 
 class BuildSTORN(BuildBasic):
@@ -320,17 +315,17 @@ class BuildSTORN(BuildBasic):
         self.z_dim = self.cfg.getint('Network','z_dim')
         self.activation = self.cfg.get('Network', 'activation')
         self.dropout_p = self.cfg.getfloat('Network', 'dropout_p')
-        # Generation
-        self.dense_zx_h = [int(i) for i in self.cfg.get('Network', 'dense_zx_h').split(',')]
-        self.dense_h_x = [int(i) for i in self.cfg.get('Network', 'dense_h_x').split(',')]
-        self.dim_RNN_h = self.cfg.getint('Network', 'dim_RNN_h')
-        self.num_RNN_h = self.cfg.getint('Network', 'num_RNN_h')
         # Inference
-        self.dense_x_g = [int(i) for i in self.cfg.get('Network', 'dense_x_g').split(',')]
-        self.dense_g_z = [int(i) for i in self.cfg.get('Network', 'dense_g_z').split(',')]
+        self.dense_x_g = [int(i) for i in self.cfg.get('Network', 'dense_x_g').split(',')] if self.cfg.has_option('Network', 'dense_x_g') else []
         self.dim_RNN_g = self.cfg.getint('Network', 'dim_RNN_g')
         self.num_RNN_g = self.cfg.getint('Network', 'num_RNN_g')
-        
+        self.dense_g_z = [int(i) for i in self.cfg.get('Network', 'dense_g_z').split(',')] if self.cfg.has_option('Network', 'dense_g_z') else []
+        # Generation
+        self.dense_zx_h = [int(i) for i in self.cfg.get('Network', 'dense_zx_h').split(',')] if self.cfg.has_option('Network', 'dense_zx_h') else []
+        self.dim_RNN_h = self.cfg.getint('Network', 'dim_RNN_h')
+        self.num_RNN_h = self.cfg.getint('Network', 'num_RNN_h')
+        self.dense_h_x = [int(i) for i in self.cfg.get('Network', 'dense_h_x').split(',')] if self.cfg.has_option('Network', 'dense_h_x') else []
+
         ### Create directory for results
         self.filename = "{}_{}_{}_z_dim={}".format(self.dataset_name, 
                                                    self.date,
@@ -350,15 +345,18 @@ class BuildSTORN(BuildBasic):
 
         self.build()
     
+
     def build(self):
 
         self.logger.info('===== Init STORN =====')
+
         self.model = STORN(x_dim=self.x_dim, z_dim=self.z_dim, activation=self.activation,
-                           dense_zx_h=self.dense_zx_h, dense_h_x=self.dense_h_x,
-                           dim_RNN_h=self.dim_RNN_h, num_RNN_h=self.num_RNN_h,
                            dense_x_g=self.dense_x_g, dense_g_z=self.dense_g_z,
                            dim_RNN_g=self.dim_RNN_g, num_RNN_g=self.num_RNN_g,
+                           dense_zx_h=self.dense_zx_h, dense_h_x=self.dense_h_x,
+                           dim_RNN_h=self.dim_RNN_h, num_RNN_h=self.num_RNN_h,
                            dropout_p = self.dropout_p, device=self.device).to(self.device)
+        
         # Print model information
         for log in self.model.get_info():
             self.logger.info(log)
@@ -368,6 +366,7 @@ class BuildSTORN(BuildBasic):
             self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
         else:
             self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
+
 
 
 class BuildVRNN(BuildBasic):
@@ -383,12 +382,12 @@ class BuildVRNN(BuildBasic):
         self.activation = self.cfg.get('Network', 'activation')
         self.dropout_p = self.cfg.getfloat('Network', 'dropout_p')
         # Feature extractor
-        self.dense_x = [int(i) for i in self.cfg.get('Network', 'dense_x').split(',')]
-        self.dense_z = [int(i) for i in self.cfg.get('Network', 'dense_z').split(',')]
+        self.dense_x = [int(i) for i in self.cfg.get('Network', 'dense_x').split(',')] if self.cfg.has_option('Network', 'dense_x') else []
+        self.dense_z = [int(i) for i in self.cfg.get('Network', 'dense_z').split(',')] if self.cfg.has_option('Network', 'dense_z') else []
         # Dense layers
-        self.dense_hx_z = [int(i) for i in self.cfg.get('Network', 'dense_hx_z').split(',')]
-        self.dense_hz_x = [int(i) for i in self.cfg.get('Network', 'dense_hz_x').split(',')]
-        self.dense_h_z = [int(i) for i in self.cfg.get('Network', 'dense_h_z').split(',')]
+        self.dense_hx_z = [int(i) for i in self.cfg.get('Network', 'dense_hx_z').split(',')] if self.cfg.has_option('Network', 'dense_hx_z') else []
+        self.dense_hz_x = [int(i) for i in self.cfg.get('Network', 'dense_hz_x').split(',')] if self.cfg.has_option('Network', 'dense_hz_x') else []
+        self.dense_h_z = [int(i) for i in self.cfg.get('Network', 'dense_h_z').split(',')] if self.cfg.has_option('Network', 'dense_h_z') else []
         # RNN
         self.dim_RNN = self.cfg.getint('Network', 'dim_RNN')
         self.num_RNN = self.cfg.getint('Network', 'num_RNN')
@@ -413,8 +412,9 @@ class BuildVRNN(BuildBasic):
         self.build()
 
     def build(self):
-        # Init RVAE network
+        
         self.logger.info('===== Init VRNN =====')
+
         self.model = VRNN(x_dim=self.x_dim, z_dim=self.z_dim, 
                           activation=self.activation,
                           dense_x=self.dense_x, dense_z=self.dense_z,
@@ -423,6 +423,7 @@ class BuildVRNN(BuildBasic):
                           dim_RNN=self.dim_RNN, num_RNN=self.num_RNN,
                           dropout_p = self.dropout_p,
                           device=self.device).to(self.device)
+
         # Print model information
         for log in self.model.get_info():
             self.logger.info(log)
@@ -432,6 +433,7 @@ class BuildVRNN(BuildBasic):
             self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
         else:
             self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
+
 
 
 class BuildSRNN(BuildBasic):
@@ -446,17 +448,20 @@ class BuildSRNN(BuildBasic):
         self.z_dim = self.cfg.getint('Network','z_dim')
         self.activation = self.cfg.get('Network', 'activation')
         self.dropout_p = self.cfg.getfloat('Network', 'dropout_p')
-        # Dense layers
+        # Deterministic
         self.dense_x_h = [int(i) for i in self.cfg.get('Network', 'dense_x_h').split(',')] if self.cfg.has_option('Network', 'dense_x_h') else []
-        self.dense_hx_g = [int(i) for i in self.cfg.get('Network', 'dense_hx_g').split(',')] if self.cfg.has_option('Network', 'dense_hx_g') else []
-        self.dense_gz_z = [int(i) for i in self.cfg.get('Network', 'dense_gz_z').split(',')]
-        self.dense_hz_x = [int(i) for i in self.cfg.get('Network', 'dense_hz_x').split(',')]
-        self.dense_hz_z = [int(i) for i in self.cfg.get('Network', 'dense_hz_z').split(',')]
-        # RNN
         self.dim_RNN_h = self.cfg.getint('Network', 'dim_RNN_h')
         self.num_RNN_h = self.cfg.getint('Network', 'num_RNN_h')
+        # Inference
+        self.dense_hx_g = [int(i) for i in self.cfg.get('Network', 'dense_hx_g').split(',')] if self.cfg.has_option('Network', 'dense_hx_g') else []
         self.dim_RNN_g = self.cfg.getint('Network', 'dim_RNN_g')
         self.num_RNN_g = self.cfg.getint('Network', 'num_RNN_g')
+        self.dense_gz_z = [int(i) for i in self.cfg.get('Network', 'dense_gz_z').split(',')] if self.cfg.has_option('Network', 'dense_gz_z') else []
+        # Prior
+        self.dense_hz_z = [int(i) for i in self.cfg.get('Network', 'dense_hz_z').split(',')] if self.cfg.has_option('Network', 'dense_hz_z') else []
+        # Generation
+        self.dense_hz_x = [int(i) for i in self.cfg.get('Network', 'dense_hz_x').split(',')] if self.cfg.has_option('Network', 'dense_hz_x') else []
+
         
         ### Create direcotry for results
         self.filename = "{}_{}_{}_z_dim={}".format(self.dataset_name, 
@@ -480,19 +485,18 @@ class BuildSRNN(BuildBasic):
     def build(self):
 
         self.logger.info('===== Init SRNN =====')
-        self.model = SRNN(x_dim=self.x_dim, z_dim=self.z_dim, 
-                          activation=self.activation,
+
+        self.model = SRNN(x_dim=self.x_dim, z_dim=self.z_dim, activation=self.activation,
                           dense_x_h=self.dense_x_h,
+                          dim_RNN_h=self.dim_RNN_h, num_RNN_h=self.num_RNN_h,
                           dense_hx_g=self.dense_hx_g,
+                          dim_RNN_g=self.dim_RNN_g, num_RNN_g=self.num_RNN_g,
                           dense_gz_z=self.dense_gz_z,
                           dense_hz_x=self.dense_hz_x,
                           dense_hz_z=self.dense_hz_z,
-                          dim_RNN_h=self.dim_RNN_h,
-                          num_RNN_h=self.num_RNN_h,
-                          dim_RNN_g=self.dim_RNN_g,
-                          num_RNN_g=self.num_RNN_g,
                           dropout_p = self.dropout_p,
                           device=self.device).to(self.device)
+        
         # Print model information
         for log in self.model.get_info():
             self.logger.info(log)
@@ -504,32 +508,40 @@ class BuildSRNN(BuildBasic):
             self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
 
 
-class BuildDKS(BuildBasic):
 
-    def __init__(self, cfg=myconf()):
+class BuildRVAE(BuildBasic):
+
+    def __init__(self, cfg = myconf()):
 
         super().__init__(cfg)
 
-        ### Load parameters for SRNN
+        ### Load special paramters for RVAE
         # General
         self.x_dim = self.cfg.getint('Network', 'x_dim')
         self.z_dim = self.cfg.getint('Network','z_dim')
         self.activation = self.cfg.get('Network', 'activation')
         self.dropout_p = self.cfg.getfloat('Network', 'dropout_p')
-        # Generation
-        self.dense_z_x = [int(i) for i in self.cfg.get('Network', 'dense_z_x').split(',')]
         # Inference
-        self.dim_RNN_g = self.cfg.getint('Network', 'dim_RNN_g')
-        self.num_RNN_g = self.cfg.getint('Network', 'num_RNN_g')
-        self.bidir_g = self.cfg.getboolean('Network', 'bidir_g')
-        # Prior
-        self.dense_z_z = [int(i) for i in self.cfg.get('Network', 'dense_z_z').split(',')]
-
-        ### Create direcotry for results
+        self.dense_x_gx = [int(i) for i in self.cfg.get('Network', 'dense_x_gx').split(',')] if self.cfg.has_option('Network', 'dense_x_gx') else []
+        self.dim_RNN_g_x = self.cfg.getint('Network', 'dim_RNN_g_x')
+        self.num_RNN_g_x = self.cfg.getint('Network', 'num_RNN_g_x')
+        self.bidir_g_x = self.cfg.getboolean('Network', 'bidir_g_x')
+        self.dense_z_gz = [int(i) for i in self.cfg.get('Network', 'dense_z_gz').split(',')] if self.cfg.has_option('Network', 'dense_z_gz') else []
+        self.dim_RNN_g_z = self.cfg.getint('Network', 'dim_RNN_g_z')
+        self.num_RNN_g_z = self.cfg.getint('Network', 'num_RNN_g_z')
+        self.dense_g_z = [int(i) for i in self.cfg.get('Network', 'dense_g_z').split(',')] if self.cfg.has_option('Network', 'dense_g_z') else []
+        # Generation
+        self.dense_z_h = [int(i) for i in self.cfg.get('Network', 'dense_z_h').split(',')] if self.cfg.has_option('Network', 'dense_z_h') else []
+        self.dim_RNN_h = self.cfg.getint('Network', 'dim_RNN_h')
+        self.num_RNN_h = self.cfg.getint('Network', 'num_RNN_h')
+        self.bidir_h = self.cfg.getboolean('Network', 'bidir_h')
+        self.dense_h_x = [int(i) for i in self.cfg.get('Network', 'dense_h_x').split(',')] if self.cfg.has_option('Network', 'dense_h_x') else []
+        
+        ### Create directory for results
         self.filename = "{}_{}_{}_z_dim={}".format(self.dataset_name, 
                                                    self.date,
                                                    self.tag,
-                                                   self.z_dim)
+                                                   self.z_dim)                             
         self.save_dir = os.path.join(self.saved_root, self.filename)
         if not(os.path.isdir(self.save_dir)):
             os.makedirs(self.save_dir)
@@ -543,17 +555,25 @@ class BuildDKS(BuildBasic):
         self.logger = logger
 
         self.build()
+    
 
     def build(self):
+        
+        self.logger.info('===== Init RVAE =====')
 
-        self.logger.info('===== Init DKS =====')
-        self.model = DKS(x_dim=self.x_dim, z_dim=self.z_dim, 
-                         activation=self.activation,
-                         dense_z_x=self.dense_z_x,
-                         dim_RNN_g=self.dim_RNN_g, num_RNN_g=self.num_RNN_g,
-                         bidir_g=self.bidir_g,
-                         dense_z_z=self.dense_z_z,
-                         dropout_p = self.dropout_p, device=self.device).to(self.device)
+        self.model = RVAE(x_dim=self.x_dim, z_dim=self.z_dim, activation=self.activation,
+                          dense_x_gx=self.dense_x_gx,
+                          dim_RNN_g_x=self.dim_RNN_g_x, num_RNN_g_x=self.num_RNN_g_x,
+                          bidir_g_x=self.bidir_g_x, 
+                          dense_z_gz=self.dense_z_gz,
+                          dim_RNN_g_z=self.dim_RNN_g_z, num_RNN_g_z=self.num_RNN_g_z,
+                          dense_g_z=self.dense_g_z,
+                          dense_z_h=self.dense_z_h,
+                          dim_RNN_h=self.dim_RNN_h, num_RNN_h=self.num_RNN_h,
+                          bidir_h=self.bidir_h,
+                          dense_h_x=self.dense_h_x,
+                          dropout_p = self.dropout_p, device=self.device).to(self.device)
+
         # Print model information
         for log in self.model.get_info():
             self.logger.info(log)
@@ -578,22 +598,22 @@ class BuildDSAE(BuildBasic):
         self.v_dim = self.cfg.getint('Network','v_dim')
         self.activation = self.cfg.get('Network', 'activation')
         self.dropout_p = self.cfg.getfloat('Network', 'dropout_p')
-        # Generation
-        self.dense_vz_x = [int(i) for i in self.cfg.get('Network', 'dense_vz_x').split(',')]
         # Inference
+        self.dense_x = [int(i) for i in self.cfg.get('Network', 'dense_x').split(',')] if self.cfg.has_option('Network', 'dense_x') else []
         self.dim_RNN_gv = self.cfg.getint('Network', 'dim_RNN_gv')
         self.num_RNN_gv = self.cfg.getint("Network", 'num_RNN_gv')
-        self.bidir_gv = self.cfg.getboolean('Network', 'bidir_gv')
-        self.dim_RNN_gx = self.cfg.getint('Network', 'dim_RNN_gx')
-        self.num_RNN_gx = self.cfg.getint('Network', 'num_RNN_gx')
-        self.bidir_gx = self.cfg.getboolean('Network', 'bidir_gx')
-        self.dim_RNN_total = self.cfg.getint('Network', 'dim_RNN_total')
-        self.num_RNN_total = self.cfg.getint('Network', 'num_RNN_total')
-        self.bidir_total = self.cfg.getboolean('Network', 'bidir_total')
+        self.dense_gv_v = [int(i) for i in self.cfg.get('Network', 'dense_gv_v').split(',')] if self.cfg.has_option('Network', 'dense_gv_v') else []
+        self.dense_xv_gxv = [int(i) for i in self.cfg.get('Network', 'dense_xv_gxv').split(',')] if self.cfg.has_option('Network', 'dense_xv_gxv') else []
+        self.dim_RNN_gxv = self.cfg.getint('Network', 'dim_RNN_gxv')
+        self.num_RNN_gxv = self.cfg.getint('Network', 'num_RNN_gxv')
+        self.dense_gxv_gz = [int(i) for i in self.cfg.get('Network', 'dense_gxv_gz').split(',')] if self.cfg.has_option('Network', 'dense_gxv_gz') else []
+        self.dim_RNN_gz = self.cfg.getint('Network', 'dim_RNN_gz')
+        self.num_RNN_gz = self.cfg.getint('Network', 'num_RNN_gz')
         # Prior
         self.dim_RNN_prior = self.cfg.getint('Network', 'dim_RNN_prior')
         self.num_RNN_prior = self.cfg.getint('Network', 'num_RNN_prior')
-        self.bidir_prior = self.cfg.getboolean('Network', 'bidir_prior')
+        # Generation
+        self.dense_vz_x = [int(i) for i in self.cfg.get('Network', 'dense_vz_x').split(',')]
 
         #### Create directory for results
         self.filename = "{}_{}_{}_z_dim={}".format(self.dataset_name,
@@ -619,17 +639,16 @@ class BuildDSAE(BuildBasic):
 
         # Init DSAE network
         self.logger.info('==== Init DSAE ====')
-        self.model = DSAE(x_dim=self.x_dim, z_dim=self.z_dim, v_dim=self.v_dim,
+        self.model = DSAE(x_dim=self.x_dim, z_dim=self.z_dim, v_dim=self.v_dim, 
                           activation=self.activation,
-                          dense_vz_x=self.dense_vz_x,
+                          dense_x=self.dense_x,
                           dim_RNN_gv=self.dim_RNN_gv, num_RNN_gv=self.num_RNN_gv,
-                          bidir_gv=self.bidir_gv,
-                          dim_RNN_gx=self.dim_RNN_gx, num_RNN_gx=self.num_RNN_gx,
-                          bidir_gx=self.bidir_gx,
-                          dim_RNN_total=self.dim_RNN_total, num_RNN_total=self.num_RNN_total,
-                          bidir_total=self.bidir_total,
+                          dense_gv_v=self.dense_gv_v, dense_xv_gxv=self.dense_xv_gxv,
+                          dim_RNN_gxv=self.dim_RNN_gxv, num_RNN_gxv=self.num_RNN_gxv,
+                          dense_gxv_gz=self.dense_gxv_gz,
+                          dim_RNN_gz=self.dim_RNN_gz, num_RNN_gz=self.num_RNN_gz,
                           dim_RNN_prior=self.dim_RNN_prior, num_RNN_prior=self.num_RNN_prior,
-                          bidir_prior=self.bidir_prior,
+                          dense_vz_x=self.dense_vz_x,
                           dropout_p = self.dropout_p, device=self.device).to(self.device)
         # Print model information
         for log in self.model.get_info():
@@ -642,27 +661,29 @@ class BuildDSAE(BuildBasic):
             self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
 
 
-
 def build_model(config_file='config_default.ini'):
+
     if not os.path.isfile(config_file):
         raise ValueError('Invalid config file path')    
     cfg = myconf()
     cfg.read(config_file)
     model_name = cfg.get('Network', 'name')
+
     if model_name == 'VAE':
         model_class = BuildVAE(cfg)
-    elif model_name == 'RVAE':
-        model_class = BuildRVAE(cfg)
+    elif model_name == 'DMM':
+        model_class = BuildDMM(cfg)
     elif model_name == 'STORN':
         model_class = BuildSTORN(cfg)
     elif model_name == 'VRNN':
         model_class = BuildVRNN(cfg)
     elif model_name == 'SRNN':
         model_class = BuildSRNN(cfg)
-    elif model_name == 'DKS':
-        model_class = BuildDKS(cfg)
+    elif model_name == 'RVAE':
+        model_class = BuildRVAE(cfg)
     elif model_name == 'DSAE':
         model_class = BuildDSAE(cfg)
+
     return model_class
 
 

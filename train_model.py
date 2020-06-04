@@ -65,15 +65,10 @@ def train_model(config_file):
 
         # Batch training
         for batch_idx, batch_data in enumerate(train_dataloader):
+
             batch_data = batch_data.to(model_class.device)
             optimizer.zero_grad()
-
-            if model_class.model_name in ['VRNN', 'SRNN', 'DKS', 'DSAE']:
-                recon_batch_data, mean, logvar, mean_prior, logvar_prior, z = model(batch_data)
-            else:
-                recon_batch_data, mean, logvar, z = model(batch_data)
-                mean_prior = torch.zeros_like(mean).to(device)
-                logvar_prior = torch.zeros_like(logvar).to(device)
+            recon_batch_data, mean, logvar, mean_prior, logvar_prior, z = model(batch_data)
 
             # loss = loss_vlb(recon_batch_data, batch_data, 
             #                 mean, logvar, mean_prior, logvar_prior,
@@ -91,14 +86,9 @@ def train_model(config_file):
             
         # Cross validation
         for batch_idx, batch_data in enumerate(val_dataloader):
-            batch_data = batch_data.to(model_class.device)
 
-            if model_class.model_name in ['VRNN', 'SRNN', 'DKS', 'DSAE']:
-                recon_batch_data, mean, logvar, mean_prior, logvar_prior, z = model(batch_data)
-            else:
-                recon_batch_data, mean, logvar, z = model(batch_data)
-                mean_prior = torch.zeros_like(mean).to(device)
-                logvar_prior = torch.zeros_like(logvar).to(device)
+            batch_data = batch_data.to(model_class.device)
+            recon_batch_data, mean, logvar, mean_prior, logvar_prior, z = model(batch_data)
 
             # loss = loss_vlb(recon_batch_data, batch_data, 
             #                 mean, logvar, mean_prior, logvar_prior,
