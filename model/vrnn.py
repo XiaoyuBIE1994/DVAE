@@ -177,7 +177,7 @@ class VRNN(nn.Module):
 
 
     def recurrence(self, feature_xt, feature_zt, h_t, c_t):
-        rnn_input = torch.cat((feature_xt, feature_zt), 2)
+        rnn_input = torch.cat((feature_xt, feature_zt), -1)
         _, (h_tp1, c_tp1) = self.rnn(rnn_input, (h_t, c_t))
         return h_tp1, c_tp1
 

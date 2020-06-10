@@ -42,6 +42,11 @@ def train_model(config_file):
     num_parameters = sum(p.numel() for p in model.parameters() if p.requires_grad)
     device = model_class.device
 
+    
+    if 'gpu' in model_class.hostname and device == 'cpu':
+        logger.error('GPU unavailable on cluster, training stop')
+        return
+
     # Create dataloader
     train_dataloader, val_dataloader, train_num, val_num = model_class.build_dataloader()
 
