@@ -107,7 +107,7 @@ class STORN(nn.Module):
         # 1. z_t and x_tm1 to h_t
         dic_layers = OrderedDict()
         if len(self.dense_zx_h) == 0:
-            dim_zx_h = self.z_dim+self.x_dim
+            dim_zx_h = self.z_dim + self.x_dim
             dic_layers['Identity'] = nn.Identity()
         else:
             dim_zx_h = self.dense_zx_h[-1]
@@ -150,7 +150,8 @@ class STORN(nn.Module):
     def inference(self, x):
 
         # 1. From x_t to g_t
-        g, _ = self.rnn_g(self.mlp_x_g(x))
+        x_g = self.mlp_x_g(x)
+        g, _ = self.rnn_g(x_g)
 
         # 2. From g_t to z_t
         g_z = self.mlp_g_z(g)
