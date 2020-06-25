@@ -157,3 +157,49 @@ class SpeechSequences(data.Dataset):
     Customize a dataset of speech sequences for Pytorch
     at least the three following functions should be defined.
     """
+    def __init__(self,file_list, seq_len=50, wlen_sec=64e-3,
+                 hop_percent=0.25, fs=16000, zp_percent=0, trim=True,
+                 verbose=False, batch_size=32, shuffle_file_list=True,
+                 name='WSJ0'):
+
+        super.__init__()
+
+        # STFT parameters
+        self.wlen_sec = wlen_sec
+        self.hot_percent = hop_percent
+        self.fs = fs
+        self.zp_percent = zp_percent
+        self.wlen = self.wlen_sec * self.fs
+        self.wlen = np.int(np.power(2, np.ceil(np.log2(self.wlen)))) # pwoer of 2
+        self.hop = np.int(self.hot_percent * self.wlen)
+        self.nfft = self.wlen + self.zp_percent * self.wlen
+        self.win = np.sin(np.arange(0.5, self.wlen+0.5) / wlen * np.pi)
+
+        # data parameters
+        self.file_list = file_list
+        self.seq_len = seq_len
+        self.batch_size = batch_size
+        self.name = name
+        self.cpt_file = 0
+        self.trim = trim
+        self.current_frame = 0
+        self.tot_num_frame = 0
+        self.data = None
+        self.verbose = verbose
+        self.shuffle_file_list = shuffle_file_list
+
+        self.compute_len()
+
+    def comput_len(self):
+
+        pass
+
+    def __len__(self):
+
+        pass
+
+    def __getitem__(self):
+        pass
+
+        
+

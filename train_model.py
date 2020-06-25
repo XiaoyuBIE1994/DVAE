@@ -30,6 +30,7 @@ torch.manual_seed(my_seed)
 
 
 def train_model(config_file):
+    
     torch.autograd.set_detect_anomaly(True)
     # Build model using config_file
     model_class = build_model(config_file)

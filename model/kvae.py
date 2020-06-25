@@ -33,7 +33,7 @@ class KVAE(nn.Module):
             raise SystemError('Wrong activation type')
         self.device = device
         # Inference
-
+        
         # Prior
 
         # Generation
