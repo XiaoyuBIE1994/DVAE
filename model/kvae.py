@@ -8,6 +8,9 @@ License agreement in LICENSE.txt
 The code in this file is based on:
 - “A Disentanagled Recognition and Nonlinear Dynamics Model for Unsupervised Learning” NIPS, 2017, Macro Fraccaro et al.
 
+Not include:
+- different learning target (alpha first, then KF params, finally total params)
+- no imputation
 """
 
 from torch import nn
@@ -32,11 +35,10 @@ class KVAE(nn.Module):
         else:
             raise SystemError('Wrong activation type')
         self.device = device
-        # Inference
+        # VAE
         
-        # Prior
+        # LGSSM
 
-        # Generation
 
         self.build()
 
@@ -48,11 +50,8 @@ class KVAE(nn.Module):
         eps = torch.randn_like(std)
         return eps.mul(std).add_(mean)
 
+
     def inference():
-        pass
-
-
-    def prior():
         pass
 
 
@@ -60,6 +59,10 @@ class KVAE(nn.Module):
         pass
 
 
+    def kf_smoother(self):
+        pass
+
+    
     def forward():
         pass
 
