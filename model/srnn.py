@@ -250,7 +250,7 @@ class SRNN(nn.Module):
         x_tm1 = torch.cat((x_0, x[:-1, :, :]), 0)
         h = self.deterministic_h(x_tm1)
         z, z_mean, z_logvar = self.inference(x, h)
-        z_0 = torch.zeros(1, batch_size, z_dim).to(self.device)
+        z_0 = torch.zeros(1, batch_size, self.z_dim).to(self.device)
         z_tm1 = torch.cat((z_0, z[:-1, :, :]), 0)
         z_mean_p, z_logvar_p = self.prior(h, z_tm1)
         y = self.generation(z, h)
