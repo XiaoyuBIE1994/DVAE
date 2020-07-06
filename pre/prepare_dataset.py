@@ -11,13 +11,13 @@ import os
 def perpare_dataset(dataset_name, hostname, save_dir='saved_model'):
     
     if hostname == 'virgo': 
-        saved_root = os.path.join('/local_scratch/xbie/Code', save_dir)
+        saved_root = os.path.join('/local_scratch/xbie/Results/2020_DVAE', save_dir)
     elif hostname == 'MacPro-BIE.local':
         saved_root =  os.path.join('/Users/xiaoyu/WorkStation/Project_rvae', save_dir)
     elif 'access' in hostname:
-        saved_root = os.path.join('/scratch/virgo/xbie/Code', save_dir)
+        saved_root = os.path.join('/scratch/virgo/xbie/Results/2020_DVAE', save_dir)
     elif 'gpu' in hostname:
-        saved_root = os.path.join('/mnt/xbie/Code', save_dir)
+        saved_root = os.path.join('/mnt/xbie/Results/2020_DVAE', save_dir)
     else:
         saved_root = os.path.join('/mnt', save_dir)
     
