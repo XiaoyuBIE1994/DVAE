@@ -45,7 +45,7 @@ class KVAE(nn.Module):
     def build():
         pass
 
-    def reparatemize(self, mean, logvar):
+    def reparameterization(self, mean, logvar):
         std = torch.exp(0.5*logvar)
         eps = torch.randn_like(std)
         return eps.mul(std).add_(mean)

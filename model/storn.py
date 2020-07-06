@@ -47,7 +47,7 @@ class STORN(nn.Module):
         self.dense_g_z = dense_g_z
         self.dim_RNN_g = dim_RNN_g
         self.num_RNN_g = num_RNN_g
-        ### Generation
+        ### Generation x
         self.dense_zx_h = dense_zx_h
         self.dense_h_x = dense_h_x
         self.dim_RNN_h = dim_RNN_h
@@ -96,14 +96,14 @@ class STORN(nn.Module):
         self.inf_mean = nn.Linear(dim_g_z, self.z_dim)
         self.inf_logvar = nn.Linear(dim_g_z, self.z_dim)
 
-        ###############
-        #### Prior ####
-        ###############
+        ######################
+        #### Generation z ####
+        ######################
         # The prior of z in STORN is supposed to be zero-mean, unit-variance Gaussian
    
-        ####################
-        #### Generation ####
-        ####################
+        ######################
+        #### Generation x ####
+        ######################
         # 1. z_t and x_tm1 to h_t
         dic_layers = OrderedDict()
         if len(self.dense_zx_h) == 0:
@@ -139,7 +139,7 @@ class STORN(nn.Module):
         self.gen_logvar = nn.Linear(dim_h_x, self.y_dim) 
 
 
-    def reparatemize(self, mean, logvar):
+    def reparameterization(self, mean, logvar):
 
         std = torch.exp(0.5*logvar)
         eps = torch.randn_like(std)
@@ -157,12 +157,12 @@ class STORN(nn.Module):
         g_z = self.mlp_g_z(g)
         z_mean = self.inf_mean(g_z)
         z_logvar = self.inf_logvar(g_z)
-        z = self.reparatemize(z_mean, z_logvar)
+        z = self.reparameterization(z_mean, z_logvar)
 
         return z, z_mean, z_logvar
 
 
-    def prior(self, z_mean, z_logvar):
+    def generation_z(self, z_mean, z_logvar):
         
         z_mean_p = torch.zeros_like(z_mean).to(self.device)
         z_logvar_p = torch.zeros_like(z_logvar).to(self.device)
@@ -170,7 +170,7 @@ class STORN(nn.Module):
         return z_mean_p, z_logvar_p
 
 
-    def generation(self, z, x_tm1):
+    def generation_x(self, z, x_tm1):
         
         
         # 1. From z_t and x_tm1 to h_t
@@ -201,10 +201,10 @@ class STORN(nn.Module):
 
         # main part
         z, z_mean, z_logvar = self.inference(x)
-        z_mean_p, z_logvar_p = self.prior(z_mean, z_logvar)
+        z_mean_p, z_logvar_p = self.generation_z(z_mean, z_logvar)
         x_0 = torch.zeros(1, batch_size, x_dim).to(self.device)
         x_tm1 = torch.cat((x_0, x[:-1,:,:]), 0)
-        y = self.generation(z, x_tm1)
+        y = self.generation_x(z, x_tm1)
 
         # y/z dimension:    (seq_len, batch_size, y/z_dim)
         # output dimension: (batch_size, y/z_dim, seq_len)
@@ -237,7 +237,7 @@ class STORN(nn.Module):
         info.append('mean: ' + str(self.inf_mean))
         info.append('logvar: ' + str(self.inf_logvar))
 
-        info.append("----- Generation -----")
+        info.append("----- Generation x -----")
         for layer in self.mlp_zx_h:
             info.append(str(layer))
         info.append(self.rnn_h)
@@ -245,7 +245,7 @@ class STORN(nn.Module):
             info.append(str(layer))
         info.append('Output: ' + str(self.gen_logvar))
 
-        info.append("----- Prior -----")
+        info.append("----- Generation z -----")
         info.append('>>>> zero-mean, unit-variance Gaussian')
 
         return info

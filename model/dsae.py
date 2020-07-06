@@ -51,10 +51,10 @@ class DSAE(nn.Module):
         self.dense_gxv_gz = dense_gxv_gz
         self.dim_RNN_gz = dim_RNN_gz
         self.num_RNN_gz = num_RNN_gz
-        #### Prior
+        #### Generation z
         self.dim_RNN_prior = dim_RNN_prior
         self.num_RNN_prior = num_RNN_prior
-        # Generation
+        # Generation x
         self.dense_vz_x = dense_vz_x
 
         self.build()
@@ -140,16 +140,16 @@ class DSAE(nn.Module):
         self.inf_z_mean = nn.Linear(self.dim_RNN_gz, self.z_dim)
         self.inf_z_logvar = nn.Linear(self.dim_RNN_gz, self.z_dim)
 
-        ###############
-        #### Prior ####
-        ###############
+        ######################
+        #### generation z ####
+        ######################
         self.rnn_prior = nn.LSTM(self.z_dim, self.dim_RNN_prior, self.num_RNN_prior, bidirectional=False)
         self.prior_mean = nn.Linear(self.dim_RNN_prior, self.z_dim)
         self.prior_logvar = nn.Linear(self.dim_RNN_prior, self.z_dim)
 
-        ####################
-        #### Generation ####
-        ####################
+        ######################
+        #### Generation x ####
+        ######################
         dic_layer = OrderedDict()
         for n in range(len(self.dense_vz_x)):
             if n == 0:
@@ -162,7 +162,7 @@ class DSAE(nn.Module):
         self.gen_logvar = nn.Linear(self.dense_vz_x[-1], self.y_dim)
 
 
-    def reparatemize(self, mean, logvar):
+    def reparameterization(self, mean, logvar):
         std = torch.exp(0.5*logvar)
         eps = torch.randn_like(std)
         return eps.mul(std).add_(mean)
@@ -184,7 +184,7 @@ class DSAE(nn.Module):
         _v = self.mlp_gv_v(_v)
         v_mean = self.inf_v_mean(_v)
         v_logvar = self.inf_v_logvar(_v)
-        v = self.reparatemize(v_mean, v_logvar)
+        v = self.reparameterization(v_mean, v_logvar)
 
         # 2. Generate dynamic latent representation z
         v_dim = v.shape[-1]
@@ -195,12 +195,12 @@ class DSAE(nn.Module):
         g_z, _ = self.rnn_g_z(g_xv)
         z_mean = self.inf_z_mean(g_z)
         z_logvar = self.inf_z_logvar(g_z)
-        z = self.reparatemize(z_mean, z_logvar)
+        z = self.reparameterization(z_mean, z_logvar)
         
         return z, z_mean, z_logvar, v
 
 
-    def prior(self, z):
+    def generation_z(self, z):
         
         z_p, _ = self.rnn_prior(z)
         z_mean_p = self.prior_mean(z_p)
@@ -209,7 +209,7 @@ class DSAE(nn.Module):
         return z_mean_p, z_logvar_p
 
 
-    def generation(self, v, z):
+    def generation_x(self, v, z):
         
         seq_len = z.shape[0]
         batch_size = z.shape[1]
@@ -239,8 +239,8 @@ class DSAE(nn.Module):
 
         # main part
         z, z_mean, z_logvar, v = self.inference(x)
-        z_mean_p, z_logvar_p = self.prior(z)
-        y = self.generation(v, z)
+        z_mean_p, z_logvar_p = self.generation_z(z)
+        y = self.generation_x(v, z)
 
         # y/z dimension:    (seq_len, batch_size, y/z_dim)
         # output dimension: (batch_size, y/z_dim, seq_len)
@@ -281,12 +281,12 @@ class DSAE(nn.Module):
         info.append(self.inf_z_mean)
         info.append(self.inf_z_logvar)
 
-        info.append('----- Generation -----')
+        info.append('----- Generation x -----')
         for layer in self.mlp_vz_x:
             info.append(layer)
         info.append(self.gen_logvar)
 
-        info.append('----- Prior -----')
+        info.append('----- Generation z -----')
         info.append(self.rnn_prior)
         info.append(self.prior_mean)
         info.append(self.prior_logvar)

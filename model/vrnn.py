@@ -105,7 +105,7 @@ class VRNN(nn.Module):
         self.inf_mean = nn.Linear(dim_hx_z, self.z_dim)
         self.inf_logvar = nn.Linear(dim_hx_z, self.z_dim)
         
-        # 2. h_t to z_t (Prior)
+        # 2. h_t to z_t (Generation z)
         dic_layers = OrderedDict()
         if len(self.dense_h_z) == 0:
             dim_h_z = self.dim_RNN
@@ -123,7 +123,7 @@ class VRNN(nn.Module):
         self.prior_mean = nn.Linear(dim_h_z, self.z_dim)
         self.prior_logvar = nn.Linear(dim_h_z, self.z_dim)
 
-        # 3. h_t, z_t to x_t (Generation)
+        # 3. h_t, z_t to x_t (Generation x)
         dic_layers = OrderedDict()
         if len(self.dense_hz_x) == 0:
             dim_hz_x = self.dim_RNN + dim_feature_z
@@ -146,7 +146,7 @@ class VRNN(nn.Module):
         self.rnn = nn.LSTM(dim_feature_x+dim_feature_z, self.dim_RNN, self.num_RNN)
 
 
-    def reparatemize(self, mean, logvar):
+    def reparameterization(self, mean, logvar):
 
         std = torch.exp(0.5*logvar)
         eps = torch.randn_like(std)
@@ -154,14 +154,14 @@ class VRNN(nn.Module):
         return torch.addcmul(mean, eps, std)
 
 
-    def generation(self, feature_zt, h_t):
+    def generation_x(self, feature_zt, h_t):
         dec_input = torch.cat((feature_zt, h_t), 2)
         dec_output = self.mlp_hz_x(dec_input)
         log_yt = self.gen_logvar(dec_output)
         return log_yt
         
 
-    def prior(self, h):
+    def generation_z(self, h):
         prior_output = self.mlp_h_z(h)
         mean_prior = self.prior_mean(prior_output)
         logvar_prior = self.prior_logvar(prior_output)
@@ -213,9 +213,9 @@ class VRNN(nn.Module):
             feature_xt = feature_x[t,:,:].unsqueeze(0)
             h_t_last = h_t.view(self.num_RNN, 1, batch_size, self.dim_RNN)[-1,:,:,:]
             mean_zt, logvar_zt = self.inference(feature_xt, h_t_last)
-            z_t = self.reparatemize(mean_zt, logvar_zt)
+            z_t = self.reparameterization(mean_zt, logvar_zt)
             feature_zt = self.feature_extractor_z(z_t)
-            log_yt = self.generation(feature_zt, h_t_last)
+            log_yt = self.generation_x(feature_zt, h_t_last)
             y_t = torch.exp(log_yt)
             z_mean[t,:,:] = mean_zt
             z_logvar[t,:,:] = logvar_zt
@@ -224,7 +224,7 @@ class VRNN(nn.Module):
             h[t,:,:] = torch.squeeze(h_t_last)
             h_t, c_t = self.recurrence(feature_xt, feature_zt, h_t, c_t) # actual index is t+1 
        
-        z_mean_p, z_logvar_p  = self.prior(h)
+        z_mean_p, z_logvar_p  = self.generation_z(h)
         
         # y/z is (seq_len, batch_size, y/z_dim), we want to change back to
         # (batch_size, y/z_dim, seq_len)
@@ -256,13 +256,13 @@ class VRNN(nn.Module):
             info.append(str(layer))
         info.append(str(self.inf_mean))
         info.append(str(self.inf_logvar))
-        info.append("----- Generation -----")
+        info.append("----- Generation x -----")
         for layer in self.mlp_hz_x:
             info.append(str(layer))
         info.append(str(self.gen_logvar))
         info.append("----- Recurrence -----")
         info.append(str(self.rnn))
-        info.append("----- Prior -----")
+        info.append("----- Generation z -----")
         for layer in self.mlp_h_z:
             info.append(str(layer))
         info.append(str(self.prior_mean))

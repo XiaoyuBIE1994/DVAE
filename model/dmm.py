@@ -51,7 +51,7 @@ class DMM(nn.Module):
         self.dim_RNN_g = dim_RNN_g
         self.num_RNN_g = num_RNN_g
         self.bidir_g = bidir_g
-        ### Generation
+        ### Generation x
         self.dense_z_x = dense_z_x
 
         self.build()
@@ -85,9 +85,9 @@ class DMM(nn.Module):
         self.inf_mean = nn.Linear(self.dim_RNN_g, self.z_dim)
         self.inf_logvar = nn.Linear(self.dim_RNN_g, self.z_dim)
 
-        ###############
-        #### Prior ####
-        ###############
+        ######################
+        #### Generation z ####
+        ######################
         # 1. Gating Unit
         dic_layers = OrderedDict()
         dic_layers['linear1'] = nn.Linear(self.z_dim, self.z_dim)
@@ -107,9 +107,9 @@ class DMM(nn.Module):
                                           nn.Linear(self.z_dim, self.z_dim),
                                           nn.Softplus())
         
-        ####################
-        #### Generation ####
-        ####################
+        ######################
+        #### Generation x ####
+        ######################
         dic_layers = OrderedDict()
         if len(self.dense_z_x) == 0:
             dim_z_x = self.z_dim
@@ -127,7 +127,7 @@ class DMM(nn.Module):
         self.gen_logvar = nn.Linear(dim_z_x, self.y_dim)
 
 
-    def reparatemize(self, mean, logvar):
+    def reparameterization(self, mean, logvar):
 
         std = torch.exp(0.5*logvar)
         eps = torch.randn_like(std)
@@ -157,7 +157,7 @@ class DMM(nn.Module):
                 g_t = (self.mlp_z_z(z_t) + g_forward[t,:,:] + g_backward[t,:,:]) / 3
                 z_mean[t,:,:] = self.inf_mean(g_t)
                 z_logvar[t,:,:] = self.inf_logvar(g_t)
-                z_t = self.reparatemize(z_mean[t,:,:], z_logvar[t,:,:]) 
+                z_t = self.reparameterization(z_mean[t,:,:], z_logvar[t,:,:]) 
                 z[t,:,:] = z_t
         else:
             g, _ = self.rnn_g(torch.flip(x_g, [0]))
@@ -166,13 +166,13 @@ class DMM(nn.Module):
                 g_t = (self.mlp_z_z(z_t) + g[t,:,:]) / 2
                 z_mean[t,:,:] = self.inf_mean(g_t)
                 z_logvar[t,:,:] = self.inf_logvar(g_t)
-                z_t = self.reparatemize(z_mean[t,:,:], z_logvar[t,:,:])
+                z_t = self.reparameterization(z_mean[t,:,:], z_logvar[t,:,:])
                 z[t,:,:] = z_t
 
         return z, z_mean, z_logvar
     
     
-    def prior(self, z_tm1):
+    def generation_z(self, z_tm1):
 
         gate = self.mlp_gate(z_tm1)
         z_prop = self.mlp_z_prop(z_tm1)
@@ -183,7 +183,7 @@ class DMM(nn.Module):
         return z_mean_p, z_logvar_p
 
 
-    def generation(self, z):
+    def generation_x(self, z):
         
         # 1. z_t to y_t
         log_y = self.mlp_z_x(z)
@@ -205,8 +205,8 @@ class DMM(nn.Module):
 
         # main part 
         z, z_mean, z_logvar = self.inference(x)
-        z_mean_p, z_logvar_p = self.prior(z)
-        y = self.generation(z)
+        z_mean_p, z_logvar_p = self.generation_z(z)
+        y = self.generation_x(z)
         
         # y/z dimension:    (seq_len, batch_size, y/z_dim)
         # output dimension: (batch_size, y/z_dim, seq_len)
@@ -240,12 +240,12 @@ class DMM(nn.Module):
         info.append(self.inf_mean)
         info.append(self.inf_logvar)
 
-        info.append("----- Generation -----")
+        info.append("----- Generation x -----")
         for layer in self.mlp_z_x:
             info.append(layer)
         info.append(self.gen_logvar)
         
-        info.append("----- Prior -----")
+        info.append("----- Generation z -----")
         info.append('>>>> Gating unit')
         for layer in self.mlp_gate:
             info.append(layer)

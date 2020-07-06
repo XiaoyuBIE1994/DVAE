@@ -48,9 +48,9 @@ class SRNN(nn.Module):
         self.dim_RNN_g = dim_RNN_g
         self.num_RNN_g = num_RNN_g
         self.dense_gz_z = dense_gz_z
-        ### Prior
+        ### Generation z
         self.dense_hz_z = dense_hz_z
-        ### Generation
+        ### Generation x
         self.dense_hz_x = dense_hz_x
         
         self.build()
@@ -121,9 +121,9 @@ class SRNN(nn.Module):
         self.inf_logvar = nn.Linear(dim_gz_z, self.z_dim)
 
 
-        ###############
-        #### Prior ####
-        ###############
+        ######################
+        #### Generation z ####
+        ######################
         # 1. h_t z_tm1 -> z_t
         dic_layers = OrderedDict()
         if len(self.dense_hz_z) == 0:
@@ -143,9 +143,9 @@ class SRNN(nn.Module):
         self.prior_logvar = nn.Linear(dim_hz_z, self.z_dim)
 
 
-        ####################
-        #### Generation ####
-        ####################
+        ######################
+        #### Generation x ####
+        ######################
         # 1. h_t z_t -> x_t
         dic_layers = OrderedDict()
         if len(self.dense_hz_x) == 0:
@@ -164,7 +164,7 @@ class SRNN(nn.Module):
         self.gen_logvar = nn.Linear(dim_hz_x, self.y_dim)
 
 
-    def reparatemize(self, mean, logvar):
+    def reparameterization(self, mean, logvar):
 
         std = torch.exp(0.5*logvar)
         eps = torch.randn_like(std)
@@ -205,13 +205,13 @@ class SRNN(nn.Module):
             gz_z = self.mlp_gz_z(gz_z)
             z_mean[t,:,:] = self.inf_mean(gz_z)
             z_logvar[t,:,:] = self.inf_logvar(gz_z)
-            z_t = self.reparatemize(z_mean[t,:,:], z_logvar[t,:,:])
+            z_t = self.reparameterization(z_mean[t,:,:], z_logvar[t,:,:])
             z[t,:,:] = z_t
         
         return z, z_mean, z_logvar
     
 
-    def prior(self, h, z_tm1):
+    def generation_z(self, h, z_tm1):
 
         hz_z = torch.cat((h, z_tm1), -1)
         hz_z = self.mlp_hz_z(hz_z)
@@ -221,7 +221,7 @@ class SRNN(nn.Module):
         return z_mean_p, z_logvar_p
 
 
-    def generation(self, z, h):
+    def generation_x(self, z, h):
 
         # 1. z_t and h_t to y_t
         hz_x = torch.cat((h, z), -1)
@@ -252,8 +252,8 @@ class SRNN(nn.Module):
         z, z_mean, z_logvar = self.inference(x, h)
         z_0 = torch.zeros(1, batch_size, self.z_dim).to(self.device)
         z_tm1 = torch.cat((z_0, z[:-1, :, :]), 0)
-        z_mean_p, z_logvar_p = self.prior(h, z_tm1)
-        y = self.generation(z, h)
+        z_mean_p, z_logvar_p = self.generation_z(h, z_tm1)
+        y = self.generation_x(z, h)
         
         # y/z dimension:    (seq_len, batch_size, y/z_dim)
         # output dimension: (batch_size, y/z_dim, seq_len)
@@ -294,13 +294,13 @@ class SRNN(nn.Module):
         info.append('mean: ' + str(self.inf_mean))
         info.append('logvar: ' + str(self.inf_logvar))
 
-        info.append('----- Generation -----')
+        info.append('----- Generation x -----')
         info.append('>>>> From h_t and z_t to x_t')
         for layer in self.mlp_hz_x:
             info.append(str(layer))
         info.append(str(self.gen_logvar))
 
-        info.append('----- Prior -----')
+        info.append('----- Generation z -----')
         info.append('>>>> From h_t and z_tm1 to z_t')
         for layer in self.mlp_hz_z:
             info.append(str(layer))

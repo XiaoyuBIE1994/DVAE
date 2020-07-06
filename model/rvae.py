@@ -114,14 +114,14 @@ class RVAE(nn.Module):
         self.inf_mean = nn.Linear(dim_g_z, self.z_dim)
         self.inf_logvar = nn.Linear(dim_g_z, self.z_dim)
 
-        ###############
-        #### Prior ####
-        ###############
-        # The prior of z in STORN is supposed to be zero-mean, unit-variance Gaussian
+        ######################
+        #### Generation z ####
+        ######################
+        # The prior of z in RVAE is supposed to be zero-mean, unit-variance Gaussian
 
-        ####################
-        #### Generation ####
-        ####################
+        ######################
+        #### Generation x ####
+        ######################
         # 1. z_t to h_t
         dic_layers = OrderedDict()
         if len(self.dense_z_h) == 0:
@@ -160,7 +160,7 @@ class RVAE(nn.Module):
         self.gen_logvar = nn.Linear(dim_h_x, self.y_dim)
         
 
-    def reparatemize(self, mean, logvar):
+    def reparameterization(self, mean, logvar):
 
         std = torch.exp(0.5*logvar)
         eps = torch.randn_like(std)
@@ -202,7 +202,7 @@ class RVAE(nn.Module):
             g_z = self.mlp_g_z(concat_xz)
             z_mean_t = self.inf_mean(g_z)
             z_logvar_t = self.inf_logvar(g_z)
-            z_t = self.reparatemize(z_mean_t, z_logvar_t)
+            z_t = self.reparameterization(z_mean_t, z_logvar_t)
             # Infer z_t
             z_mean[t,:,:] = z_mean_t
             z_logvar[t,:,:] = z_logvar_t
@@ -211,7 +211,7 @@ class RVAE(nn.Module):
         return z, z_mean, z_logvar
 
 
-    def prior(self, z_mean, z_logvar):
+    def generation_z(self, z_mean, z_logvar):
         
         z_mean_p = torch.zeros_like(z_mean).to(self.device)
         z_logvar_p = torch.zeros_like(z_logvar).to(self.device)
@@ -219,7 +219,7 @@ class RVAE(nn.Module):
         return z_mean_p, z_logvar_p
 
     
-    def generation(self, z):
+    def generation_x(self, z):
 
         # 1. z_t to h_t
         z_h = self.mlp_z_h(z)
@@ -246,8 +246,8 @@ class RVAE(nn.Module):
 
         # main part
         z, z_mean, z_logvar = self.inference(x)
-        z_mean_p, z_logvar_p = self.prior(z_mean, z_logvar)
-        y = self.generation(z)
+        z_mean_p, z_logvar_p = self.generation_z(z_mean, z_logvar)
+        y = self.generation_x(z)
 
         # y/z dimension:    (seq_len, batch_size, y/z_dim)
         # output dimension: (batch_size, y/z_dim, seq_len)
@@ -286,7 +286,7 @@ class RVAE(nn.Module):
         info.append(str(self.inf_mean))
         info.append(str(self.inf_logvar))
 
-        info.append("----- Generation -----")
+        info.append("----- Generation x -----")
         info.append('>>>> z_t to h_t')
         for layer in self.mlp_z_h:
             info.append(layer)

@@ -90,7 +90,7 @@ def train_model(config_file):
             train_KLD[epoch] += KLD.item()
             optimizer.step()
             
-        # Cross validation
+        # Validation
         for batch_idx, batch_data in enumerate(val_dataloader):
 
             batch_data = batch_data.to(model_class.device)
