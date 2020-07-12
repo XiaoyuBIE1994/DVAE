@@ -1,5 +1,5 @@
 OAR.*
-.ipynb_checkpoints/*
+**/*.ipynb_checkpoints/*
 *.ipynb
 *.pyc
 config/cfg_debug*
