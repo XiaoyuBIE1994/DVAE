@@ -4,3 +4,4 @@ OAR.*
 *.pyc
 config/cfg_debug*
 .DS_Store
+.vscode/*
