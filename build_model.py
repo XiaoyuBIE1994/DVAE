@@ -24,6 +24,7 @@ from model.vrnn import VRNN
 from model.srnn import SRNN
 from model.rvae import RVAE
 from model.dsae import DSAE
+from model.kvae import KVAE
 
 
 from backup_simon.speech_dataset import *
@@ -585,6 +586,7 @@ class BuildRVAE(BuildBasic):
             self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
 
 
+
 class BuildDSAE(BuildBasic):
     
     def __init__(self, cfg=myconf()):
@@ -661,6 +663,75 @@ class BuildDSAE(BuildBasic):
             self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
 
 
+
+class BuildKVAE(BuildBasic):
+
+    def __init__(self, cfg=myconf()):
+
+        super().__init__(cfg)
+
+        ### Load special parameters for KVAE
+        # General
+        self.x_dim = self.cfg.getint('Network', 'x_dim')
+        self.a_dim = self.cfg.getint('Network', 'a_dim')
+        self.z_dim = self.cfg.getint('Network', 'z_dim')
+        self.activation = self.cfg.get('Network', 'activation')
+        self.dropout_p = self.cfg.getfloat('Network', 'dropout_p')
+        # VAE
+        self.dense_x_a = [int(i) for i in self.cfg.get('Network', 'dense_x_a').split(',')] if self.cfg.has_option('Network', 'dense_x_a') else []
+        self.dense_a_x = [int(i) for i in self.cfg.get('Network', 'dense_a_x').split(',')] if self.cfg.has_option('Network', 'dense_a_x') else []
+        # LGSSM
+        self.init_kf_mat = self.cfg.getfloat('Network', 'init_kf_mat')
+        self.noise_transition = self.cfg.getfloat('Network', 'noise_transition')
+        self.noise_emission = self.cfg.getfloat('Network', 'noise_emission')
+        self.init_cov = self.cfg.getfloat('Network', 'init_cov')
+        # Dynamics
+        self.K = self.cfg.getint('Network', 'K')
+        self.dim_RNN_alpha = self.cfg.getint('Network', 'dim_RNN_alpha')
+        self.num_RNN_alpha = self.cfg.getint('Network', 'num_RNN_alpha')
+
+        #### Create directory for results
+        self.filename = "{}_{}_{}_z_dim={}".format(self.dataset_name,
+                                                  self.date,
+                                                  self.tag,
+                                                  self.z_dim)
+        self.save_dir = os.path.join(self.saved_root, self.filename)
+        if not(os.path.isdir(self.save_dir)):
+            os.makedirs(self.save_dir)
+
+        #### Create logger
+        log_file = os.path.join(self.save_dir, 'log.txt')
+        logger = get_logger(log_file, self.logger_type)
+        for log in self.get_basic_info():
+            logger.info(log)
+        logger.info("In this experiment, result will be saved in: " + self.save_dir)
+        self.logger = logger
+        
+        self.build()
+
+
+    def build(self):
+
+        # Init KVAE network
+        self.logger.info('==== Init KVAE ====')
+        self.model = KVAE(x_dim=self.x_dim, a_dim=self.a_dim, z_dim=self.z_dim, activation=self.activation,
+                          dense_x_a=self.dense_x_a, dense_a_x=self.dense_a_x,
+                          init_kf_mat=self.init_kf_mat, noise_transition=self.noise_transition,
+                          noise_emission=self.noise_emission, init_cov=self.init_cov,
+                          K=self.K, dim_RNN_alpha=self.dim_RNN_alpha, num_RNN_alpha=self.num_RNN_alpha,
+                          dropout_p = self.dropout_p, device=self.device).to(self.device)
+        # Print model information
+        for log in self.model.get_info():
+            self.logger.info(log)
+
+        # Init optimizer (Adam by default):
+        if self.optimization == 'adam':
+            self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
+        else:
+            self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
+
+
+
 def build_model(config_file='config_default.ini'):
 
     if not os.path.isfile(config_file):
@@ -683,6 +754,8 @@ def build_model(config_file='config_default.ini'):
         model_class = BuildRVAE(cfg)
     elif model_name == 'DSAE':
         model_class = BuildDSAE(cfg)
+    elif model_name == 'KVAE':
+        model_class = BuildKVAE(cfg)
 
     return model_class
 

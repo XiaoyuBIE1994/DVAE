@@ -25,7 +25,7 @@ class KVAE(nn.Module):
     def __init__(self, x_dim, a_dim = 8, z_dim=4, activation='tanh',
                  dense_x_a=[128,128], dense_a_x=[128,128],
                  init_kf_mat=0.05, noise_transition=0.08, noise_emission=0.03, init_cov=20,
-                 K=3, dim_alpha=50, dim_RNN_alpha=50, num_RNN_alpha=1,
+                 K=3, dim_RNN_alpha=50, num_RNN_alpha=1,
                  dropout_p=0, device='cpu'):
 
         super().__init__()
@@ -53,7 +53,6 @@ class KVAE(nn.Module):
         self.init_cov = init_cov
         # Dynamics params (alpha)
         self.K = K
-        self.dim_alpha = dim_alpha
         self.dim_RNN_alpha = dim_RNN_alpha
         self.num_RNN_alpha = num_RNN_alpha
 
@@ -118,7 +117,7 @@ class KVAE(nn.Module):
         #### Alpha ####
         ###############
         self.rnn_alpha = nn.LSTM(self.a_dim, self.dim_RNN_alpha, self.num_RNN_alpha, bidirectional=False)
-        self.mlp_alpha = nn.Sequential(nn.Linear(self.dim_alpha, self.K),
+        self.mlp_alpha = nn.Sequential(nn.Linear(self.dim_RNN_alpha, self.K),
                                        nn.Softmax(dim=-1))
 
 
@@ -258,6 +257,7 @@ class KVAE(nn.Module):
         Dynamics parameter network alpha for mixing transitions in a SSM
         Unlike original code, we only propose RNN here
         """
+        
         alpha, _ = self.rnn_alpha(a_tm1) # (seq_len, bs, dim_alpha)
         alpha = self.mlp_alpha(alpha) # (seq_len, bs, K), softmax on K dimension
 
@@ -281,7 +281,7 @@ class KVAE(nn.Module):
         u = torch.cat((u_0, a[:-1]), 0)
         a_gen, mu_smooth, Sigma_smooth, A_mix, B_mix, C_mix = self.kf_smoother(a, u, self.K, self.A, self.B, self.C, self.R, self.Q)
         y = self.generation_x(a_gen)
-        loss_tot, _, _, _, _ = self.loss(x, y, u, a, a_mean, a_logvar, mu_smooth, Sigma_smooth, A_mix, B_mix, C_mix)
+        loss_tot, loss_vae, loss_lgssm = self.loss(x, y, u, a, a_mean, a_logvar, mu_smooth, Sigma_smooth, A_mix, B_mix, C_mix)
         # y/z dimension:    (seq_len, batch_size, y/z_dim)
         # output dimension: (batch_size, y/z_dim, seq_len)
         y = torch.squeeze(y)
@@ -289,7 +289,7 @@ class KVAE(nn.Module):
         if len(y.shape) == 3:    
             y = y.permute(1,-1,0)
 
-        return y, loss_tot
+        return y, loss_tot, loss_vae, loss_lgssm
 
 
     def loss(self, x, y, u, a, a_mean, a_logvar, mu_smooth, Sigma_smooth,
@@ -332,10 +332,12 @@ class KVAE(nn.Module):
         log_paz_given_u = torch.sum(log_paz_given_u) /  (batch_size * seq_len)
         log_pz_given_au = torch.sum(log_pz_given_au) /  (batch_size * seq_len)
 
+        # Loss
+        loss_vae = - log_px_given_a + log_qa_given_x
+        loss_lgssm =  - log_paz_given_u + log_pz_given_au
+        loss_tot = loss_vae + loss_lgssm
 
-        loss_tot = - log_px_given_a - log_paz_given_u + log_qa_given_x + log_pz_given_au
-
-        return loss_tot, log_px_given_a, log_qa_given_x, log_paz_given_u, log_pz_given_au
+        return loss_tot, loss_vae, loss_lgssm
 
 
     def get_info(self):
@@ -354,12 +356,15 @@ class KVAE(nn.Module):
         info.append(self.rnn_alpha)
         info.append(self.mlp_alpha)
 
-        nfo.append("----- LGSSM -----")
+        info.append("----- LGSSM -----")
         info.append("A dimension: {}".format(str(self.A.shape)))
         info.append("B dimension: {}".format(str(self.B.shape)))
         info.append("C dimension: {}".format(str(self.C.shape)))
         info.append("transition noise level: {}".format(self.noise_transition))
         info.append("emission noise level: {}".format(self.noise_emission))
+        info.append("scale for initial B and C: {}".format(self.init_kf_mat))
+        info.append("scale for initial covariance: {}".format(self.init_cov))
+
 
         return info
 
@@ -373,5 +378,5 @@ if __name__ == '__main__':
     
 
     x = torch.rand([2,257,3])
-    y, loss = kvae.forward(x)
+    y, loss, _, _ = kvae.forward(x)
     print(loss)
