@@ -106,9 +106,9 @@ class KVAE(nn.Module):
         # Q and R are isotroipic covariance matrices
         # z = Az + Bu
         # a = Cz
-        self.A = torch.tensor(np.array([np.eye(self.z_dim) for _ in range(self.K)]), dtype=torch.float32, requires_grad=True).to(self.device) # (z_dim. z_dim, K)
-        self.B = torch.tensor(np.array([self.init_kf_mat * np.random.randn(self.z_dim, self.u_dim) for _ in range(self.K)]), dtype=torch.float32, requires_grad=True).to(self.device) # (z_dim, u_dim, K)
-        self.C = torch.tensor(np.array([self.init_kf_mat * np.random.randn(self.a_dim, self.z_dim) for _ in range(self.K)]), dtype=torch.float32, requires_grad=True).to(self.device) # (a_dim, z_dim, K)
+        self.A = torch.tensor(np.array([np.eye(self.z_dim) for _ in range(self.K)]), dtype=torch.float32, requires_grad=True).to(self.device) # (K, z_dim. z_dim,)
+        self.B = torch.tensor(np.array([self.init_kf_mat * np.random.randn(self.z_dim, self.u_dim) for _ in range(self.K)]), dtype=torch.float32, requires_grad=True).to(self.device) # (K, z_dim, u_dim)
+        self.C = torch.tensor(np.array([self.init_kf_mat * np.random.randn(self.a_dim, self.z_dim) for _ in range(self.K)]), dtype=torch.float32, requires_grad=True).to(self.device) # (K, a_dim, z_dim)
         self.Q = self.noise_transition * torch.eye(self.z_dim).to(self.device) # (z_dim, z_dim)
         self.R = self.noise_emission * torch.eye(self.a_dim).to(self.device) # (a_dim, a_dim)
         self._I = torch.eye(self.z_dim).to(self.device) # (z_dim, z_dim)
@@ -169,7 +169,7 @@ class KVAE(nn.Module):
         seq_len = a.shape[0]
         batch_size = a.shape[1]
         self.mu = torch.zeros((batch_size, self.z_dim)).to(self.device) # (bs, z_dim), z_0
-        self.Sigma = self.init_cov * torch.eye(self.z_dim).unsqueeze(0).repeat(batch_size, 1, 1) # (bs, z_dim, z_dim), Sigma_0
+        self.Sigma = self.init_cov * torch.eye(self.z_dim).unsqueeze(0).repeat(batch_size, 1, 1).to(self.device) # (bs, z_dim, z_dim), Sigma_0
         mu_pred = torch.zeros((seq_len, batch_size, self.z_dim)).to(self.device) # (seq_len, bs, z_dim)
         mu_filter = torch.zeros((seq_len, batch_size, self.z_dim)).to(self.device) # (seq_len, bs, z_dim)
         mu_smooth = torch.zeros((seq_len, batch_size, self.z_dim)).to(self.device) # (seq_len, bs, z_dim)
@@ -241,10 +241,10 @@ class KVAE(nn.Module):
             J_t = Sigma_filter[t].bmm(A_mix[t+1].transpose(1,2)).bmm(Sigma_pred[t+1].inverse()) # (bs, z_dim, z_dim)
 
             # Backward smoothing
-            dif_mu_t = (mu_smooth[t+1] - mu_filter[t+1]).unsqueeze(-1)
-            mu_smooth[t] = mu_filter[t] + J_t.matmul(dif_mu_t).squeeze()
-            dif_Sigma_t = Sigma_smooth[t+1] - Sigma_pred[t+1]
-            Sigma_smooth[t] = Sigma_filter[t] + J_t.bmm(dif_Sigma_t).bmm(J_t.transpose(1,2))
+            dif_mu_tp1 = (mu_smooth[t+1] - mu_filter[t+1]).unsqueeze(-1) # (bs, z_dim, 1)
+            mu_smooth[t] = mu_filter[t] + J_t.matmul(dif_mu_tp1).squeeze() # (bs, z_dim)
+            dif_Sigma_tp1 = Sigma_smooth[t+1] - Sigma_pred[t+1] # (bs, z_dim, z_dim)
+            Sigma_smooth[t] = Sigma_filter[t] + J_t.bmm(dif_Sigma_tp1).bmm(J_t.transpose(1,2)) # (bs, z_dim, z_dim)
 
         # Generate a from smoothing z
         a_gen = C_mix.matmul(mu_smooth.unsqueeze(-1)).squeeze() # (seq_len, bs, a_dim)
@@ -277,7 +277,7 @@ class KVAE(nn.Module):
         # main part 
         a, a_mean, a_logvar = self.inference(x)
         batch_size = a.shape[1]
-        u_0 = torch.zeros(1, batch_size, self.u_dim)
+        u_0 = torch.zeros(1, batch_size, self.u_dim).to(self.device)
         u = torch.cat((u_0, a[:-1]), 0)
         a_gen, mu_smooth, Sigma_smooth, A_mix, B_mix, C_mix = self.kf_smoother(a, u, self.K, self.A, self.B, self.C, self.R, self.Q)
         y = self.generation_x(a_gen)
