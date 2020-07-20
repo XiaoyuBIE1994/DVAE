@@ -16,7 +16,6 @@ from torch.utils import data
 import librosa
 from configparser import ConfigParser
 from logger import get_logger
-from pre.prepare_dataset import perpare_dataset
 from model.vae import VAE
 from model.dmm import DMM
 from model.storn import STORN
@@ -678,6 +677,7 @@ class BuildKVAE(BuildBasic):
         self.z_dim = self.cfg.getint('Network', 'z_dim')
         self.activation = self.cfg.get('Network', 'activation')
         self.dropout_p = self.cfg.getfloat('Network', 'dropout_p')
+        self.scale_reconstruction = self.cfg.getfloat('Network', 'scale_reconstruction')
         # VAE
         self.dense_x_a = [int(i) for i in self.cfg.get('Network', 'dense_x_a').split(',')] if self.cfg.has_option('Network', 'dense_x_a') else []
         self.dense_a_x = [int(i) for i in self.cfg.get('Network', 'dense_a_x').split(',')] if self.cfg.has_option('Network', 'dense_a_x') else []
@@ -720,7 +720,8 @@ class BuildKVAE(BuildBasic):
                           init_kf_mat=self.init_kf_mat, noise_transition=self.noise_transition,
                           noise_emission=self.noise_emission, init_cov=self.init_cov,
                           K=self.K, dim_RNN_alpha=self.dim_RNN_alpha, num_RNN_alpha=self.num_RNN_alpha,
-                          dropout_p = self.dropout_p, device=self.device).to(self.device)
+                          dropout_p = self.dropout_p, scale_reconstruction = self.scale_reconstruction,
+                          device=self.device).to(self.device)
         # Print model information
         for log in self.model.get_info():
             self.logger.info(log)

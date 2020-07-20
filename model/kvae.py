@@ -26,7 +26,7 @@ class KVAE(nn.Module):
                  dense_x_a=[128,128], dense_a_x=[128,128],
                  init_kf_mat=0.05, noise_transition=0.08, noise_emission=0.03, init_cov=20,
                  K=3, dim_RNN_alpha=50, num_RNN_alpha=1,
-                 dropout_p=0, device='cpu'):
+                 dropout_p=0, scale_reconstruction=1, device='cpu'):
 
         super().__init__()
         ## General parameters
@@ -36,6 +36,7 @@ class KVAE(nn.Module):
         self.z_dim = z_dim
         self.u_dim = a_dim
         self.dropout_p = dropout_p
+        self.scale_reconstruction = scale_reconstruction
         if activation == 'relu':
             self.activation = nn.ReLU()
         elif activation == 'tanh':
@@ -274,14 +275,24 @@ class KVAE(nn.Module):
         elif len(x.shape) == 2:
             x = x.unsqueeze(1)
 
-        # main part 
+        # main part
         a, a_mean, a_logvar = self.inference(x)
         batch_size = a.shape[1]
         u_0 = torch.zeros(1, batch_size, self.u_dim).to(self.device)
         u = torch.cat((u_0, a[:-1]), 0)
         a_gen, mu_smooth, Sigma_smooth, A_mix, B_mix, C_mix = self.kf_smoother(a, u, self.K, self.A, self.B, self.C, self.R, self.Q)
         y = self.generation_x(a_gen)
-        loss_tot, loss_vae, loss_lgssm = self.loss(x, y, u, a, a_mean, a_logvar, mu_smooth, Sigma_smooth, A_mix, B_mix, C_mix)
+
+        # calculate loss
+        seq_len = x.shape[0]
+        batch_size = x.shape[1]
+        loss_tot, loss_vae, loss_lgssm = self.loss(x, y, u, 
+                                                   a, a_mean, a_logvar, 
+                                                   mu_smooth, Sigma_smooth, 
+                                                   A_mix, B_mix, C_mix,
+                                                   self.scale_reconstruction,
+                                                   seq_len, batch_size)
+        
         # y/z dimension:    (seq_len, batch_size, y/z_dim)
         # output dimension: (batch_size, y/z_dim, seq_len)
         y = torch.squeeze(y)
@@ -293,8 +304,8 @@ class KVAE(nn.Module):
 
 
     def loss(self, x, y, u, a, a_mean, a_logvar, mu_smooth, Sigma_smooth,
-             A, B, C, batch_size=32, seq_len=150):
-
+             A, B, C, scale_reconstruction=1, seq_len=150, batch_size=32):
+        
         # log p_{\theta}(x | a_hat), complex Gaussian
         log_px_given_a = - torch.log(y) - x/y
 
@@ -333,7 +344,7 @@ class KVAE(nn.Module):
         log_pz_given_au = torch.sum(log_pz_given_au) /  (batch_size * seq_len)
 
         # Loss
-        loss_vae = - log_px_given_a + log_qa_given_x
+        loss_vae = - scale_reconstruction * log_px_given_a + log_qa_given_x
         loss_lgssm =  - log_paz_given_u + log_pz_given_au
         loss_tot = loss_vae + loss_lgssm
 
