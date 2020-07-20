@@ -80,8 +80,9 @@ class BuildBasic():
         self.save_frequency = self.cfg.getint('Training', 'save_frequency')
 
         # 6. Create saved_model directory if not exist, and find dataset
-        save_dir = self.cfg.get('User', 'save_dir')
-        self.saved_root, self.train_data_dir, self.val_data_dir = perpare_dataset(self.dataset_name, self.hostname, save_dir)
+        self.saved_root = self.cfg.get('User', 'saved_root')
+        self.train_data_dir = self.cfg.get('User', 'train_data_dir')
+        self.val_data_dir = self.cfg.get('User', 'val_data_dir')
 
         # 7. Choose to use gpu or cpu
         self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
