@@ -107,9 +107,9 @@ class KVAE(nn.Module):
         # Q and R are isotroipic covariance matrices
         # z = Az + Bu
         # a = Cz
-        self.A = torch.tensor(np.array([np.eye(self.z_dim) for _ in range(self.K)]), dtype=torch.float32, requires_grad=True).to(self.device) # (K, z_dim. z_dim,)
-        self.B = torch.tensor(np.array([self.init_kf_mat * np.random.randn(self.z_dim, self.u_dim) for _ in range(self.K)]), dtype=torch.float32, requires_grad=True).to(self.device) # (K, z_dim, u_dim)
-        self.C = torch.tensor(np.array([self.init_kf_mat * np.random.randn(self.a_dim, self.z_dim) for _ in range(self.K)]), dtype=torch.float32, requires_grad=True).to(self.device) # (K, a_dim, z_dim)
+        self.A = torch.tensor(np.array([np.eye(self.z_dim) for _ in range(self.K)]), dtype=torch.float32, requires_grad=True, device=self.device) # (K, z_dim. z_dim,)
+        self.B = torch.tensor(np.array([self.init_kf_mat * np.random.randn(self.z_dim, self.u_dim) for _ in range(self.K)]), dtype=torch.float32, requires_grad=True, device=self.device) # (K, z_dim, u_dim)
+        self.C = torch.tensor(np.array([self.init_kf_mat * np.random.randn(self.a_dim, self.z_dim) for _ in range(self.K)]), dtype=torch.float32, requires_grad=True, device=self.device) # (K, a_dim, z_dim)
         self.Q = self.noise_transition * torch.eye(self.z_dim).to(self.device) # (z_dim, z_dim)
         self.R = self.noise_emission * torch.eye(self.a_dim).to(self.device) # (a_dim, a_dim)
         self._I = torch.eye(self.z_dim).to(self.device) # (z_dim, z_dim)
@@ -117,9 +117,28 @@ class KVAE(nn.Module):
         ###############
         #### Alpha ####
         ###############
+        self.a_init = torch.zeros((1, self.a_dim), requires_grad=True, device=self.device) # (bs, a_dim)
         self.rnn_alpha = nn.LSTM(self.a_dim, self.dim_RNN_alpha, self.num_RNN_alpha, bidirectional=False)
         self.mlp_alpha = nn.Sequential(nn.Linear(self.dim_RNN_alpha, self.K),
                                        nn.Softmax(dim=-1))
+
+        ############################
+        #### Scheduler Training ####
+        ############################
+        iter_kf = (p for p in [self.A, self.B, self.C, self.a_init])
+        self.vars_vae = [{'params': self.mlp_x_a.parameters(),
+                          'params': self.inf_mean.parameters(),
+                          'params': self.inf_logvar.parameters(),
+                          'params': self.mlp_a_x.parameters(),
+                          'params': self.gen_logvar.parameters()}]
+        self.vars_vae_kf = [{'params': self.mlp_x_a.parameters(),
+                             'params': self.inf_mean.parameters(),
+                             'params': self.inf_logvar.parameters(),
+                             'params': self.mlp_a_x.parameters(),
+                             'params': self.gen_logvar.parameters(),
+                             'params': iter_kf}]
+        self.vars_all = [{'params': self.parameters(),
+                          'params': iter_kf}]
 
 
     def reparameterization(self, mean, logvar):
@@ -179,8 +198,8 @@ class KVAE(nn.Module):
         Sigma_smooth = torch.zeros((seq_len, batch_size, self.z_dim, self.z_dim)).to(self.device) # (seq_len, bs, z_dim, z_dim)
         
         # Calculate alpha, initial observation a_init is assumed to be zero and can be learned
-        a_init = torch.zeros((1, batch_size, self.a_dim), requires_grad=True).to(self.device) # (bs, a_dim)
-        a_tm1 = torch.cat([a_init, a[:-1,:,:]], 0) # (seq_len, bs, a_dim)
+        a_init_expand = self.a_init.unsqueeze(1).repeat(1, batch_size, 1) # (1, bs, a_dim)
+        a_tm1 = torch.cat([a_init_expand, a[:-1,:,:]], 0) # (seq_len, bs, a_dim)
         alpha = self.get_alpha(a_tm1) # (seq_len, bs, K)
 
         # Calculate the mixture of A, B and C

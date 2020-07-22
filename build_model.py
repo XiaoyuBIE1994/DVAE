@@ -690,6 +690,9 @@ class BuildKVAE(BuildBasic):
         self.K = self.cfg.getint('Network', 'K')
         self.dim_RNN_alpha = self.cfg.getint('Network', 'dim_RNN_alpha')
         self.num_RNN_alpha = self.cfg.getint('Network', 'num_RNN_alpha')
+        # Training set
+        self.only_vae_epochs = self.cfg.getint('Training', 'only_vae_epochs')
+        self.kf_update_epochs = self.cfg.getint('Training', 'kf_update_epochs')
 
         #### Create directory for results
         self.filename = "{}_{}_{}_z_dim={}".format(self.dataset_name,
@@ -728,7 +731,9 @@ class BuildKVAE(BuildBasic):
 
         # Init optimizer (Adam by default):
         if self.optimization == 'adam':
-            self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
+            self.optimizer_vae = torch.optim.Adam(self.model.vars_vae, lr=self.lr)
+            self.optimizer_vae_kf = torch.optim.Adam(self.model.vars_vae_kf, lr=self.lr)
+            self.optimizer_all = torch.optim.Adam(self.model.vars_all, lr=self.lr)
         else:
             self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
 

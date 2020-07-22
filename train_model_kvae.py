@@ -35,9 +35,6 @@ def train_model(config_file):
     # Build model using config_file
     model_class = build_model(config_file)
     model = model_class.model
-    optimizer = model_class.optimizer
-    batch_size = model_class.batch_size
-    seq_len = model_class.sequence_len
     epochs = model_class.epochs
     logger = model_class.logger
     num_parameters = sum(p.numel() for p in model.parameters() if p.requires_grad)
@@ -65,6 +62,15 @@ def train_model(config_file):
 
     # Train with mini-batch SGD
     for epoch in range(epochs):
+        
+        # Scheduler training, beneficial to achieve better convergence not to
+        # train alpha from the beginning
+        if epoch < model_class.only_vae_epochs:
+            optimizer = model_class.optimizer_vae
+        elif epoch < model_class.only_vae_epochs + model_class.kf_update_epochs:
+            optimizer = model_class.optimizer_vae_kf
+        else:
+            optimizer = model_class.optimizer_all
 
         start_time = datetime.datetime.now()
         model.train()
