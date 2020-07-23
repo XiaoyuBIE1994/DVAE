@@ -40,7 +40,11 @@ def train_model(config_file):
     num_parameters = sum(p.numel() for p in model.parameters() if p.requires_grad)
     device = model_class.device
 
+    # Save the model parameters
+    save_cfg = os.path.join(model_class.save_dir, 'config.ini')
+    shutil.copy(config_file, save_cfg)
     
+    # Check if gpu is available on cluster
     if 'gpu' in model_class.hostname and device == 'cpu':
         logger.error('GPU unavailable on cluster, training stop')
         return
@@ -150,10 +154,6 @@ def train_model(config_file):
     #     pickle.dump([train_loss, val_loss], f)
     with open(loss_file, 'wb') as f:
         pickle.dump([train_loss, val_loss, train_vae, train_lgssm, val_vae, val_lgssm], f)
-
-    # Save the model parameters
-    save_cfg = os.path.join(model_class.save_dir, 'config.ini')
-    shutil.copy(config_file, save_cfg)
 
     # Save the loss figure
     plt.clf()
