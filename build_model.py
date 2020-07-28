@@ -254,12 +254,12 @@ class BuildDMM(BuildBasic):
         self.activation = self.cfg.get('Network', 'activation')
         self.dropout_p = self.cfg.getfloat('Network', 'dropout_p')
         # Inference
-        self.dense_x_g = [int(i) for i in self.cfg.get('Network', 'dense_x_g').split(',')] if self.cfg.has_option('Network', 'dense_x_g') else []
+        self.dense_x_g = [int(i) for i in self.cfg.get('Network', 'dense_x_g').split(',')]
         self.dim_RNN_g = self.cfg.getint('Network', 'dim_RNN_g')
         self.num_RNN_g = self.cfg.getint('Network', 'num_RNN_g')
         self.bidir_g = self.cfg.getboolean('Network', 'bidir_g')
         # Generation
-        self.dense_z_x = [int(i) for i in self.cfg.get('Network', 'dense_z_x').split(',')] if self.cfg.has_option('Network', 'dense_z_x') else []
+        self.dense_z_x = [int(i) for i in self.cfg.get('Network', 'dense_z_x').split(',')]
 
         ### Create direcotry for results
         self.filename = "{}_{}_{}_z_dim={}".format(self.dataset_name, 
@@ -317,15 +317,15 @@ class BuildSTORN(BuildBasic):
         self.activation = self.cfg.get('Network', 'activation')
         self.dropout_p = self.cfg.getfloat('Network', 'dropout_p')
         # Inference
-        self.dense_x_g = [int(i) for i in self.cfg.get('Network', 'dense_x_g').split(',')] if self.cfg.has_option('Network', 'dense_x_g') else []
+        self.dense_x_g = [int(i) for i in self.cfg.get('Network', 'dense_x_g').split(',')]
         self.dim_RNN_g = self.cfg.getint('Network', 'dim_RNN_g')
         self.num_RNN_g = self.cfg.getint('Network', 'num_RNN_g')
-        self.dense_g_z = [int(i) for i in self.cfg.get('Network', 'dense_g_z').split(',')] if self.cfg.has_option('Network', 'dense_g_z') else []
+        self.dense_g_z = [int(i) for i in self.cfg.get('Network', 'dense_g_z').split(',')]
         # Generation
-        self.dense_zx_h = [int(i) for i in self.cfg.get('Network', 'dense_zx_h').split(',')] if self.cfg.has_option('Network', 'dense_zx_h') else []
+        self.dense_zx_h = [int(i) for i in self.cfg.get('Network', 'dense_zx_h').split(',')]
         self.dim_RNN_h = self.cfg.getint('Network', 'dim_RNN_h')
         self.num_RNN_h = self.cfg.getint('Network', 'num_RNN_h')
-        self.dense_h_x = [int(i) for i in self.cfg.get('Network', 'dense_h_x').split(',')] if self.cfg.has_option('Network', 'dense_h_x') else []
+        self.dense_h_x = [int(i) for i in self.cfg.get('Network', 'dense_h_x').split(',')]
 
         ### Create directory for results
         self.filename = "{}_{}_{}_z_dim={}".format(self.dataset_name, 
@@ -383,12 +383,12 @@ class BuildVRNN(BuildBasic):
         self.activation = self.cfg.get('Network', 'activation')
         self.dropout_p = self.cfg.getfloat('Network', 'dropout_p')
         # Feature extractor
-        self.dense_x = [int(i) for i in self.cfg.get('Network', 'dense_x').split(',')] if self.cfg.has_option('Network', 'dense_x') else []
-        self.dense_z = [int(i) for i in self.cfg.get('Network', 'dense_z').split(',')] if self.cfg.has_option('Network', 'dense_z') else []
+        self.dense_x = [int(i) for i in self.cfg.get('Network', 'dense_x').split(',')]
+        self.dense_z = [int(i) for i in self.cfg.get('Network', 'dense_z').split(',')]
         # Dense layers
-        self.dense_hx_z = [int(i) for i in self.cfg.get('Network', 'dense_hx_z').split(',')] if self.cfg.has_option('Network', 'dense_hx_z') else []
-        self.dense_hz_x = [int(i) for i in self.cfg.get('Network', 'dense_hz_x').split(',')] if self.cfg.has_option('Network', 'dense_hz_x') else []
-        self.dense_h_z = [int(i) for i in self.cfg.get('Network', 'dense_h_z').split(',')] if self.cfg.has_option('Network', 'dense_h_z') else []
+        self.dense_hx_z = [int(i) for i in self.cfg.get('Network', 'dense_hx_z').split(',')]
+        self.dense_hz_x = [int(i) for i in self.cfg.get('Network', 'dense_hz_x').split(',')]
+        self.dense_h_z = [int(i) for i in self.cfg.get('Network', 'dense_h_z').split(',')]
         # RNN
         self.dim_RNN = self.cfg.getint('Network', 'dim_RNN')
         self.num_RNN = self.cfg.getint('Network', 'num_RNN')
@@ -450,18 +450,18 @@ class BuildSRNN(BuildBasic):
         self.activation = self.cfg.get('Network', 'activation')
         self.dropout_p = self.cfg.getfloat('Network', 'dropout_p')
         # Deterministic
-        self.dense_x_h = [int(i) for i in self.cfg.get('Network', 'dense_x_h').split(',')] if self.cfg.has_option('Network', 'dense_x_h') else []
+        self.dense_x_h = [int(i) for i in self.cfg.get('Network', 'dense_x_h').split(',')]
         self.dim_RNN_h = self.cfg.getint('Network', 'dim_RNN_h')
         self.num_RNN_h = self.cfg.getint('Network', 'num_RNN_h')
         # Inference
-        self.dense_hx_g = [int(i) for i in self.cfg.get('Network', 'dense_hx_g').split(',')] if self.cfg.has_option('Network', 'dense_hx_g') else []
+        self.dense_hx_g = [int(i) for i in self.cfg.get('Network', 'dense_hx_g').split(',')]
         self.dim_RNN_g = self.cfg.getint('Network', 'dim_RNN_g')
         self.num_RNN_g = self.cfg.getint('Network', 'num_RNN_g')
-        self.dense_gz_z = [int(i) for i in self.cfg.get('Network', 'dense_gz_z').split(',')] if self.cfg.has_option('Network', 'dense_gz_z') else []
+        self.dense_gz_z = [int(i) for i in self.cfg.get('Network', 'dense_gz_z').split(',')]
         # Prior
-        self.dense_hz_z = [int(i) for i in self.cfg.get('Network', 'dense_hz_z').split(',')] if self.cfg.has_option('Network', 'dense_hz_z') else []
+        self.dense_hz_z = [int(i) for i in self.cfg.get('Network', 'dense_hz_z').split(',')]
         # Generation
-        self.dense_hz_x = [int(i) for i in self.cfg.get('Network', 'dense_hz_x').split(',')] if self.cfg.has_option('Network', 'dense_hz_x') else []
+        self.dense_hz_x = [int(i) for i in self.cfg.get('Network', 'dense_hz_x').split(',')]
 
         
         ### Create direcotry for results
@@ -523,20 +523,20 @@ class BuildRVAE(BuildBasic):
         self.activation = self.cfg.get('Network', 'activation')
         self.dropout_p = self.cfg.getfloat('Network', 'dropout_p')
         # Inference
-        self.dense_x_gx = [int(i) for i in self.cfg.get('Network', 'dense_x_gx').split(',')] if self.cfg.has_option('Network', 'dense_x_gx') else []
+        self.dense_x_gx = [int(i) for i in self.cfg.get('Network', 'dense_x_gx').split(',')]
         self.dim_RNN_g_x = self.cfg.getint('Network', 'dim_RNN_g_x')
         self.num_RNN_g_x = self.cfg.getint('Network', 'num_RNN_g_x')
         self.bidir_g_x = self.cfg.getboolean('Network', 'bidir_g_x')
-        self.dense_z_gz = [int(i) for i in self.cfg.get('Network', 'dense_z_gz').split(',')] if self.cfg.has_option('Network', 'dense_z_gz') else []
+        self.dense_z_gz = [int(i) for i in self.cfg.get('Network', 'dense_z_gz').split(',')]
         self.dim_RNN_g_z = self.cfg.getint('Network', 'dim_RNN_g_z')
         self.num_RNN_g_z = self.cfg.getint('Network', 'num_RNN_g_z')
-        self.dense_g_z = [int(i) for i in self.cfg.get('Network', 'dense_g_z').split(',')] if self.cfg.has_option('Network', 'dense_g_z') else []
+        self.dense_g_z = [int(i) for i in self.cfg.get('Network', 'dense_g_z').split(',')]
         # Generation
-        self.dense_z_h = [int(i) for i in self.cfg.get('Network', 'dense_z_h').split(',')] if self.cfg.has_option('Network', 'dense_z_h') else []
+        self.dense_z_h = [int(i) for i in self.cfg.get('Network', 'dense_z_h').split(',')]
         self.dim_RNN_h = self.cfg.getint('Network', 'dim_RNN_h')
         self.num_RNN_h = self.cfg.getint('Network', 'num_RNN_h')
         self.bidir_h = self.cfg.getboolean('Network', 'bidir_h')
-        self.dense_h_x = [int(i) for i in self.cfg.get('Network', 'dense_h_x').split(',')] if self.cfg.has_option('Network', 'dense_h_x') else []
+        self.dense_h_x = [int(i) for i in self.cfg.get('Network', 'dense_h_x').split(',')]
         
         ### Create directory for results
         self.filename = "{}_{}_{}_z_dim={}".format(self.dataset_name, 
@@ -601,14 +601,14 @@ class BuildDSAE(BuildBasic):
         self.activation = self.cfg.get('Network', 'activation')
         self.dropout_p = self.cfg.getfloat('Network', 'dropout_p')
         # Inference
-        self.dense_x = [int(i) for i in self.cfg.get('Network', 'dense_x').split(',')] if self.cfg.has_option('Network', 'dense_x') else []
+        self.dense_x = [int(i) for i in self.cfg.get('Network', 'dense_x').split(',')]
         self.dim_RNN_gv = self.cfg.getint('Network', 'dim_RNN_gv')
         self.num_RNN_gv = self.cfg.getint("Network", 'num_RNN_gv')
-        self.dense_gv_v = [int(i) for i in self.cfg.get('Network', 'dense_gv_v').split(',')] if self.cfg.has_option('Network', 'dense_gv_v') else []
-        self.dense_xv_gxv = [int(i) for i in self.cfg.get('Network', 'dense_xv_gxv').split(',')] if self.cfg.has_option('Network', 'dense_xv_gxv') else []
+        self.dense_gv_v = [int(i) for i in self.cfg.get('Network', 'dense_gv_v').split(',')]
+        self.dense_xv_gxv = [int(i) for i in self.cfg.get('Network', 'dense_xv_gxv').split(',')]
         self.dim_RNN_gxv = self.cfg.getint('Network', 'dim_RNN_gxv')
         self.num_RNN_gxv = self.cfg.getint('Network', 'num_RNN_gxv')
-        self.dense_gxv_gz = [int(i) for i in self.cfg.get('Network', 'dense_gxv_gz').split(',')] if self.cfg.has_option('Network', 'dense_gxv_gz') else []
+        self.dense_gxv_gz = [int(i) for i in self.cfg.get('Network', 'dense_gxv_gz').split(',')]
         self.dim_RNN_gz = self.cfg.getint('Network', 'dim_RNN_gz')
         self.num_RNN_gz = self.cfg.getint('Network', 'num_RNN_gz')
         # Prior
@@ -679,8 +679,8 @@ class BuildKVAE(BuildBasic):
         self.dropout_p = self.cfg.getfloat('Network', 'dropout_p')
         self.scale_reconstruction = self.cfg.getfloat('Network', 'scale_reconstruction')
         # VAE
-        self.dense_x_a = [int(i) for i in self.cfg.get('Network', 'dense_x_a').split(',')] if self.cfg.has_option('Network', 'dense_x_a') else []
-        self.dense_a_x = [int(i) for i in self.cfg.get('Network', 'dense_a_x').split(',')] if self.cfg.has_option('Network', 'dense_a_x') else []
+        self.dense_x_a = [int(i) for i in self.cfg.get('Network', 'dense_x_a').split(',')]
+        self.dense_a_x = [int(i) for i in self.cfg.get('Network', 'dense_a_x').split(',')]
         # LGSSM
         self.init_kf_mat = self.cfg.getfloat('Network', 'init_kf_mat')
         self.noise_transition = self.cfg.getfloat('Network', 'noise_transition')
