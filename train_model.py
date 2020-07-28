@@ -75,41 +75,30 @@ def train_model(config_file):
 
         # Batch training
         for batch_idx, batch_data in enumerate(train_dataloader):
-
+            
             batch_data = batch_data.to(model_class.device)
-            optimizer.zero_grad()
-            recon_batch_data, mean, logvar, mean_prior, logvar_prior, z = model(batch_data)
+            recon_batch_data = model(batch_data)
 
-            # loss = loss_vlb(recon_batch_data, batch_data, 
-            #                 mean, logvar, mean_prior, logvar_prior,
-            #                 batch_size = batch_size, seq_len=seq_len)
-            recon, KLD = loss_vlb_separate(recon_batch_data, batch_data, 
-                                           mean, logvar, mean_prior, logvar_prior,
-                                           batch_size = batch_size, seq_len=seq_len)
-        
-            loss = recon + KLD
-            loss.backward()
-            train_loss[epoch] += loss.item()
-            train_recon[epoch] += recon.item()
-            train_KLD[epoch] += KLD.item()
+            loss_tot, loss_recon, loss_KLD = model.loss_recon
+            train_loss[epoch] += loss_tot.item()
+            train_recon[epoch] += loss_recon.item()
+            train_KLD[epoch] += loss_KLD.item()
+
+            optimizer.zero_grad()
+            loss_tot.backward()
             optimizer.step()
             
         # Validation
         for batch_idx, batch_data in enumerate(val_dataloader):
 
             batch_data = batch_data.to(model_class.device)
-            recon_batch_data, mean, logvar, mean_prior, logvar_prior, z = model(batch_data)
+            recon_batch_data = model(batch_data)
 
-            # loss = loss_vlb(recon_batch_data, batch_data, 
-            #                 mean, logvar, mean_prior, logvar_prior,
-            #                 batch_size = batch_size, seq_len=seq_len)
-            recon, KLD = loss_vlb_separate(recon_batch_data, batch_data, 
-                                           mean, logvar, mean_prior, logvar_prior,
-                                           batch_size = batch_size, seq_len=seq_len)
-            loss = recon + KLD
-            val_loss[epoch] += loss.item()
-            val_recon[epoch] += recon.item()
-            val_KLD[epoch] += KLD.item()
+            loss_tot, loss_recon, loss_KLD = model.loss_recon
+            
+            val_loss[epoch] += loss_tot.item()
+            val_recon[epoch] += loss_recon.item()
+            val_KLD[epoch] += loss_KLD.item()
 
         # Early stop patiance
         if val_loss[epoch] < best_val_loss:
@@ -121,14 +110,15 @@ def train_model(config_file):
             cpt_patience += 1
 
 
+        # Loss normalization
         train_loss[epoch] = train_loss[epoch]/ train_num
         val_loss[epoch] = val_loss[epoch] / val_num
-
         train_recon[epoch] = train_recon[epoch] / train_num 
         train_KLD[epoch] = train_KLD[epoch]/ train_num
         val_recon[epoch] = val_recon[epoch] / val_num 
         val_KLD[epoch] = val_KLD[epoch] / val_num
 
+        # Training time
         end_time = datetime.datetime.now()
         interval = (end_time - start_time).seconds / 60
         log_message = 'Epoch: {} train loss: {:.4f} val loss {:.4f} training time {:.2f}m'.format(epoch, train_loss[epoch], val_loss[epoch], interval)
@@ -200,4 +190,4 @@ if __name__ == '__main__':
         config_file = sys.argv[1]
         train_model(config_file)
     else:
-        logger.warning("Please indiquate config file")
+        print("Please indiquate config file")

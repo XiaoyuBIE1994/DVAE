@@ -196,33 +196,50 @@ class DMM(nn.Module):
     def forward(self, x):
         
         # train input: (batch_size, x_dim, seq_len)
-        # test input:  (seq_len, x_dim) 
+        # test input:  (x_dim, seq_len)
         # need input:  (seq_len, batch_size, x_dim)
-        if len(x.shape) == 3:
-            x = x.permute(-1, 0, 1)
-        elif len(x.shape) == 2:
-            x = x.unsqueeze(1)
+        if len(x.shape) == 2:
+            x = x.unsqueeze(0)
+        x = x.permute(-1, 0, 1)
+
+        batch_size = x.shape[1]
 
         # main part 
         z, z_mean, z_logvar = self.inference(x)
-        z_mean_p, z_logvar_p = self.generation_z(z)
+        z_0 = torch.zeros(1, batch_size, self.z_dim).to(self.device)
+        z_tm1 = torch.cat([z_0, z[:-1, :,:]], 0)
+        z_mean_p, z_logvar_p = self.generation_z(z_tm1)
         y = self.generation_x(z)
+
+        # calculate loss
+        seq_len = x.shape[0]
+        batch_size = x.shape[1]
+        loss_tot, loss_recon, loss_KLD = self.get_loss(x, y, z_mean, z_logvar, z_mean_p, z_logvar_p, seq_len, batch_size)
+        self.loss = (loss_tot, loss_recon, loss_KLD)
         
-        # y/z dimension:    (seq_len, batch_size, y/z_dim)
-        # output dimension: (batch_size, y/z_dim, seq_len)
-        z = torch.squeeze(z)
-        y = torch.squeeze(y)
-        z_mean = torch.squeeze(z_mean)
-        z_logvar = torch.squeeze(z_logvar)
-        z_mean_p = torch.squeeze(z_mean_p)
-        z_logvar_p = torch.squeeze(z_logvar_p)
+        # output of NN:    (seq_len, batch_size, dim)
+        # output of model: (batch_size, dim, seq_len) or (dim, seq_len)
+        self.y = y.permute(1,-1,0).squeeze()
+        self.z = z.permute(1,-1,0).squeeze()
+        self.z_mean = z_mean.permute(1,-1,0).squeeze()
+        self.z_logvar = z_logvar.permute(1,-1,0).squeeze()
+        self.z_mean_p = z_mean_p..permute(1,-1,0).squeeze()
+        self.z_logvar_p = z_logvar_p.permute(1,-1,0).squeeze()
 
-        if len(z.shape) == 3:
-            z = z.permute(1,-1,0)
-        if len(y.shape) == 3:    
-            y = y.permute(1,-1,0)
+        return self.y
 
-        return y, z_mean, z_logvar, z_mean_p, z_logvar_p, z
+
+    def get_loss(self, x, y, z_mean, z_logvar, z_mean_p, z_logvar_p, seq_len, batch_size, beta=1):
+
+        loss_recon = torch.sum( x/y - torch.log(x/y) - 1)
+        loss_KLD = -0.5 * torch.sum(z_logvar - z_logvar_p 
+                - torch.div(z_logvar.exp() + (z_mean - z_mean_p).pow(2), 2 * z_logvar_p.exp())) / (batch_size * seq_len)
+        
+        loss_recon = loss_recon / (batch_size * seq_len)
+        loss_KLD = loss_KLD / (batch_size * seq_len)
+        loss_tot = beta * loss_recon + loss_KLD
+
+        return loss_tot, loss_recon, loss_KLD
 
 
     def get_info(self):

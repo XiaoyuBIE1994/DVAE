@@ -9,18 +9,20 @@ import numpy as np
 import subprocess
 import sys
 import soundfile as sf
+import os
 
 def pesq(x_ref, x_test, TMP_dir='/data/tmp', 
               fs=16000, pesq_path='./pesq'):
     
-    speecc_path_ref = os.path.join(tmp_dir, 'x_ref.wav')
-    speech_path_test =  os.path.join(tmp_dir, 'x_test.wav')
-    sf.write(speecc_path_ref, x_ref, fs, 'PCM_16')
-    sf.write(speech_path_test, x_test, fs, 'PCM_16')
-    res = subprocess.check_output([pesq_path, speech_ref, 
+    # speecc_path_ref = os.path.join(tmp_dir, 'x_ref.wav')
+    # speech_path_test =  os.path.join(tmp_dir, 'x_test.wav')
+    # sf.write(speecc_path_ref, x_ref, fs, 'PCM_16')
+    # sf.write(speech_path_test, x_test, fs, 'PCM_16')
+    res = subprocess.check_output([x_ref, x_test, 
                                    speech_test, "+16000"]) # it can raise an exception
-    os.remove(speecc_path_ref)
-    os.remove(speech_path_test)
+    # os.remove(speecc_path_ref)
+    # os.remove(speech_path_test)
+    
     try:
         pesq = float(res[-12:-7])
     except ValueError:
@@ -29,13 +31,15 @@ def pesq(x_ref, x_test, TMP_dir='/data/tmp',
     return pesq
 
 if __name__ == '__main__':
-    pesq_path = './evaluation/pesq'
-    speech_orig = '/Users/xiaoyu/WorkStation/Project_rvae/saved_model_Xiaoyu/WSJ0_2020-02-23-05h22_BiEnc_BiDec_RecZ_z_dim=16/test/male_440_origin-0.wav'
-    speech_test = '/Users/xiaoyu/WorkStation/Project_rvae/saved_model_Xiaoyu/WSJ0_2020-02-23-05h22_BiEnc_BiDec_RecZ_z_dim=16/test/male_440_recon-0.wav'
-    res = subprocess.check_output([pesq_path, speech_orig, speech_test, "+16000"])
-    try:
-        pesq = float(res[-12:-7])
-    except ValueError:
-        pesq = np.nan
-
-    print(pesq)
+    # pesq_path = './evaluation/pesq'
+    # speech_orig = '/Users/xiaoyu/WorkStation/Project_rvae/saved_model_Xiaoyu/WSJ0_2020-02-23-05h22_BiEnc_BiDec_RecZ_z_dim=16/test/male_440_origin-0.wav'
+    # speech_test = '/Users/xiaoyu/WorkStation/Project_rvae/saved_model_Xiaoyu/WSJ0_2020-02-23-05h22_BiEnc_BiDec_RecZ_z_dim=16/test/male_440_recon-0.wav'
+    # res = subprocess.check_output([pesq_path, speech_orig, speech_test, "+16000"])
+    # try:
+    #     pesq = float(res[-12:-7])
+    # except ValueError:
+    #     pesq = np.nan
+    speech_orig = '/local_scratch/xbie/Code/dvae-speech/evaluation/audio_orig.wav'
+    speech_recon = '/local_scratch/xbie/Code/dvae-speech/evaluation/audio_recon.wav'
+    res = pesq(speech_orig, speech_recon)
+    print(res)

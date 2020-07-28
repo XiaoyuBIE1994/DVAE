@@ -287,12 +287,11 @@ class KVAE(nn.Module):
     def forward(self, x):
 
         # train input: (batch_size, x_dim, seq_len)
-        # test input:  (seq_len, x_dim) A_mix[t].view(-1, self.z_dim, self.z_dim)
+        # test input:  (x_dim, seq_len)
         # need input:  (seq_len, batch_size, x_dim)
-        if len(x.shape) == 3:
-            x = x.permute(-1, 0, 1)
-        elif len(x.shape) == 2:
-            x = x.unsqueeze(1)
+        if len(x.shape) == 2:
+            x = x.unsqueeze(0)
+        x = x.permute(-1, 0, 1)
 
         # main part
         a, a_mean, a_logvar = self.inference(x)
@@ -305,24 +304,22 @@ class KVAE(nn.Module):
         # calculate loss
         seq_len = x.shape[0]
         batch_size = x.shape[1]
-        loss_tot, loss_vae, loss_lgssm = self.loss(x, y, u, 
-                                                   a, a_mean, a_logvar, 
-                                                   mu_smooth, Sigma_smooth, 
-                                                   A_mix, B_mix, C_mix,
-                                                   self.scale_reconstruction,
-                                                   seq_len, batch_size)
+        loss_tot, loss_vae, loss_lgssm = self.get_loss(x, y, u, 
+                                                       a, a_mean, a_logvar, 
+                                                       mu_smooth, Sigma_smooth, 
+                                                       A_mix, B_mix, C_mix,
+                                                       self.scale_reconstruction,
+                                                       seq_len, batch_size)
+        self.loss = (loss_tot, loss_vae, loss_lgssm)
         
-        # y/z dimension:    (seq_len, batch_size, y/z_dim)
-        # output dimension: (batch_size, y/z_dim, seq_len)
-        y = torch.squeeze(y)
+        # output of NN:    (seq_len, batch_size, dim)
+        # output of model: (batch_size, dim, seq_len) or (dim, seq_len)
+        self.y = y.permute(1,-1,0).squeeze()
 
-        if len(y.shape) == 3:    
-            y = y.permute(1,-1,0)
-
-        return y, loss_tot, loss_vae, loss_lgssm
+        return self.y
 
 
-    def loss(self, x, y, u, a, a_mean, a_logvar, mu_smooth, Sigma_smooth,
+    def get_loss(self, x, y, u, a, a_mean, a_logvar, mu_smooth, Sigma_smooth,
              A, B, C, scale_reconstruction=1, seq_len=150, batch_size=32):
         
         # log p_{\theta}(x | a_hat), complex Gaussian

@@ -86,7 +86,8 @@ def train_model(config_file):
 
             batch_data = batch_data.to(model_class.device)
             optimizer.zero_grad()
-            y, loss, loss_vae, loss_lgssm = model(batch_data)
+            y = model(batch_data)
+            loss, loss_vae, loss_lgssm = model.loss
         
             loss.backward()
             train_loss[epoch] += loss.item()
@@ -99,7 +100,8 @@ def train_model(config_file):
 
             batch_data = batch_data.to(model_class.device)
             optimizer.zero_grad()
-            y, loss, loss_vae, loss_lgssm = model(batch_data)
+            y = model(batch_data)
+            loss, loss_vae, loss_lgssm = model.loss
 
             val_loss[epoch] += loss.item()
             val_vae[epoch] += loss_vae.item()
