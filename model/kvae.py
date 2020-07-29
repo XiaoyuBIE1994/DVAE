@@ -293,6 +293,9 @@ class KVAE(nn.Module):
             x = x.unsqueeze(0)
         x = x.permute(-1, 0, 1)
 
+        seq_len = x.shape[0]
+        batch_size = x.shape[1]
+
         # main part
         a, a_mean, a_logvar = self.inference(x)
         batch_size = a.shape[1]
@@ -302,8 +305,6 @@ class KVAE(nn.Module):
         y = self.generation_x(a_gen)
 
         # calculate loss
-        seq_len = x.shape[0]
-        batch_size = x.shape[1]
         loss_tot, loss_vae, loss_lgssm = self.get_loss(x, y, u, 
                                                        a, a_mean, a_logvar, 
                                                        mu_smooth, Sigma_smooth, 

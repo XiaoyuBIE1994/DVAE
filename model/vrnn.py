@@ -155,30 +155,39 @@ class VRNN(nn.Module):
 
 
     def generation_x(self, feature_zt, h_t):
+
         dec_input = torch.cat((feature_zt, h_t), 2)
         dec_output = self.mlp_hz_x(dec_input)
         log_yt = self.gen_logvar(dec_output)
-        return log_yt
+        y_t = torch.exp(log_yt)
+
+        return y_t
         
 
     def generation_z(self, h):
+
         prior_output = self.mlp_h_z(h)
         mean_prior = self.prior_mean(prior_output)
         logvar_prior = self.prior_logvar(prior_output)
+
         return mean_prior, logvar_prior
 
 
     def inference(self, feature_xt, h_t):
+
         enc_input = torch.cat((feature_xt, h_t), 2)
         enc_output = self.mlp_hx_z(enc_input)
         mean_zt = self.inf_mean(enc_output)
         logvar_zt = self.inf_logvar(enc_output)
+
         return mean_zt, logvar_zt
 
 
     def recurrence(self, feature_xt, feature_zt, h_t, c_t):
+
         rnn_input = torch.cat((feature_xt, feature_zt), -1)
         _, (h_tp1, c_tp1) = self.rnn(rnn_input, (h_t, c_t))
+
         return h_tp1, c_tp1
 
 
@@ -213,21 +222,20 @@ class VRNN(nn.Module):
             mean_zt, logvar_zt = self.inference(feature_xt, h_t_last)
             z_t = self.reparameterization(mean_zt, logvar_zt)
             feature_zt = self.feature_extractor_z(z_t)
-            log_yt = self.generation_x(feature_zt, h_t_last)
-            y_t = torch.exp(log_yt)
+            y_t = self.generation_x(feature_zt, h_t_last)
             z_mean[t,:,:] = mean_zt
             z_logvar[t,:,:] = logvar_zt
             z[t,:,:] = torch.squeeze(z_t)
             y[t,:,:] = torch.squeeze(y_t)
             h[t,:,:] = torch.squeeze(h_t_last)
-            h_t, c_t = self.recurrence(feature_xt, feature_zt, h_t, c_t) # actual index is t+1 
+            h_t, c_t = self.recurrence(feature_xt, feature_zt, h_t, c_t) # recurrence for t+1 
        
         z_mean_p, z_logvar_p  = self.generation_z(h)
         
         # Calculate loss
-        seq_len = x.shape[0]
-        batch_size = x.shape[1]
-        loss_tot, loss_recon, loss_KLD = self.get_loss(x, y, z_mean, z_logvar, z_mean_p, z_logvar_p, seq_len, batch_size)
+        loss_tot, loss_recon, loss_KLD = self.get_loss(x, y, z_mean, z_logvar,
+                                                       z_mean_p, z_logvar_p,
+                                                       seq_len, batch_size)
         self.loss = (loss_tot, loss_recon, loss_KLD)
         
         # output of NN:    (seq_len, batch_size, dim)

@@ -241,6 +241,7 @@ class SRNN(nn.Module):
             x = x.unsqueeze(0)
         x = x.permute(-1, 0, 1)
 
+        seq_len = x.shape[0]
         batch_size = x.shape[1]
         x_dim = x.shape[2]
 
@@ -255,8 +256,9 @@ class SRNN(nn.Module):
         y = self.generation_x(z, h)
 
         # calculate loss
-        seq_len = x.shape[0]
-        loss_tot, loss_recon, loss_KLD = self.get_loss(x, y, z_mean, z_logvar, z_mean_p, z_logvar_p, seq_len, batch_size)
+        loss_tot, loss_recon, loss_KLD = self.get_loss(x, y, z_mean, z_logvar,
+                                                       z_mean_p, z_logvar_p,
+                                                       seq_len, batch_size)
         self.loss = (loss_tot, loss_recon, loss_KLD)
         
         # output of NN:    (seq_len, batch_size, dim)
