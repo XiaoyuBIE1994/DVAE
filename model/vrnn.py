@@ -244,7 +244,7 @@ class VRNN(nn.Module):
         self.z = z.permute(1,-1,0).squeeze()
         self.z_mean = z_mean.permute(1,-1,0).squeeze()
         self.z_logvar = z_logvar.permute(1,-1,0).squeeze()
-        self.z_mean_p = z_mean_p..permute(1,-1,0).squeeze()
+        self.z_mean_p = z_mean_p.permute(1,-1,0).squeeze()
         self.z_logvar_p = z_logvar_p.permute(1,-1,0).squeeze()
 
         return self.y

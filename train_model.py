@@ -79,7 +79,7 @@ def train_model(config_file):
             batch_data = batch_data.to(model_class.device)
             recon_batch_data = model(batch_data)
 
-            loss_tot, loss_recon, loss_KLD = model.loss_recon
+            loss_tot, loss_recon, loss_KLD = model.loss
             train_loss[epoch] += loss_tot.item()
             train_recon[epoch] += loss_recon.item()
             train_KLD[epoch] += loss_KLD.item()
@@ -94,7 +94,7 @@ def train_model(config_file):
             batch_data = batch_data.to(model_class.device)
             recon_batch_data = model(batch_data)
 
-            loss_tot, loss_recon, loss_KLD = model.loss_recon
+            loss_tot, loss_recon, loss_KLD = model.loss
             
             val_loss[epoch] += loss_tot.item()
             val_recon[epoch] += loss_recon.item()

@@ -25,7 +25,7 @@ class STORN(nn.Module):
     def __init__(self, x_dim, z_dim=16, activation = 'tanh',
                  dense_x_g=[128], dense_g_z=[128],
                  dim_RNN_g=128, num_RNN_g=1,
-                 dense_zx_h=[128], dense_h_x=[128],
+                 dense_z_h=[128], dense_xtm1_h=[128], dense_h_x=[128],
                  dim_RNN_h=128, num_RNN_h=1,
                  dropout_p = 0, device='cpu'):
 
@@ -48,7 +48,8 @@ class STORN(nn.Module):
         self.dim_RNN_g = dim_RNN_g
         self.num_RNN_g = num_RNN_g
         ### Generation x
-        self.dense_zx_h = dense_zx_h
+        self.dense_z_h = dense_z_h
+        self.dense_xtm1_h = dense_xtm1_h
         self.dense_h_x = dense_h_x
         self.dim_RNN_h = dim_RNN_h
         self.num_RNN_h = num_RNN_h
@@ -99,24 +100,39 @@ class STORN(nn.Module):
         ######################
         #### Generation x ####
         ######################
-        # 1. z_t and x_tm1 to h_t
+        # 1. z_t to h_t
         dic_layers = OrderedDict()
-        if len(self.dense_zx_h) == 0:
-            dim_zx_h = self.z_dim + self.x_dim
+        if len(self.dense_z_h) == 0:
+            dim_z_h = self.z_dim
             dic_layers['Identity'] = nn.Identity()
         else:
-            dim_zx_h = self.dense_zx_h[-1]
-            for n in range(len(self.dense_zx_h)):
+            dim_z_h = self.dense_z_h[-1]
+            for n in range(len(self.dense_z_h)):
                 if n == 0:
-                    dic_layers['linear'+str(n)] = nn.Linear(self.z_dim+self.x_dim, self.dense_zx_h[n])
+                    dic_layers['linear'+str(n)] = nn.Linear(self.z_dim, self.dense_z_h[n])
                 else:
-                    dic_layers['linear'+str(n)] = nn.Linear(self.dense_zx_h[n-1], self.dense_zx_h[n])
+                    dic_layers['linear'+str(n)] = nn.Linear(self.dense_z_h[n-1], self.dense_z_h[n])
                 dic_layers['activation'+str(n)] = self.activation
                 dic_layers['dropout'+str(n)] = nn.Dropout(p=self.dropout_p)
-        self.mlp_zx_h = nn.Sequential(dic_layers)
-        # 2. h_t, forward recurrence
-        self.rnn_h = nn.LSTM(dim_zx_h, self.dim_RNN_h, self.num_RNN_h)
-        # 3. h_t to x_t
+        self.mlp_z_h = nn.Sequential(dic_layers)
+        # 2. x_tm1 to h_t
+        dic_layers = OrderedDict()
+        if len(self.dense_xtm1_h) == 0:
+            dim_xtm1_h = self.x_dim
+            dic_layers['Identity'] = nn.Identity()
+        else:
+            dim_xtm1_h = self.dense_xtm1_h[-1]
+            for n in range(len(self.dense_xtm1_h)):
+                if n == 0:
+                    dic_layers['linear'+str(n)] = nn.Linear(self.x_dim, self.dense_xtm1_h[n])
+                else:
+                    dic_layers['linear'+str(n)] = nn.Linear(self.dense_xtm1_h[n-1], self.dense_xtm1_h[n])
+                dic_layers['activation'+str(n)] = self.activation
+                dic_layers['dropout'+str(n)] = nn.Dropout(p=self.dropout_p)
+        self.mlp_xtm1_h = nn.Sequential(dic_layers)
+        # 3. h_t, forward recurrence
+        self.rnn_h = nn.LSTM(dim_z_h+dim_xtm1_h, self.dim_RNN_h, self.num_RNN_h)
+        # 4. h_t to x_t
         dic_layers = OrderedDict()
         if len(self.dense_h_x) == 0:
             dim_h_x = self.dim_RNN_h
@@ -169,8 +185,9 @@ class STORN(nn.Module):
         
         
         # 1. From z_t and x_tm1 to h_t
-        zx_h = torch.cat((z, x_tm1), -1)
-        zx_h = self.mlp_zx_h(zx_h)
+        z_h = self.mlp_z_h(z)
+        xtm1_h = self.mlp_xtm1_h(x_tm1)
+        zx_h = torch.cat((z_h, xtm1_h), -1)
         h, _ = self.rnn_h(zx_h)
 
         # 2. From h_t to y_t
@@ -241,7 +258,9 @@ class STORN(nn.Module):
         info.append('logvar: ' + str(self.inf_logvar))
 
         info.append("----- Generation x -----")
-        for layer in self.mlp_zx_h:
+        for layer in self.mlp_z_h:
+            info.append(str(layer))
+        for layer in self.mlp_xtm1_h:
             info.append(str(layer))
         info.append(self.rnn_h)
         for layer in self.mlp_h_x:

@@ -87,7 +87,7 @@ class RVAE(nn.Module):
             dim_z_gz = self.dense_z_gz[-1]
             for n in range(len(self.dense_z_gz)):
                 if n == 0:
-                    dic_layers['linear'+str(n)] = nn.Linear(self.x_dim, self.dense_z_gz[n])
+                    dic_layers['linear'+str(n)] = nn.Linear(self.z_dim, self.dense_z_gz[n])
                 else:
                     dic_layers['linear'+str(n)] = nn.Linear(self.dense_z_gz[n-1], self.dense_z_gz[n])
                 dic_layers['activation'+str(n)] = self.activation
@@ -113,11 +113,6 @@ class RVAE(nn.Module):
         self.mlp_g_z = nn.Sequential(dic_layers)
         self.inf_mean = nn.Linear(dim_g_z, self.z_dim)
         self.inf_logvar = nn.Linear(dim_g_z, self.z_dim)
-
-        ######################
-        #### Generation z ####
-        ######################
-        # The prior of z in RVAE is supposed to be zero-mean, unit-variance Gaussian
 
         ######################
         #### Generation x ####
@@ -220,7 +215,8 @@ class RVAE(nn.Module):
         h, _ = self.rnn_h(z_h)
 
         # 3. h_t to y_t
-        log_y = self.gen_logvar(h)
+        hx = self.mlp_h_x(h)
+        log_y = self.gen_logvar(hx)
         y = torch.exp(log_y)
 
         return y

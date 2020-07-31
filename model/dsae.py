@@ -192,6 +192,7 @@ class DSAE(nn.Module):
         xv_cat = torch.cat((feature_x, v_expand), -1)
         g_xv = self.mlp_xv_gxv(xv_cat)
         g_xv, _ = self.rnn_g_xv(g_xv)
+        g_xv = self.mlp_gxv_gz(g_xv)
         g_z, _ = self.rnn_g_z(g_xv)
         z_mean = self.inf_z_mean(g_z)
         z_logvar = self.inf_z_logvar(g_z)
@@ -258,7 +259,7 @@ class DSAE(nn.Module):
         self.z = z.permute(1,-1,0).squeeze()
         self.z_mean = z_mean.permute(1,-1,0).squeeze()
         self.z_logvar = z_logvar.permute(1,-1,0).squeeze()
-        self.z_mean_p = z_mean_p..permute(1,-1,0).squeeze()
+        self.z_mean_p = z_mean_p.permute(1,-1,0).squeeze()
         self.z_logvar_p = z_logvar_p.permute(1,-1,0).squeeze()
 
         return self.y

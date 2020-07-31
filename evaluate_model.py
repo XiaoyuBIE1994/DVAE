@@ -7,12 +7,14 @@ License agreement in LICENSE.txt
 """
 
 import os
+import sys
 import shutil
 import pickle
 import numpy as np
 import speechmetrics
 import soundfile as sf
 import librosa
+import torch
 from build_model import build_model
 
         
@@ -21,9 +23,7 @@ def rmse_frame():
     def get_result(path_to_estimate_file, path_to_reference):
         x_est, _ = sf.read(path_to_estimate_file)
         x_ref, _ = sf.read(path_to_reference)
-        assert len(win) == nfft
         # align
-        htop = int(nfft/2)
         len_x = len(x_est)
         x_ref = x_ref[:len_x]
         # scaling
@@ -39,6 +39,7 @@ def rmse_frame():
 class Evaluate():
 
     def __init__(self, model_dir, data_dir):
+
         self.model_dir = model_dir
         self.data_dir = data_dir
 
@@ -47,7 +48,7 @@ class Evaluate():
     def build(self):
 
         # Find config file and training weight
-        for file in os.listdir(model_dir):
+        for file in os.listdir(self.model_dir):
             if '.ini' in file:
                 self.cfg_file = os.path.join(model_dir, file)
             if 'final_epoch' in file:
@@ -55,17 +56,16 @@ class Evaluate():
 
         # Find all audio files
         self.audio_list = []
-        for root, dirs, files in os.walk(data_dir):
+        for root, dirs, files in os.walk(self.data_dir):
             for file in files:
-                _, extension = os.path.split(file)
+                _, extension = os.path.splitext(file)
                 if extension == '.wav':
                     self.audio_list.append(os.path.join(root, file))
-        
 
     def evaluate(self):
 
         # Create model class
-        model_class = build_model(self.cfg_file)
+        model_class = build_model(self.cfg_file, training=False)
         model = model_class.model
         cfg = model_class.cfg
         local_device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -122,19 +122,19 @@ class Evaluate():
             x, fs_x = sf.read(audio_file)
             scale = np.max(np.abs(x))
             x = x / scale
-            X = librosa.stft(x, n_fft=nfft, hot_lenght=hop, win_length=wlen, window=win)
+            X = librosa.stft(x, n_fft=nfft, hop_length=hop, win_length=wlen, window=win)
 
             # Prepare data input
             data_orig = np.abs(X) ** 2 # (x_dim, seq_len)
-            data_orig = torch.from_numpy(data_orig, dtype=torch.float32).to(local_device)
+            data_orig = torch.from_numpy(data_orig.astype(np.float32)).to(local_device)
 
             # Reconstruction
             with torch.no_grad():
-                data_recon = model(data_orig).detach().numpy()
+                data_recon = model(data_orig).to('cpu').detach().numpy()
 
             # Re-synthesis
             X_recon = np.sqrt(data_recon) * np.exp(1j * np.angle(X))
-            x_recon = librosa.isstft(X_recon, hop_length=hop, win_length=wlen, window=win)
+            x_recon = librosa.istft(X_recon, hop_length=hop, win_length=wlen, window=win)
             x_orig = x
 
             # Write audio file
@@ -144,29 +144,35 @@ class Evaluate():
 
             # Evaluation
             score_rmse.append(eval_rmse(file_recon, file_orig))
-            score_pesq.append(eval_pesq(file_recon, file_orig))
-            score_stoi.append(eval_stoi(file_recon, file_orig))
+            score_pesq.append(eval_pesq(file_recon, file_orig)['pesq'])
+            score_stoi.append(eval_stoi(file_recon, file_orig)['stoi'])
             self.eval_score = {'rmse': score_rmse,
                                'pesq': score_pesq,
                                'stoi': score_stoi}
 
         
+        # Print results
+        array_rmse = np.array(score_rmse)
+        array_pesq = np.array(score_pesq)
+        array_stoi = np.array(score_stoi)
+        print("===== RMSE =====")
+        print("mean: {}".format(array_rmse.mean()))
+        print("min: {}".format(array_rmse.min()))
+        print("max: {}".format(array_rmse.max()))
+        print("===== PESQ =====")
+        print("mean: {}".format(array_pesq.mean()))
+        print("min: {}".format(array_pesq.min()))
+        print("max: {}".format(array_pesq.max()))
+        print("===== STOI =====")
+        print("mean: {}".format(array_stoi.mean()))
+        print("min: {}".format(array_stoi.min()))
+        print("max: {}".format(array_stoi.max()))
+        
         # Save evaluation
         save_file = os.path.join(recon_dir, 'evaluation.pckl')
-        with open(svae_file, 'wb') as f:
+        with open(save_file, 'wb') as f:
             pickle.dump([score_rmse, score_pesq, score_stoi], f)
 
-
-
-
-
-            
-    
-            
-
-
-
-    
 
 if __name__ == '__main__':
 
@@ -174,6 +180,7 @@ if __name__ == '__main__':
         model_dir = sys.argv[1]
         data_dir = sys.argv[2]
         ev = Evaluate(model_dir, data_dir)
+        ev.evaluate()
         
     else:
         print("Please follow: evaluate model_dir data_dir")

@@ -47,7 +47,7 @@ class BuildBasic():
     - define loss function as a class member
     """
 
-    def __init__(self, cfg = myconf()):
+    def __init__(self, cfg = myconf(), training=True):
 
         # 1. Load config parser
         self.cfg = cfg
@@ -94,6 +94,28 @@ class BuildBasic():
 
         # 9. Define dataloader type
         self.get_seq = True
+
+        # 10. Training/Evaluation
+        self.training = training
+        if self.training:
+             # Create directory for results
+            self.z_dim = self.cfg.getint('Network','z_dim')
+            self.filename = "{}_{}_{}_z_dim={}".format(self.dataset_name, 
+                                                   self.date, 
+                                                   self.tag, 
+                                                   self.z_dim)
+        
+            self.save_dir = os.path.join(self.saved_root, self.filename)
+            if not(os.path.isdir(self.save_dir)):
+                os.makedirs(self.save_dir)
+
+            # Create logger
+            log_file = os.path.join(self.save_dir, 'log.txt')
+            logger = get_logger(log_file, self.logger_type)
+            for log in self.get_basic_info():
+                logger.info(log)
+            logger.info('In this experiment, result will be saved in: ' + self.save_dir)
+            self.logger = logger
 
 
     def build_dataloader(self):
@@ -196,42 +218,26 @@ class BuildVAE(BuildBasic):
         self.z_dim = self.cfg.getint('Network','z_dim')
         self.hidden_dim_enc = [int(i) for i in self.cfg.get('Network', 'hidden_dim_enc').split(',')]
         self.activation = eval(self.cfg.get('Network', 'activation'))
-        
-        # Create directory for results
-        self.filename = "{}_{}_{}_z_dim={}".format(self.dataset_name, 
-                                                   self.date, 
-                                                   self.tag, 
-                                                   self.z_dim)
-        
-        self.save_dir = os.path.join(self.saved_root, self.filename)
-        if not(os.path.isdir(self.save_dir)):
-            os.makedirs(self.save_dir)
-
-        # Create logger
-        log_file = os.path.join(self.save_dir, 'log.txt')
-        logger = get_logger(log_file, self.logger_type)
-        for log in self.get_basic_info():
-            logger.info(log)
-        logger.info('In this experiment, result will be saved in: ' + self.save_dir)
-        self.logger = logger
 
         # Re-define data type
         self.get_seq = False
 
         self.build()
 
+
     def build(self):
 
-        # Init VAE network
-        self.logger.info('===== Init VAE =====')
+        # Build model
         self.model = VAE(x_dim = self.x_dim,
                          z_dim = self.z_dim,
                          hidden_dim_enc = self.hidden_dim_enc,
                          activation = self.activation).to(self.device)
         
         # Print model information
-        for log in self.model.get_info():
-            self.logger.info(log)
+        if self.training:
+            self.logger.info('===== Init VAE =====')
+            for log in self.model.get_info():
+                self.logger.info(log)
 
         # Init optimizer (Adam by default)
         if self.optimization == 'adam':
@@ -261,30 +267,12 @@ class BuildDMM(BuildBasic):
         # Generation
         self.dense_z_x = [int(i) for i in self.cfg.get('Network', 'dense_z_x').split(',')]
 
-        ### Create direcotry for results
-        self.filename = "{}_{}_{}_z_dim={}".format(self.dataset_name, 
-                                                   self.date,
-                                                   self.tag,
-                                                   self.z_dim)
-        self.save_dir = os.path.join(self.saved_root, self.filename)
-        if not(os.path.isdir(self.save_dir)):
-            os.makedirs(self.save_dir)
-
-        ### Create logger
-        log_file = os.path.join(self.save_dir, 'log.txt')
-        logger = get_logger(log_file, self.logger_type)
-        for log in self.get_basic_info():
-            logger.info(log)
-        logger.info('In this experiment, result will be saved in: ' + self.save_dir)
-        self.logger = logger
-
         self.build()
 
 
     def build(self):
 
-        self.logger.info('===== Init DMM =====')
-
+        # Build model
         self.model = DMM(x_dim=self.x_dim, z_dim=self.z_dim, activation=self.activation,
                          dense_x_g=self.dense_x_g,
                          dim_RNN_g=self.dim_RNN_g, num_RNN_g=self.num_RNN_g,
@@ -293,8 +281,10 @@ class BuildDMM(BuildBasic):
                          dropout_p = self.dropout_p, device=self.device).to(self.device)
         
         # Print model information
-        for log in self.model.get_info():
-            self.logger.info(log)
+        if self.training:
+            self.logger.info('===== Init DMM =====')
+            for log in self.model.get_info():
+                self.logger.info(log)
             
         # Init optimizer (Adam by default)
         if self.optimization == 'adam':
@@ -306,9 +296,9 @@ class BuildDMM(BuildBasic):
 
 class BuildSTORN(BuildBasic):
 
-    def __init__(self, cfg=myconf()):
+    def __init__(self, cfg=myconf(), training=True):
 
-        super().__init__(cfg)
+        super().__init__(cfg, training)
 
         ### Load parameters for STORN
         # General
@@ -322,45 +312,31 @@ class BuildSTORN(BuildBasic):
         self.num_RNN_g = self.cfg.getint('Network', 'num_RNN_g')
         self.dense_g_z = [int(i) for i in self.cfg.get('Network', 'dense_g_z').split(',')]
         # Generation
-        self.dense_zx_h = [int(i) for i in self.cfg.get('Network', 'dense_zx_h').split(',')]
+        self.dense_z_h = [int(i) for i in self.cfg.get('Network', 'dense_z_h').split(',')]
+        self.dense_xtm1_h = [int(i) for i in self.cfg.get('Network', 'dense_xtm1_h').split(',')]
         self.dim_RNN_h = self.cfg.getint('Network', 'dim_RNN_h')
         self.num_RNN_h = self.cfg.getint('Network', 'num_RNN_h')
         self.dense_h_x = [int(i) for i in self.cfg.get('Network', 'dense_h_x').split(',')]
-
-        ### Create directory for results
-        self.filename = "{}_{}_{}_z_dim={}".format(self.dataset_name, 
-                                                   self.date,
-                                                   self.tag,
-                                                   self.z_dim)
-        self.save_dir = os.path.join(self.saved_root, self.filename)
-        if not(os.path.isdir(self.save_dir)):
-            os.makedirs(self.save_dir)
-
-        ### Create logger
-        log_file = os.path.join(self.save_dir, 'log.txt')
-        logger = get_logger(log_file, self.logger_type)
-        for log in self.get_basic_info():
-            logger.info(log)
-        logger.info('In this experiment, result will be saved in: ' + self.save_dir)
-        self.logger = logger
 
         self.build()
     
 
     def build(self):
 
-        self.logger.info('===== Init STORN =====')
-
+        # Build model
         self.model = STORN(x_dim=self.x_dim, z_dim=self.z_dim, activation=self.activation,
                            dense_x_g=self.dense_x_g, dense_g_z=self.dense_g_z,
                            dim_RNN_g=self.dim_RNN_g, num_RNN_g=self.num_RNN_g,
-                           dense_zx_h=self.dense_zx_h, dense_h_x=self.dense_h_x,
+                           dense_z_h=self.dense_z_h, dense_xtm1_h=self.dense_xtm1_h,
+                           dense_h_x=self.dense_h_x,
                            dim_RNN_h=self.dim_RNN_h, num_RNN_h=self.num_RNN_h,
                            dropout_p = self.dropout_p, device=self.device).to(self.device)
         
         # Print model information
-        for log in self.model.get_info():
-            self.logger.info(log)
+        if self.training:
+            self.logger.info('===== Init STORN =====')
+            for log in self.model.get_info():
+                self.logger.info(log)
             
         # Init optimizer (Adam by default)
         if self.optimization == 'adam':
@@ -393,29 +369,12 @@ class BuildVRNN(BuildBasic):
         self.dim_RNN = self.cfg.getint('Network', 'dim_RNN')
         self.num_RNN = self.cfg.getint('Network', 'num_RNN')
 
-        ### Create directory for results
-        self.filename = "{}_{}_{}_z_dim={}".format(self.dataset_name, 
-                                                   self.date,
-                                                   self.tag,
-                                                   self.z_dim)
-        self.save_dir = os.path.join(self.saved_root, self.filename)
-        if not(os.path.isdir(self.save_dir)):
-            os.makedirs(self.save_dir)                                              
-
-        ### Create logger
-        log_file = os.path.join(self.save_dir, 'log.txt')
-        logger = get_logger(log_file, self.logger_type)
-        for log in self.get_basic_info():
-            logger.info(log)
-        logger.info('In this experiment, result will be saved in: ' + self.save_dir)
-        self.logger = logger
-
         self.build()
+
 
     def build(self):
         
-        self.logger.info('===== Init VRNN =====')
-
+        # Build model
         self.model = VRNN(x_dim=self.x_dim, z_dim=self.z_dim, 
                           activation=self.activation,
                           dense_x=self.dense_x, dense_z=self.dense_z,
@@ -426,8 +385,10 @@ class BuildVRNN(BuildBasic):
                           device=self.device).to(self.device)
 
         # Print model information
-        for log in self.model.get_info():
-            self.logger.info(log)
+        if self.training:
+            self.logger.info('===== Init VRNN =====')
+            for log in self.model.get_info():
+                self.logger.info(log)
             
         # Init optimizer (Adam by default)
         if self.optimization == 'adam':
@@ -463,30 +424,12 @@ class BuildSRNN(BuildBasic):
         # Generation
         self.dense_hz_x = [int(i) for i in self.cfg.get('Network', 'dense_hz_x').split(',')]
 
-        
-        ### Create direcotry for results
-        self.filename = "{}_{}_{}_z_dim={}".format(self.dataset_name, 
-                                                      self.date,
-                                                      self.tag,
-                                                      self.z_dim)
-        self.save_dir = os.path.join(self.saved_root, self.filename)
-        if not(os.path.isdir(self.save_dir)):
-            os.makedirs(self.save_dir)
-
-        ### Create logger
-        log_file = os.path.join(self.save_dir, 'log.txt')
-        logger = get_logger(log_file, self.logger_type)
-        for log in self.get_basic_info():
-            logger.info(log)
-        logger.info('In this experiment, result will be saved in: ' + self.save_dir)
-        self.logger = logger
-
         self.build()
+ 
 
     def build(self):
 
-        self.logger.info('===== Init SRNN =====')
-
+        # Build model
         self.model = SRNN(x_dim=self.x_dim, z_dim=self.z_dim, activation=self.activation,
                           dense_x_h=self.dense_x_h,
                           dim_RNN_h=self.dim_RNN_h, num_RNN_h=self.num_RNN_h,
@@ -499,8 +442,10 @@ class BuildSRNN(BuildBasic):
                           device=self.device).to(self.device)
         
         # Print model information
-        for log in self.model.get_info():
-            self.logger.info(log)
+        if self.training:
+            self.logger.info('===== Init SRNN =====')
+            for log in self.model.get_info():
+                self.logger.info(log)
             
         # Init optimizer (Adam by default)
         if self.optimization == 'adam':
@@ -537,31 +482,13 @@ class BuildRVAE(BuildBasic):
         self.num_RNN_h = self.cfg.getint('Network', 'num_RNN_h')
         self.bidir_h = self.cfg.getboolean('Network', 'bidir_h')
         self.dense_h_x = [int(i) for i in self.cfg.get('Network', 'dense_h_x').split(',')]
-        
-        ### Create directory for results
-        self.filename = "{}_{}_{}_z_dim={}".format(self.dataset_name, 
-                                                   self.date,
-                                                   self.tag,
-                                                   self.z_dim)                             
-        self.save_dir = os.path.join(self.saved_root, self.filename)
-        if not(os.path.isdir(self.save_dir)):
-            os.makedirs(self.save_dir)
-
-        ### Create logger
-        log_file = os.path.join(self.save_dir, 'log.txt')
-        logger = get_logger(log_file, self.logger_type)
-        for log in self.get_basic_info():
-            logger.info(log)
-        logger.info('In this experiment, result will be saved in: ' + self.save_dir)
-        self.logger = logger
 
         self.build()
     
 
     def build(self):
         
-        self.logger.info('===== Init RVAE =====')
-
+        # Build model
         self.model = RVAE(x_dim=self.x_dim, z_dim=self.z_dim, activation=self.activation,
                           dense_x_gx=self.dense_x_gx,
                           dim_RNN_g_x=self.dim_RNN_g_x, num_RNN_g_x=self.num_RNN_g_x,
@@ -576,8 +503,10 @@ class BuildRVAE(BuildBasic):
                           dropout_p = self.dropout_p, device=self.device).to(self.device)
 
         # Print model information
-        for log in self.model.get_info():
-            self.logger.info(log)
+        if self.training:
+            self.logger.info('===== Init RVAE =====')
+            for log in self.model.get_info():
+                self.logger.info(log)
             
         # Init optimizer (Adam by default)
         if self.optimization == 'adam':
@@ -616,31 +545,13 @@ class BuildDSAE(BuildBasic):
         self.num_RNN_prior = self.cfg.getint('Network', 'num_RNN_prior')
         # Generation
         self.dense_vz_x = [int(i) for i in self.cfg.get('Network', 'dense_vz_x').split(',')]
-
-        #### Create directory for results
-        self.filename = "{}_{}_{}_z_dim={}".format(self.dataset_name,
-                                                  self.date,
-                                                  self.tag,
-                                                  self.z_dim)
-        self.save_dir = os.path.join(self.saved_root, self.filename)
-        if not(os.path.isdir(self.save_dir)):
-            os.makedirs(self.save_dir)
-
-        #### Create logger
-        log_file = os.path.join(self.save_dir, 'log.txt')
-        logger = get_logger(log_file, self.logger_type)
-        for log in self.get_basic_info():
-            logger.info(log)
-        logger.info("In this experiment, result will be saved in: " + self.save_dir)
-        self.logger = logger
         
         self.build()
 
 
     def build(self):
 
-        # Init DSAE network
-        self.logger.info('==== Init DSAE ====')
+        # Build model
         self.model = DSAE(x_dim=self.x_dim, z_dim=self.z_dim, v_dim=self.v_dim, 
                           activation=self.activation,
                           dense_x=self.dense_x,
@@ -652,9 +563,12 @@ class BuildDSAE(BuildBasic):
                           dim_RNN_prior=self.dim_RNN_prior, num_RNN_prior=self.num_RNN_prior,
                           dense_vz_x=self.dense_vz_x,
                           dropout_p = self.dropout_p, device=self.device).to(self.device)
+        
         # Print model information
-        for log in self.model.get_info():
-            self.logger.info(log)
+        if self.training:
+            self.logger.info('==== Init DSAE ====')
+            for log in self.model.get_info():
+                self.logger.info(log)
 
         # Init optimizer (Adam by default):
         if self.optimization == 'adam':
@@ -694,31 +608,13 @@ class BuildKVAE(BuildBasic):
         self.scheduler_training = self.cfg.getboolean('Training', 'scheduler_training')
         self.only_vae_epochs = self.cfg.getint('Training', 'only_vae_epochs')
         self.kf_update_epochs = self.cfg.getint('Training', 'kf_update_epochs')
-
-        #### Create directory for results
-        self.filename = "{}_{}_{}_z_dim={}".format(self.dataset_name,
-                                                  self.date,
-                                                  self.tag,
-                                                  self.z_dim)
-        self.save_dir = os.path.join(self.saved_root, self.filename)
-        if not(os.path.isdir(self.save_dir)):
-            os.makedirs(self.save_dir)
-
-        #### Create logger
-        log_file = os.path.join(self.save_dir, 'log.txt')
-        logger = get_logger(log_file, self.logger_type)
-        for log in self.get_basic_info():
-            logger.info(log)
-        logger.info("In this experiment, result will be saved in: " + self.save_dir)
-        self.logger = logger
         
         self.build()
 
 
     def build(self):
 
-        # Init KVAE network
-        self.logger.info('==== Init KVAE ====')
+        # Build model
         self.model = KVAE(x_dim=self.x_dim, a_dim=self.a_dim, z_dim=self.z_dim, activation=self.activation,
                           dense_x_a=self.dense_x_a, dense_a_x=self.dense_a_x,
                           init_kf_mat=self.init_kf_mat, noise_transition=self.noise_transition,
@@ -726,9 +622,12 @@ class BuildKVAE(BuildBasic):
                           K=self.K, dim_RNN_alpha=self.dim_RNN_alpha, num_RNN_alpha=self.num_RNN_alpha,
                           dropout_p = self.dropout_p, scale_reconstruction = self.scale_reconstruction,
                           device=self.device).to(self.device)
+        
         # Print model information
-        for log in self.model.get_info():
-            self.logger.info(log)
+        if self.training:
+            self.logger.info('==== Init KVAE ====')
+            for log in self.model.get_info():
+                self.logger.info(log)
 
         # Init optimizer (Adam by default):
         if self.optimization == 'adam':
@@ -741,7 +640,7 @@ class BuildKVAE(BuildBasic):
 
 
 
-def build_model(config_file='config_default.ini'):
+def build_model(config_file='config_default.ini', training=True):
 
     if not os.path.isfile(config_file):
         raise ValueError('Invalid config file path')    
@@ -750,21 +649,21 @@ def build_model(config_file='config_default.ini'):
     model_name = cfg.get('Network', 'name')
 
     if model_name == 'VAE':
-        model_class = BuildVAE(cfg)
+        model_class = BuildVAE(cfg, training)
     elif model_name == 'DMM':
-        model_class = BuildDMM(cfg)
+        model_class = BuildDMM(cfg, training)
     elif model_name == 'STORN':
-        model_class = BuildSTORN(cfg)
+        model_class = BuildSTORN(cfg, training)
     elif model_name == 'VRNN':
-        model_class = BuildVRNN(cfg)
+        model_class = BuildVRNN(cfg, training)
     elif model_name == 'SRNN':
-        model_class = BuildSRNN(cfg)
+        model_class = BuildSRNN(cfg, training)
     elif model_name == 'RVAE':
-        model_class = BuildRVAE(cfg)
+        model_class = BuildRVAE(cfg, training)
     elif model_name == 'DSAE':
-        model_class = BuildDSAE(cfg)
+        model_class = BuildDSAE(cfg, training)
     elif model_name == 'KVAE':
-        model_class = BuildKVAE(cfg)
+        model_class = BuildKVAE(cfg, training)
 
     return model_class
 

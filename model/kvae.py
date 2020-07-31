@@ -405,6 +405,6 @@ if __name__ == '__main__':
     kvae = KVAE(x_dim).to(device)
     
 
-    x = torch.rand([2,257,3])
-    y, loss, _, _ = kvae.forward(x)
-    print(loss)
+    # x = torch.rand([2,257,3])
+    # y, loss, _, _ = kvae.forward(x)
+    # print(loss)
