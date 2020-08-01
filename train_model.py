@@ -42,7 +42,7 @@ def train_model(config_file):
     logger = model_class.logger
     num_parameters = sum(p.numel() for p in model.parameters() if p.requires_grad)
     device = model_class.device
-
+    
     # Save the model parameters
     save_cfg = os.path.join(model_class.save_dir, 'config.ini')
     shutil.copy(config_file, save_cfg)

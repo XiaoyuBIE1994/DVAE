@@ -43,7 +43,7 @@ def train_model(config_file):
     optim_vae = model_class.optimizer_vae
     optim_vae_kf = model_class.optimizer_vae_kf
     optim_all = model_class.optimizer_all
-    optimizer = model_class.optimizer_old
+    optimizer_old = model_class.optimizer_old
 
     # Save the model parameters
     save_cfg = os.path.join(model_class.save_dir, 'config.ini')
@@ -73,16 +73,15 @@ def train_model(config_file):
         
         # Scheduler training, beneficial to achieve better convergence not to
         # train alpha from the beginning
-        # if model_class.scheduler_training:
-        #     if epoch < model_class.only_vae_epochs:
-        #         optimizer = model_class.optimizer_vae
-        #     elif epoch < model_class.only_vae_epochs + model_class.kf_update_epochs:
-        #         optimizer = model_class.optimizer_vae_kf
-        #     else:
-        #         optimizer = model_class.optimizer_all
-        # else:
-        #     optimizer = model_class.optimizer_old
-        # optimizer = optim_old
+        if model_class.scheduler_training:
+            if epoch < model_class.only_vae_epochs:
+                optimizer = model_class.optimizer_vae
+            elif epoch < model_class.only_vae_epochs + model_class.kf_update_epochs:
+                optimizer = model_class.optimizer_vae_kf
+            else:
+                optimizer = model_class.optimizer_all
+        else:
+            optimizer = model_class.optimizer_old
 
         start_time = datetime.datetime.now()
         model.train()

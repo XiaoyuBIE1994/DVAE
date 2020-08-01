@@ -39,11 +39,16 @@ def rmse_frame():
 class Evaluate():
 
     def __init__(self, model_dir, data_dir):
-
+        
         self.model_dir = model_dir
-        self.data_dir = data_dir
+
+        if data_dir[-1] == '/':
+            self.data_dir = data_dir[:-1]
+        else:
+            self.data_dir = data_dir
 
         self.build()
+
 
     def build(self):
 
@@ -62,16 +67,18 @@ class Evaluate():
                 if extension == '.wav':
                     self.audio_list.append(os.path.join(root, file))
 
+
     def evaluate(self):
 
         # Create model class
         model_class = build_model(self.cfg_file, training=False)
         model = model_class.model
         cfg = model_class.cfg
-        local_device = 'cuda' if torch.cuda.is_available() else 'cpu'
+        local_device = 'cpu'
 
         # Create re-synthesis folder
         tag = model_class.tag
+
         root, audio_dir = os.path.split(self.data_dir)
         recon_dir = os.path.join(root, audio_dir + '_{}_recon'.format(tag))
         if os.path.isdir(recon_dir):

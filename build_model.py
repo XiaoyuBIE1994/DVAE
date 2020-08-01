@@ -33,7 +33,7 @@ from backup_simon.speech_dataset import *
 # Re-write configure class, enable to distinguish betwwen upper and lower letters
 class myconf(ConfigParser):
     def __init__(self,defaults=None):
-        ConfigParser.__init__(self,defaults=None)
+        ConfigParser.__init__(self, defaults=None)
     def optionxform(self, optionstr):
         return optionstr
 
@@ -209,9 +209,9 @@ class BuildBasic():
 
 class BuildVAE(BuildBasic):
 
-    def __init__(self, cfg=myconf()):
+    def __init__(self, cfg=myconf(), training=True):
         
-        super().__init__(cfg)
+        super().__init__(cfg, training)
 
         # Load special parameters
         self.x_dim = self.cfg.getint('Network', 'x_dim')
@@ -249,9 +249,9 @@ class BuildVAE(BuildBasic):
 
 class BuildDMM(BuildBasic):
 
-    def __init__(self, cfg=myconf()):
+    def __init__(self, cfg=myconf(), training=True):
 
-        super().__init__(cfg)
+        super().__init__(cfg, training)
 
         ### Load parameters
         # General
@@ -348,9 +348,9 @@ class BuildSTORN(BuildBasic):
 
 class BuildVRNN(BuildBasic):
 
-    def __init__(self, cfg=myconf()):
+    def __init__(self, cfg=myconf(), training=True):
 
-        super().__init__(cfg)
+        super().__init__(cfg, training)
 
         ### Load parameters for VRNN
         # General
@@ -400,9 +400,9 @@ class BuildVRNN(BuildBasic):
 
 class BuildSRNN(BuildBasic):
 
-    def __init__(self, cfg=myconf()):
+    def __init__(self, cfg=myconf(), training=True):
 
-        super().__init__(cfg)
+        super().__init__(cfg, training)
 
         ### Load parameters for SRNN
         # General
@@ -457,9 +457,9 @@ class BuildSRNN(BuildBasic):
 
 class BuildRVAE(BuildBasic):
 
-    def __init__(self, cfg = myconf()):
+    def __init__(self, cfg = myconf(), training=True):
 
-        super().__init__(cfg)
+        super().__init__(cfg, training)
 
         ### Load special paramters for RVAE
         # General
@@ -518,9 +518,9 @@ class BuildRVAE(BuildBasic):
 
 class BuildDSAE(BuildBasic):
     
-    def __init__(self, cfg=myconf()):
+    def __init__(self, cfg=myconf(), training=True):
 
-        super().__init__(cfg)
+        super().__init__(cfg, training)
 
         ### Load special parameters for DSAE
         # General
@@ -580,9 +580,9 @@ class BuildDSAE(BuildBasic):
 
 class BuildKVAE(BuildBasic):
 
-    def __init__(self, cfg=myconf()):
+    def __init__(self, cfg=myconf(), training=True):
 
-        super().__init__(cfg)
+        super().__init__(cfg, training)
 
         ### Load special parameters for KVAE
         # General
