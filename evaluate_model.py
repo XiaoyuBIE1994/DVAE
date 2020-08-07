@@ -74,7 +74,7 @@ class Evaluate():
         model_class = build_model(self.cfg_file, training=False)
         model = model_class.model
         cfg = model_class.cfg
-        local_device = 'cpu'
+        local_device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
         # Create re-synthesis folder
         tag = model_class.tag

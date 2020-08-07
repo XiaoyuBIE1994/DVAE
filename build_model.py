@@ -70,6 +70,7 @@ class BuildBasic():
         self.verbose = self.cfg.getboolean('STFT', 'verbose')
 
         # 5. Load training parameters
+        self.use_cuda = self.cfg.getboolean('Training', 'use_cuda')
         self.lr = self.cfg.getfloat('Training', 'lr')
         self.epochs = self.cfg.getint('Training', 'epochs')
         self.batch_size = self.cfg.getint('Training', 'batch_size')
@@ -84,7 +85,7 @@ class BuildBasic():
         self.val_data_dir = self.cfg.get('User', 'val_data_dir')
 
         # 7. Choose to use gpu or cpu
-        self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
+        self.device = 'cuda' if torch.cuda.is_available() and self.use_cuda else 'cpu'
 
         # 8. Get model tag, used in loss figure and evaluation table
         if self.cfg.has_option('Network', 'tag'):
@@ -213,11 +214,14 @@ class BuildVAE(BuildBasic):
         
         super().__init__(cfg, training)
 
-        # Load special parameters
+        ### Load parameters
+        # General
         self.x_dim = self.cfg.getint('Network', 'x_dim')
         self.z_dim = self.cfg.getint('Network','z_dim')
-        self.hidden_dim_enc = [int(i) for i in self.cfg.get('Network', 'hidden_dim_enc').split(',')]
-        self.activation = eval(self.cfg.get('Network', 'activation'))
+        self.activation = self.cfg.get('Network', 'activation')
+        self.dropout_p = self.cfg.getfloat('Network', 'dropout_p')
+        # Inference and generation
+        self.dense_x_z = [int(i) for i in self.cfg.get('Network', 'dense_x_z').split(',')]
 
         # Re-define data type
         self.get_seq = False
@@ -228,10 +232,9 @@ class BuildVAE(BuildBasic):
     def build(self):
 
         # Build model
-        self.model = VAE(x_dim = self.x_dim,
-                         z_dim = self.z_dim,
-                         hidden_dim_enc = self.hidden_dim_enc,
-                         activation = self.activation).to(self.device)
+        self.model = VAE(x_dim = self.x_dim, z_dim = self.z_dim,
+                         dense_x_z = self.dense_x_z, activation = self.activation,
+                         dropout_p=self.dropout_p, device=self.device).to(self.device)
         
         # Print model information
         if self.training:
@@ -608,6 +611,7 @@ class BuildKVAE(BuildBasic):
         self.scheduler_training = self.cfg.getboolean('Training', 'scheduler_training')
         self.only_vae_epochs = self.cfg.getint('Training', 'only_vae_epochs')
         self.kf_update_epochs = self.cfg.getint('Training', 'kf_update_epochs')
+        self.lr_tot = self.cfg.getfloat('Training', 'lr_tot')
         
         self.build()
 
@@ -632,9 +636,11 @@ class BuildKVAE(BuildBasic):
         # Init optimizer (Adam by default):
         if self.optimization == 'adam':
             self.optimizer_vae = torch.optim.Adam(self.model.vars_vae, lr=self.lr)
-            self.optimizer_vae_kf = torch.optim.Adam(self.model.vars_vae_kf, lr=self.lr)
-            self.optimizer_all = torch.optim.Adam(self.model.vars_all, lr=self.lr)
-            self.optimizer_old = torch.optim.Adam(self.model.parameters(), lr=self.lr)
+            self.optimizer_vae_kf = torch.optim.Adam(self.model.vars_vae+self.model.vars_kf, lr=self.lr)
+            self.optimizer_net = torch.optim.Adam(self.model.vars_vae+self.model.vars_alpha, lr=self.lr)
+            self.optimizer_lgssm =  torch.optim.Adam(self.model.vars_kf+self.model.vars_alpha, lr=self.lr)
+            self.optimizer_all = torch.optim.Adam(self.model.vars_vae+self.model.vars_kf+self.model.vars_alpha, lr=self.lr_tot)
+
         else:
             self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
 
@@ -669,7 +675,6 @@ def build_model(config_file='config_default.ini', training=True):
 
 
 if __name__ == '__main__':
-    model_class = build_model('config/cfg_debug_srnn.ini')
+    model_class = build_model('config/cfg_kvae.ini', False)
     model = model_class.model
-    optimizer = model_class.optimizer
-    train_dataloader, _, _, _ = model_class.build_dataloader()
+    print(model_class.lr_tot)

@@ -10,9 +10,9 @@ The code in this file is based part on the source code of:
 - in “A recurrent variational autoencoder for speech enhancement” ICASSP, 2020
 """
 
-import torch
 from torch import nn
 import torch
+from collections import OrderedDict
 
 class VAE(nn.Module):
 
@@ -25,109 +25,155 @@ class VAE(nn.Module):
                         its reverse is the dimensions of hidden layers for decoder
     '''
 
-    def __init__(self, x_dim=None, z_dim=None,
-                 hidden_dim_enc=None,
-                 activation=None):
+    def __init__(self, x_dim=None, z_dim=16,
+                 dense_x_z=[128], activation='tanh',
+                 dropout_p = 0, device='cpu'):
+
         super().__init__()
-
+        ### General parameters for storn        
         self.x_dim = x_dim
-        self.z_dim = z_dim
-        self.hidden_dim_enc = hidden_dim_enc
-        self.hidden_dim_dec = list(reversed(hidden_dim_enc))
-        self.activation = activation
-        self.model = None
-        self.history = None
-
-        self.encoder_layers = nn.ModuleList()
-        self.decoder_layers = nn.ModuleList()
-
         self.y_dim = self.x_dim
-
+        self.z_dim = z_dim
+        self.dropout_p = dropout_p
+        if activation == 'relu':
+            self.activation = nn.ReLU()
+        elif activation == 'tanh':
+            self.activation = nn.Tanh()
+        else:
+            raise SystemExit('Wrong activation type!')
+        ### Inference
+        self.dense_x_z = dense_x_z
+        ### Generation
+        self.dense_z_x = list(reversed(dense_x_z))
+        
         self.build()
         
+
     def build(self):
-        # Define the encode layers (without activation)
-        for n, dim in enumerate(self.hidden_dim_enc):
-            if n == 0:
-                self.encoder_layers.append(nn.Linear(self.x_dim, dim))
-            else:
-                self.encoder_layers.append(nn.Linear(self.hidden_dim_enc[n-1], dim))
 
-        # Define the bottleneck layer (the latent variable space)
-        self.latent_mean_layer = nn.Linear(self.hidden_dim_enc[-1], self.z_dim)
-        self.latent_logvar_layer = nn.Linear(self.hidden_dim_enc[-1], self.z_dim)
+        ###################
+        #### Inference ####
+        ###################
+        # 1. x_t to z_t
+        dic_layers = OrderedDict()
+        if len(self.dense_x_z) == 0:
+            dim_x_z = self.dim_x
+            dic_layers['Identity'] = nn.Identity()
+        else:
+            dim_x_z = self.dense_x_z[-1]
+            for n in range(len(self.dense_x_z)):
+                if n == 0:
+                    dic_layers['linear'+str(n)] = nn.Linear(self.x_dim, self.dense_x_z[n])
+                else:
+                    dic_layers['linear'+str(n)] = nn.Linear(self.dense_x_z[n-1], self.dense_x_z[n])
+                dic_layers['activation'+str(n)] = self.activation
+                dic_layers['dropout'+str(n)] = nn.Dropout(p=self.dropout_p)
+        self.mlp_x_z = nn.Sequential(dic_layers)
+        self.inf_mean = nn.Linear(dim_x_z, self.z_dim)
+        self.inf_logvar = nn.Linear(dim_x_z, self.z_dim)
 
-        # Define the decode layers (without activation)
-        for n, dim in enumerate(self.hidden_dim_dec):
-            if n == 0:
-                self.decoder_layers.append(nn.Linear(self.z_dim, dim))
-            else:
-                self.decoder_layers.append(nn.Linear(self.hidden_dim_dec[n-1], dim))
+        ######################
+        #### Generation x ####
+        ######################
+        # 1. z_t to x_t
+        dic_layers = OrderedDict()
+        if len(self.dense_z_x) == 0:
+            dim_z_x = self.dim_z
+            dic_layers['Identity'] = nn.Identity()
+        else:
+            dim_z_x = self.dense_z_x[-1]
+            for n in range(len(self.dense_z_x)):
+                if n == 0:
+                    dic_layers['linear'+str(n)] = nn.Linear(self.z_dim, self.dense_z_x[n])
+                else:
+                    dic_layers['linear'+str(n)] = nn.Linear(self.dense_z_x[n-1], self.dense_z_x[n])
+                dic_layers['activation'+str(n)] = self.activation
+                dic_layers['dropout'+str(n)] = nn.Dropout(p=self.dropout_p)
+        self.mlp_z_x = nn.Sequential(dic_layers)
+        self.gen_logvar = nn.Linear(dim_z_x, self.y_dim)
 
-        # Output
-        self.output_layer = nn.Linear(self.hidden_dim_dec[-1], self.y_dim)
 
-    def encode(self, x):
-        # print('shape of x: {}'.format(x.shape)) # used for debug only
-        for layer in self.encoder_layers:
-            x = self.activation(layer(x))
+    def reparameterization(self, mean, logvar):
 
-        mean = self.latent_mean_layer(x)
-        logvar = self.latent_logvar_layer(x)
-        return mean, logvar
-
-    def reparameterize(self, mean, logvar):
         std = torch.exp(0.5*logvar)
         eps = torch.randn_like(std)
-        return eps.mul(std).add_(mean)
 
-    def decode(self, z):
-        for layer in self.decoder_layers:
-            z = self.activation(layer(z))
-        return torch.exp(self.output_layer(z))
+        return torch.addcmul(mean, eps, std) 
+
+
+    def inference(self, x):
+
+        x_z = self.mlp_x_z(x)
+        z_mean = self.inf_mean(x_z)
+        z_logvar = self.inf_logvar(x_z)
+        z = self.reparameterization(z_mean, z_logvar)
+
+        return z, z_mean, z_logvar
+
+    
+    def generation_x(self, z):
+
+        z_x = self.mlp_z_x(z)
+        log_y = self.gen_logvar(z_x)
+        y = torch.exp(log_y)
+
+        return y
+
 
     def forward(self, x):
-        mean, logvar = self.encode(x)
-        z = self.reparameterize(mean, logvar)
-        return self.decode(z), mean, logvar, z
+        
+        # train input: (batch_size, x_dim)
+        # test input: (x_dim)
+
+        batch_size = x.shape[0]
+
+        # main part
+        z, z_mean, z_logvar = self.inference(x)
+        y = self.generation_x(z)
+
+        # calculate loss
+        loss_tot, loss_recon, loss_KLD = self.get_loss(x, y, z_mean, z_logvar, batch_size)
+        self.loss = (loss_tot, loss_recon, loss_KLD)
+
+        return y
+
+
+    def get_loss(self, x, y, z_mean, z_logvar, batch_size, beta=1):
+
+        loss_recon = torch.sum( x/y - torch.log(x/y) - 1)
+        loss_KLD = -0.5 * torch.sum(z_logvar -  z_logvar.exp() - z_mean.pow(2))
+
+        loss_recon = loss_recon / batch_size
+        loss_KLD = loss_KLD / batch_size
+        loss_tot = beta * loss_recon + loss_KLD
+
+        return loss_tot, loss_recon, loss_KLD
+
 
     def get_info(self):
+
         info = []
-        info.append("----- Encoder -----")
-        for layer in self.encoder_layers:
+        info.append("----- Inference -----")
+        for layer in self.mlp_x_z:
             info.append(str(layer))
-            info.append(str(self.activation))
         
         info.append("----- Bottleneck -----")
-        info.append(str(self.latent_mean_layer))
-        info.append(str(self.latent_logvar_layer))
+        info.append(str(self.inf_mean))
+        info.append(str(self.inf_logvar))
         
         info.append("----- Decoder -----")
-        for layer in self.decoder_layers:
+        for layer in self.mlp_z_x:
             info.append(str(layer))
-            info.append(str(self.activation))
-        info.append(str(self.output_layer))
+        info.append(str(self.gen_logvar))
 
         return info
     
-def loss_function(recon_x, x, mu, logvar):
-    recon = torch.sum(x/recon_x - torch.log(x/recon_x)-1)
-    KLD = -0.5 * torch.sum(logvar - mu.pow(2) - logvar.exp())
-    return recon + KLD 
-
+    
 if __name__ == '__main__':
     x_dim = 513
-    z_dim = 16
-    hidden_dim_enc = [128]
-    batch_size = 128
-    activation = eval('torch.tanh')
     device = 'cpu'
-    vae = VAE(x_dim = x_dim,
-              z_dim = z_dim,
-              hidden_dim_enc = hidden_dim_enc,
-              batch_size = batch_size,
-              activation = activation).to(device)
-    model_finfo = vae.get_info()
-    for i in model_finfo:
+    vae = VAE(x_dim = x_dim).to(device)
+    model_info = vae.get_info()
+    for i in model_info:
         print(i)
     

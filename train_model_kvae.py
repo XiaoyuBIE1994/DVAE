@@ -43,7 +43,7 @@ def train_model(config_file):
     optim_vae = model_class.optimizer_vae
     optim_vae_kf = model_class.optimizer_vae_kf
     optim_all = model_class.optimizer_all
-    optimizer_old = model_class.optimizer_old
+    optimizer_net = model_class.optimizer_net
 
     # Save the model parameters
     save_cfg = os.path.join(model_class.save_dir, 'config.ini')
@@ -75,13 +75,15 @@ def train_model(config_file):
         # train alpha from the beginning
         if model_class.scheduler_training:
             if epoch < model_class.only_vae_epochs:
-                optimizer = model_class.optimizer_vae
+                # optimizer = model_class.optimizer_vae
+                optimizer = model_class.optimizer_net
             elif epoch < model_class.only_vae_epochs + model_class.kf_update_epochs:
-                optimizer = model_class.optimizer_vae_kf
+                # optimizer = model_class.optimizer_vae_kf
+                optimizer = model_class.optimizer_lgssm
             else:
                 optimizer = model_class.optimizer_all
         else:
-            optimizer = model_class.optimizer_old
+            optimizer = model_class.optimizer_all
 
         start_time = datetime.datetime.now()
         model.train()

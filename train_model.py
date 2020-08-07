@@ -54,6 +54,10 @@ def train_model(config_file):
 
     # Create dataloader
     train_dataloader, val_dataloader, train_num, val_num = model_class.build_dataloader()
+    log_message = 'Training samples: {}'.format(train_num)
+    logger.info(log_message)
+    log_message = 'Validation samples: {}'.format(val_num)
+    logger.info(log_message)
 
     # Create python list for loss
     train_loss = np.zeros((epochs,))

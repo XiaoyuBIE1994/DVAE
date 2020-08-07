@@ -126,6 +126,7 @@ class KVAE(nn.Module):
         #### Scheduler Training ####
         ############################
         iter_kf = (p for p in [self.A, self.B, self.C, self.a_init])
+        
         self.vars_vae = [{'params': self.mlp_x_a.parameters(),
                           'params': self.inf_mean.parameters(),
                           'params': self.inf_logvar.parameters(),
@@ -139,6 +140,16 @@ class KVAE(nn.Module):
                              'params': iter_kf}]
         self.vars_all = [{'params': self.parameters(),
                           'params': iter_kf}]
+        
+        self.vars_vae = [v for v in self.mlp_x_a.parameters()] \
+                      + [v for v in self.inf_mean.parameters()] \
+                      + [v for v in self.inf_logvar.parameters()] \
+                      + [v for v in self.mlp_a_x.parameters()] \
+                      + [v for v in self.gen_logvar.parameters()]
+        self.vars_kf = [self.A, self.B, self.C, self.a_init]
+        self.vars_alpha = [v for v in self.rnn_alpha.parameters()] \
+                        + [v for v in self.mlp_alpha.parameters()]
+                
 
 
     def reparameterization(self, mean, logvar):
