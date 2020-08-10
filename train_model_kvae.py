@@ -75,11 +75,11 @@ def train_model(config_file):
         # train alpha from the beginning
         if model_class.scheduler_training:
             if epoch < model_class.only_vae_epochs:
-                # optimizer = model_class.optimizer_vae
-                optimizer = model_class.optimizer_net
+                optimizer = model_class.optimizer_vae
+                # optimizer = model_class.optimizer_net
             elif epoch < model_class.only_vae_epochs + model_class.kf_update_epochs:
-                # optimizer = model_class.optimizer_vae_kf
-                optimizer = model_class.optimizer_lgssm
+                optimizer = model_class.optimizer_vae_kf
+                # optimizer = model_class.optimizer_lgssm
             else:
                 optimizer = model_class.optimizer_all
         else:
