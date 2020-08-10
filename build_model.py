@@ -93,10 +93,7 @@ class BuildBasic():
         else:
             self.tag = '{}'.format(self.model_name)
 
-        # 9. Define dataloader type
-        self.get_seq = True
-
-        # 10. Training/Evaluation
+        # 9. Training/Evaluation
         self.training = training
         if self.training:
              # Create directory for results
@@ -119,6 +116,7 @@ class BuildBasic():
             self.logger = logger
 
 
+    # only used for sequential vae modles
     def build_dataloader(self):
         # List all the data with certain suffix
         self.data_suffix = self.cfg.get('DataFrame', 'suffix')
@@ -129,69 +127,28 @@ class BuildBasic():
         self.shuffle_file_list = self.cfg.get('DataFrame', 'shuffle_file_list')
         self.shuffle_samples_in_batch = self.cfg.get('DataFrame', 'shuffle_samples_in_batch')
 
-        # Instranciate training dataloader
-        if not self.get_seq:
-            train_dataset = SpeechDatasetFrames(file_list = self.train_file_list,
-                                                wlen_sec = self.wlen_sec,
-                                                hop_percent = self.hop_percent,
-                                                fs = self.fs,
-                                                zp_percent = self.zp_percent,
-                                                trim = self.trim,
-                                                verbose = self.verbose,
-                                                batch_size = self.batch_size,
-                                                shuffle_file_list = self.shuffle_file_list,
-                                                name = self.dataset_name)
-        else:
-            train_dataset = SpeechDatasetSequences(file_list=self.train_file_list,
-                                                   sequence_len=self.sequence_len,
-                                                   wlen_sec=self.wlen_sec,
-                                                   hop_percent=self.hop_percent,
-                                                   fs=self.fs,
-                                                   zp_percent=self.zp_percent,
-                                                   trim=self.trim,
-                                                   verbose=self.verbose,
-                                                   batch_size=self.batch_size,
-                                                   shuffle_file_list=self.shuffle_file_list,
-                                                   name=self.dataset_name)
+        # Instranciate dataloader
+        train_dataset = SpeechDatasetSequences(file_list=self.train_file_list, sequence_len=self.sequence_len,
+                                               wlen_sec=self.wlen_sec, hop_percent=self.hop_percent, fs=self.fs,
+                                               zp_percent=self.zp_percent, trim=self.trim, verbose=self.verbose,
+                                               batch_size=self.batch_size, huffle_file_list=self.shuffle_file_list,
+                                               name=self.dataset_name)
+        val_dataset = SpeechDatasetSequences(file_list=self.val_file_list, sequence_len=self.sequence_len,
+                                               wlen_sec=self.wlen_sec, hop_percent=self.hop_percent, fs=self.fs,
+                                               zp_percent=self.zp_percent, trim=self.trim, verbose=self.verbose,
+                                               batch_size=self.batch_size, huffle_file_list=self.shuffle_file_list,
+                                               name=self.dataset_name)
         train_num = train_dataset.num_samples
-
-        # Instanciate validation dataloader
-        if not self.get_seq:
-            val_dataset = SpeechDatasetFrames(file_list = self.val_file_list,
-                                              wlen_sec = self.wlen_sec,
-                                              hop_percent = self.hop_percent,
-                                              fs = self.fs,
-                                              zp_percent = self.zp_percent,
-                                              trim = self.trim,
-                                              verbose = self.verbose,
-                                              batch_size = self.batch_size,
-                                              shuffle_file_list = self.shuffle_file_list,
-                                              name = self.dataset_name)
-        else:
-            val_dataset = SpeechDatasetSequences(file_list=self.val_file_list,
-                                                 sequence_len=self.sequence_len,
-                                                 wlen_sec=self.wlen_sec,
-                                                 hop_percent=self.hop_percent,
-                                                 fs=self.fs,
-                                                 zp_percent=self.zp_percent,
-                                                 trim=self.trim,
-                                                 verbose=self.verbose,
-                                                 batch_size=self.batch_size,
-                                                 shuffle_file_list=self.shuffle_file_list,
-                                                 name=self.dataset_name)
         val_num = val_dataset.num_samples
 
-        # Create training dataloader
-        train_dataloader = data.DataLoader(train_dataset, 
-                                           batch_size=self.batch_size,
+        # Create dataloader
+        train_dataloader = data.DataLoader(train_dataset, batch_size=self.batch_size, 
                                            shuffle=self.shuffle_samples_in_batch,
                                            num_workers = self.num_workers)
-
-        # Create validation dataloader
-        val_dataloader = data.DataLoader(val_dataset, 
-                                         batch_size=self.batch_size,
+        val_dataloader = data.DataLoader(val_dataset, batch_size=self.batch_size,
                                          shuffle=self.shuffle_samples_in_batch,
                                          num_workers = self.num_workers)
+
         return train_dataloader, val_dataloader, train_num, val_num
 
 
@@ -223,9 +180,6 @@ class BuildVAE(BuildBasic):
         # Inference and generation
         self.dense_x_z = [int(i) for i in self.cfg.get('Network', 'dense_x_z').split(',')]
 
-        # Re-define data type
-        self.get_seq = False
-
         self.build()
 
 
@@ -247,6 +201,42 @@ class BuildVAE(BuildBasic):
             self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
         else:
             self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
+
+
+    def build_dataloader(self):
+        # List all the data with certain suffix
+        self.data_suffix = self.cfg.get('DataFrame', 'suffix')
+        self.train_file_list = librosa.util.find_files(self.train_data_dir, ext=self.data_suffix)
+        self.val_file_list = librosa.util.find_files(self.val_data_dir, ext=self.data_suffix)
+        # Generate dataloader for pytorch
+        self.num_workers = self.cfg.getint('DataFrame', 'num_workers')
+        self.shuffle_file_list = self.cfg.get('DataFrame', 'shuffle_file_list')
+        self.shuffle_samples_in_batch = self.cfg.get('DataFrame', 'shuffle_samples_in_batch')
+
+        # Instranciate training dataloader
+        train_dataset = SpeechDatasetFrames(file_list=self.train_file_list, sequence_len=self.sequence_len,
+                                            wlen_sec=self.wlen_sec, hop_percent=self.hop_percent, fs=self.fs,
+                                            zp_percent=self.zp_percent, trim=self.trim, verbose=self.verbose,
+                                            batch_size=self.batch_size, huffle_file_list=self.shuffle_file_list,
+                                            name=self.dataset_name)
+        val_dataset = SpeechDatasetFrames(file_list=self.val_file_list, sequence_len=self.sequence_len,
+                                          wlen_sec=self.wlen_sec, hop_percent=self.hop_percent, fs=self.fs,
+                                          zp_percent=self.zp_percent, trim=self.trim, verbose=self.verbose,
+                                          batch_size=self.batch_size, huffle_file_list=self.shuffle_file_list,
+                                          name=self.dataset_name)
+        train_num = train_dataset.num_samples
+        val_num = val_dataset.num_samples
+
+        # Create dataloader
+        train_dataloader = data.DataLoader(train_dataset, batch_size=self.batch_size, 
+                                           shuffle=self.shuffle_samples_in_batch,
+                                           num_workers = self.num_workers)
+        val_dataloader = data.DataLoader(val_dataset, batch_size=self.batch_size,
+                                         shuffle=self.shuffle_samples_in_batch,
+                                         num_workers = self.num_workers)
+
+        return train_dataloader, val_dataloader, train_num, val_num
+
 
 
 
