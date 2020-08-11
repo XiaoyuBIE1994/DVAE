@@ -127,7 +127,7 @@ class BuildBasic():
         self.shuffle_file_list = self.cfg.get('DataFrame', 'shuffle_file_list')
         self.shuffle_samples_in_batch = self.cfg.get('DataFrame', 'shuffle_samples_in_batch')
 
-        # Instranciate dataloader
+        # Instantiate dataloader
         train_dataset = SpeechDatasetSequences(file_list=self.train_file_list, sequence_len=self.sequence_len,
                                                wlen_sec=self.wlen_sec, hop_percent=self.hop_percent, fs=self.fs,
                                                zp_percent=self.zp_percent, trim=self.trim, verbose=self.verbose,
@@ -213,7 +213,7 @@ class BuildVAE(BuildBasic):
         self.shuffle_file_list = self.cfg.get('DataFrame', 'shuffle_file_list')
         self.shuffle_samples_in_batch = self.cfg.get('DataFrame', 'shuffle_samples_in_batch')
 
-        # Instranciate training dataloader
+        # Instantiate dataloader
         train_dataset = SpeechDatasetFrames(file_list=self.train_file_list,
                                             wlen_sec=self.wlen_sec, hop_percent=self.hop_percent, fs=self.fs,
                                             zp_percent=self.zp_percent, trim=self.trim, verbose=self.verbose,
