@@ -27,7 +27,7 @@ class STORN(nn.Module):
                  dim_RNN_g=128, num_RNN_g=1,
                  dense_z_h=[128], dense_xtm1_h=[128], dense_h_x=[128],
                  dim_RNN_h=128, num_RNN_h=1,
-                 dropout_p = 0, device='cpu'):
+                 dropout_p = 0, beta=1, device='cpu'):
 
         super().__init__()
         ### General parameters for storn        
@@ -53,6 +53,8 @@ class STORN(nn.Module):
         self.dense_h_x = dense_h_x
         self.dim_RNN_h = dim_RNN_h
         self.num_RNN_h = num_RNN_h
+        #### Beta-vae
+        self.beta = beta
 
         self.build()
 
@@ -218,7 +220,7 @@ class STORN(nn.Module):
         y = self.generation_x(z, x_tm1)
 
         # calculate loss
-        loss_tot, loss_recon, loss_KLD = self.get_loss(x, y, z_mean, z_logvar, seq_len, batch_size)
+        loss_tot, loss_recon, loss_KLD = self.get_loss(x, y, z_mean, z_logvar, seq_len, batch_size, self.beta)
         self.loss = (loss_tot, loss_recon, loss_KLD)
 
         # output of NN:    (seq_len, batch_size, dim)
@@ -231,14 +233,14 @@ class STORN(nn.Module):
         return self.y
 
 
-    def get_loss(self, x, y, z_mean, z_logvar, batch_size, seq_len, beta=1):
+    def get_loss(self, x, y, z_mean, z_logvar, seq_len, batch_size, beta=1):
 
         loss_recon = torch.sum( x/y - torch.log(x/y) - 1)
         loss_KLD = -0.5 * torch.sum(z_logvar -  z_logvar.exp() - z_mean.pow(2))
 
         loss_recon = loss_recon / (batch_size * seq_len)
         loss_KLD = loss_KLD / (batch_size * seq_len)
-        loss_tot = beta * loss_recon + loss_KLD
+        loss_tot = loss_recon + beta * loss_KLD
 
         return loss_tot, loss_recon, loss_KLD
 

@@ -131,13 +131,13 @@ class BuildBasic():
         train_dataset = SpeechDatasetSequences(file_list=self.train_file_list, sequence_len=self.sequence_len,
                                                wlen_sec=self.wlen_sec, hop_percent=self.hop_percent, fs=self.fs,
                                                zp_percent=self.zp_percent, trim=self.trim, verbose=self.verbose,
-                                               batch_size=self.batch_size, huffle_file_list=self.shuffle_file_list,
+                                               batch_size=self.batch_size, shuffle_file_list=self.shuffle_file_list,
                                                name=self.dataset_name)
         val_dataset = SpeechDatasetSequences(file_list=self.val_file_list, sequence_len=self.sequence_len,
-                                               wlen_sec=self.wlen_sec, hop_percent=self.hop_percent, fs=self.fs,
-                                               zp_percent=self.zp_percent, trim=self.trim, verbose=self.verbose,
-                                               batch_size=self.batch_size, huffle_file_list=self.shuffle_file_list,
-                                               name=self.dataset_name)
+                                             wlen_sec=self.wlen_sec, hop_percent=self.hop_percent, fs=self.fs,
+                                             zp_percent=self.zp_percent, trim=self.trim, verbose=self.verbose,
+                                             batch_size=self.batch_size, shuffle_file_list=self.shuffle_file_list,
+                                             name=self.dataset_name)
         train_num = train_dataset.num_samples
         val_num = val_dataset.num_samples
 
@@ -186,8 +186,8 @@ class BuildVAE(BuildBasic):
     def build(self):
 
         # Build model
-        self.model = VAE(x_dim = self.x_dim, z_dim = self.z_dim,
-                         dense_x_z = self.dense_x_z, activation = self.activation,
+        self.model = VAE(x_dim=self.x_dim, z_dim=self.z_dim,
+                         dense_x_z=self.dense_x_z, activation=self.activation,
                          dropout_p=self.dropout_p, device=self.device).to(self.device)
         
         # Print model information
@@ -214,15 +214,15 @@ class BuildVAE(BuildBasic):
         self.shuffle_samples_in_batch = self.cfg.get('DataFrame', 'shuffle_samples_in_batch')
 
         # Instranciate training dataloader
-        train_dataset = SpeechDatasetFrames(file_list=self.train_file_list, sequence_len=self.sequence_len,
+        train_dataset = SpeechDatasetFrames(file_list=self.train_file_list,
                                             wlen_sec=self.wlen_sec, hop_percent=self.hop_percent, fs=self.fs,
                                             zp_percent=self.zp_percent, trim=self.trim, verbose=self.verbose,
-                                            batch_size=self.batch_size, huffle_file_list=self.shuffle_file_list,
+                                            batch_size=self.batch_size, shuffle_file_list=self.shuffle_file_list,
                                             name=self.dataset_name)
-        val_dataset = SpeechDatasetFrames(file_list=self.val_file_list, sequence_len=self.sequence_len,
+        val_dataset = SpeechDatasetFrames(file_list=self.val_file_list,
                                           wlen_sec=self.wlen_sec, hop_percent=self.hop_percent, fs=self.fs,
                                           zp_percent=self.zp_percent, trim=self.trim, verbose=self.verbose,
-                                          batch_size=self.batch_size, huffle_file_list=self.shuffle_file_list,
+                                          batch_size=self.batch_size, shuffle_file_list=self.shuffle_file_list,
                                           name=self.dataset_name)
         train_num = train_dataset.num_samples
         val_num = val_dataset.num_samples
@@ -254,9 +254,9 @@ class BuildDMM(BuildBasic):
         self.dropout_p = self.cfg.getfloat('Network', 'dropout_p')
         # Inference
         self.dense_x_gx = [int(i) for i in self.cfg.get('Network', 'dense_x_gx').split(',')]
-        self.dim_RNN_g = self.cfg.getint('Network', 'dim_RNN_g')
-        self.num_RNN_g = self.cfg.getint('Network', 'num_RNN_g')
-        self.bidir_g = self.cfg.getboolean('Network', 'bidir_g')
+        self.dim_RNN_gx = self.cfg.getint('Network', 'dim_RNN_gx')
+        self.num_RNN_gx = self.cfg.getint('Network', 'num_RNN_gx')
+        self.bidir_gx = self.cfg.getboolean('Network', 'bidir_gx')
         self.dense_ztm1_g = [int(i) for i in self.cfg.get('Network', 'dense_ztm1_g').split(',')]
         self.dense_g_z = [int(i) for i in self.cfg.get('Network', 'dense_g_z').split(',')]
         # Generation
@@ -269,11 +269,11 @@ class BuildDMM(BuildBasic):
 
         # Build model
         self.model = DMM(x_dim=self.x_dim, z_dim=self.z_dim, activation=self.activation,
-                         dense_x_gx=self.dense_x_gx, dim_RNN_g=self.dim_RNN_g, 
-                         num_RNN_g=self.num_RNN_g, bidir_g=self.bidir_g,
+                         dense_x_gx=self.dense_x_gx, dim_RNN_gx=self.dim_RNN_gx, 
+                         num_RNN_gx=self.num_RNN_gx, bidir_gx=self.bidir_gx,
                          dense_ztm1_g=self.dense_ztm1_g, dense_g_z=self.dense_g_z,
                          dense_z_x=self.dense_z_x,
-                         dropout_p = self.dropout_p, device=self.device).to(self.device)
+                         dropout_p=self.dropout_p, device=self.device).to(self.device)
         
         # Print model information
         if self.training:
@@ -312,6 +312,9 @@ class BuildSTORN(BuildBasic):
         self.dim_RNN_h = self.cfg.getint('Network', 'dim_RNN_h')
         self.num_RNN_h = self.cfg.getint('Network', 'num_RNN_h')
         self.dense_h_x = [int(i) for i in self.cfg.get('Network', 'dense_h_x').split(',')]
+        
+        ### Beta-vae
+        self.beta = self.cfg.getfloat('Training', 'beta')
 
         self.build()
     
@@ -325,7 +328,7 @@ class BuildSTORN(BuildBasic):
                            dense_z_h=self.dense_z_h, dense_xtm1_h=self.dense_xtm1_h,
                            dense_h_x=self.dense_h_x,
                            dim_RNN_h=self.dim_RNN_h, num_RNN_h=self.num_RNN_h,
-                           dropout_p = self.dropout_p, device=self.device).to(self.device)
+                           dropout_p=self.dropout_p, beta=self.beta, device=self.device).to(self.device)
         
         # Print model information
         if self.training:
@@ -376,7 +379,7 @@ class BuildVRNN(BuildBasic):
                           dense_hx_z=self.dense_hx_z, dense_hz_x=self.dense_hz_x, 
                           dense_h_z=self.dense_h_z,
                           dim_RNN=self.dim_RNN, num_RNN=self.num_RNN,
-                          dropout_p = self.dropout_p,
+                          dropout_p= elf.dropout_p,
                           device=self.device).to(self.device)
 
         # Print model information
@@ -433,7 +436,7 @@ class BuildSRNN(BuildBasic):
                           dense_gz_z=self.dense_gz_z,
                           dense_hz_x=self.dense_hz_x,
                           dense_hz_z=self.dense_hz_z,
-                          dropout_p = self.dropout_p,
+                          dropout_p=self.dropout_p,
                           device=self.device).to(self.device)
         
         # Print model information
@@ -495,7 +498,7 @@ class BuildRVAE(BuildBasic):
                           dim_RNN_h=self.dim_RNN_h, num_RNN_h=self.num_RNN_h,
                           bidir_h=self.bidir_h,
                           dense_h_x=self.dense_h_x,
-                          dropout_p = self.dropout_p, device=self.device).to(self.device)
+                          dropout_p=self.dropout_p, device=self.device).to(self.device)
 
         # Print model information
         if self.training:
@@ -557,7 +560,7 @@ class BuildDSAE(BuildBasic):
                           dim_RNN_gz=self.dim_RNN_gz, num_RNN_gz=self.num_RNN_gz,
                           dim_RNN_prior=self.dim_RNN_prior, num_RNN_prior=self.num_RNN_prior,
                           dense_vz_x=self.dense_vz_x,
-                          dropout_p = self.dropout_p, device=self.device).to(self.device)
+                          dropout_p=self.dropout_p, device=self.device).to(self.device)
         
         # Print model information
         if self.training:
@@ -616,7 +619,7 @@ class BuildKVAE(BuildBasic):
                           init_kf_mat=self.init_kf_mat, noise_transition=self.noise_transition,
                           noise_emission=self.noise_emission, init_cov=self.init_cov,
                           K=self.K, dim_RNN_alpha=self.dim_RNN_alpha, num_RNN_alpha=self.num_RNN_alpha,
-                          dropout_p = self.dropout_p, scale_reconstruction = self.scale_reconstruction,
+                          dropout_p=self.dropout_p, scale_reconstruction = self.scale_reconstruction,
                           device=self.device).to(self.device)
         
         # Print model information

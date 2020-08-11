@@ -277,7 +277,7 @@ class DSAE(nn.Module):
         loss_KLD_v = loss_KLD_v / batch_size
         loss_KLD = loss_KLD_z + loss_KLD_v
 
-        loss_tot = beta * loss_recon + loss_KLD
+        loss_tot = loss_recon + beta * loss_KLD
 
         return loss_tot, loss_recon, loss_KLD
 

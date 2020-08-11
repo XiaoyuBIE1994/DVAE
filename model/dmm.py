@@ -271,7 +271,7 @@ class DMM(nn.Module):
         
         loss_recon = loss_recon / (batch_size * seq_len)
         loss_KLD = loss_KLD / (batch_size * seq_len)
-        loss_tot = beta * loss_recon + loss_KLD
+        loss_tot = loss_recon + beta * loss_KLD
 
         return loss_tot, loss_recon, loss_KLD
 

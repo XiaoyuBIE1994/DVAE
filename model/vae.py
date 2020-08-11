@@ -145,7 +145,7 @@ class VAE(nn.Module):
 
         loss_recon = loss_recon / batch_size
         loss_KLD = loss_KLD / batch_size
-        loss_tot = beta * loss_recon + loss_KLD
+        loss_tot = loss_recon + beta * loss_KLD
 
         return loss_tot, loss_recon, loss_KLD
 
