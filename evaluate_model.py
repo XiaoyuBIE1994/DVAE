@@ -65,9 +65,10 @@ class Evaluate():
 
         # Create model class
         self.model_class = build_model(self.cfg_file, training=False)
-        self.model = model_class.model
-        self.cfg = model_class.cfg
-        self.local_device = 'cuda' if torch.cuda.is_available() else 'cpu'
+        self.model = self.model_class.model
+        self.cfg = self.model_class.cfg
+        use_cuda = self.cfg.getboolean('Training', 'use_cuda')
+        self.local_device = 'cuda' if torch.cuda.is_available() and use_cuda else 'cpu'
         
         # Create evaluate metric
         self.eval_rmse = rmse_frame()
@@ -86,24 +87,25 @@ class Evaluate():
         self.hop_percent = cfg.getfloat('STFT', 'hop_percent')
         self.fs = cfg.getint('STFT', 'fs')
         self.zp_percent = cfg.getint('STFT', 'zp_percent')
+        self.trim = self.cfg.getboolean('STFT', 'trim')
+        self.verbose = self.cfg.getboolean('STFT', 'verbose')
         # number of fft is supposed to be a power of 2 (num of rows in STFT Matrix is nfft/2 + 1)
         self.nfft = np.int(np.power(2, np.ceil(np.log2(self.wlen_sec * self.fs))))
         # window length <= nfft (equal to nfft by default)
-        self.wlen = nfft
+        self.wlen = self.nfft
         # hop: number of audio samples between adjacent STFT columns
-        self.hop = np.int(self.hop_percent * wlen)
+        self.hop = np.int(self.hop_percent * self.wlen)
         # a vector or array of length nfft (sin function, 0 ~ pi)
-        self.win = np.sin(np.arange(0.5, wlen+0.5) / wlen * np.pi)
-        # others
-        
+        self.win = np.sin(np.arange(0.5, self.wlen+0.5) / self.wlen * np.pi)
 
+        # Others
+        self.sequence_len = self.cfg.getint('DataFrame','sequence_len')
 
 
     def evaluate(self):
 
          # Create re-synthesis folder
         tag = model_class.tag
-
         root, audio_dir = os.path.split(self.data_dir)
         recon_dir = os.path.join(root, audio_dir + '_{}_recon'.format(tag))
         if os.path.isdir(recon_dir):
@@ -150,42 +152,21 @@ class Evaluate():
             librosa.output.write_wav(file_recon, scale_norm*x_recon, fs_x)
 
             # Evaluation
-            score_rmse.append(eval_rmse(file_recon, file_orig))
-            score_pesq.append(eval_pesq(file_recon, file_orig)['pesq'])
-            score_stoi.append(eval_stoi(file_recon, file_orig)['stoi'])
-            self.eval_score = {'rmse': score_rmse,
-                               'pesq': score_pesq,
-                               'stoi': score_stoi}
+            self.score_rmse.append(self.eval_rmse(file_recon, file_orig))
+            self.score_pesq.append(self.eval_pesq(file_recon, file_orig)['pesq'])
+            self.score_stoi.append(self.eval_stoi(file_recon, file_orig)['stoi'])
+            self.eval_score = {'rmse': self.score_rmse,
+                               'pesq': self.score_pesq,
+                               'stoi': self.score_stoi}
 
+            # Print and save results 
+            self.print_save()
         
-        # Print results
-        array_rmse = np.array(score_rmse)
-        array_pesq = np.array(score_pesq)
-        array_stoi = np.array(score_stoi)
-        print("===== RMSE =====")
-        print("mean: {}".format(array_rmse.mean()))
-        print("min: {}".format(array_rmse.min()))
-        print("max: {}".format(array_rmse.max()))
-        print("===== PESQ =====")
-        print("mean: {}".format(array_pesq.mean()))
-        print("min: {}".format(array_pesq.min()))
-        print("max: {}".format(array_pesq.max()))
-        print("===== STOI =====")
-        print("mean: {}".format(array_stoi.mean()))
-        print("min: {}".format(array_stoi.min()))
-        print("max: {}".format(array_stoi.max()))
-        
-        # Save evaluation
-        save_file = os.path.join(self.recon_dir, 'evaluation.pckl')
-        with open(save_file, 'wb') as f:
-            pickle.dump([score_rmse, score_pesq, score_stoi], f)
-
 
     def evaluate_seq(self):
 
          # Create re-synthesis folder
         tag = model_class.tag
-
         root, audio_dir = os.path.split(self.data_dir)
         recon_dir = os.path.join(root, audio_dir + '_{}_recon-seq'.format(tag))
         if os.path.isdir(recon_dir):
@@ -198,64 +179,66 @@ class Evaluate():
         else:
             os.mkdir(recon_dir)
 
-        # Instanciate dataloader
-        self.sequence_len = self.cfg.getint('DataFrame','sequence_len')
-        self.trim = self.cfg.getboolean('STFT', 'trim')
-        self.verbose = self.cfg.getboolean('STFT', 'verbose')
-        self.dataset_name = self.cfg.get('DataFrame', 'dataset_name')
-
-        eval_dataset = SpeechDataSequences(file_list=self.audio_list, sequence_len=self.sequence_len,
-                                           wlen_sec=self.wlen_sec, hop_percent=self.hop_percent, fs=self.fs,
-                                           zp_percent=self.zp_percent, trim=self.trim, verbose=self.verbose,
-                                           batch_size=1, shuffle_file_list=False,
-                                           name=self.dataset_name)
-        eval_dataloader = torch.utils.data.DataLoader(eval_dataset, batch_size=1, shuffle=False, num_workers = 1)
-
         # Loop over audio files
-        for data in eval_dataloader:
-
-            # Define reconstruction file path
-            root, file = os.path.split(audio_file)
-            file_orig = os.path.join(recon_dir, 'orig_'+file)
-            file_recon = os.path.join(recon_dir, 'recon_'+file)
+        for audio_file in self.audio_list:
 
             # Read audio file and do STFT
             x, fs_x = sf.read(audio_file)
+            if self.fs != fs_x:
+                raise ValueError('Unexpected sampling rate')
             scale = np.max(np.abs(x))
             x = x / scale
+
+            # Remove silence
+            if self.trim:
+                x, _ = librosa.effects.trim(x, top_db=30)
+
+            # Evaluation sequence to sequence
+            x = np.pad(x, int(self.nfft // 2), mode='reflect')
             X = librosa.stft(x, n_fft=self.nfft, hop_length=self.hop, win_length=self.wlen, window=self.win)
+            # n_seq = (1 + int((len(x) - self.wlen) / self.hop) )//self.sequence_len
+            n_seq = len(X) // self.sequence_len
 
-            # Prepare data input
-            data_orig = np.abs(X) ** 2 # (x_dim, seq_len)
-            data_orig = torch.from_numpy(data_orig.astype(np.float32)).to(self.local_device)
+            for i in range(n_seq):
+                sample = X[:, i*self.sequence_len:(i+1)*self.sequence_len]
+                data_orig = np.abs(sample) ** 2
+                data_orig = torch.from_numpy(data_orig.astype(np.float32))
+                
+                with torch.no_grad():
+                    data_recon = self.model(data_orig).to('cpu').detach().numpy()
+                
+                X_recon = np.sqrt(data_recon) * np.exp(1j * np.angle(sample))
+                x_recon = librosa.istft(X_recon, hop_length=self.hop, win_length=self.wlen, window=self.win)
+                x_orig = librosa.istft(sample, hop_length=self.hop, win_length=self.wlen, window=self.win)
+                
+                # Define reconstruction file path
+                root, file = os.path.split(audio_file)
+                file_orig = os.path.join(recon_dir, 'orig_{}_'.format(i) + file)
+                file_recon = os.path.join(recon_dir, 'recon_{}_'.format(i) + file)
 
-            # Reconstruction
-            with torch.no_grad():
-                data_recon = model(data_orig).to('cpu').detach().numpy()
+                # Save files
+                scale_norm = 1 / (np.maximum(np.max(np.abs(x_recon)), np.max(np.abs(x_orig)))) * 0.9
+                librosa.output.write_wav(file_orig, scale_norm*x_orig, fs_x)
+                librosa.output.write_wav(file_recon, scale_norm*x_recon, fs_x)
 
-            # Re-synthesis
-            X_recon = np.sqrt(data_recon) * np.exp(1j * np.angle(X))
-            x_recon = librosa.istft(X_recon, hop_length=self.hop, win_length=self.wlen, window=self.win)
-            x_orig = x
-
-            # Write audio file
-            scale_norm = 1 / (np.maximum(np.max(np.abs(x_recon)), np.max(np.abs(x_orig)))) * 0.9
-            librosa.output.write_wav(file_orig, scale_norm*x_orig, fs_x)
-            librosa.output.write_wav(file_recon, scale_norm*x_recon, fs_x)
-
-            # Evaluation
-            score_rmse.append(eval_rmse(file_recon, file_orig))
-            score_pesq.append(eval_pesq(file_recon, file_orig)['pesq'])
-            score_stoi.append(eval_stoi(file_recon, file_orig)['stoi'])
-            self.eval_score = {'rmse': score_rmse,
-                               'pesq': score_pesq,
-                               'stoi': score_stoi}
-
+                # Evaluation
+                score_rmse.append(eval_rmse(file_recon, file_orig))
+                score_pesq.append(eval_pesq(file_recon, file_orig)['pesq'])
+                score_stoi.append(eval_stoi(file_recon, file_orig)['stoi'])
+                self.eval_score = {'rmse': score_rmse,
+                                'pesq': score_pesq,
+                                'stoi': score_stoi}
         
+        # Print and save results 
+            self.print_save()
+
+
+    def print_save(self):
+
         # Print results
-        array_rmse = np.array(score_rmse)
-        array_pesq = np.array(score_pesq)
-        array_stoi = np.array(score_stoi)
+        array_rmse = np.array(self.score_rmse)
+        array_pesq = np.array(self.score_pesq)
+        array_stoi = np.array(self.score_stoi)
         print("===== RMSE =====")
         print("mean: {}".format(array_rmse.mean()))
         print("min: {}".format(array_rmse.min()))
@@ -272,7 +255,7 @@ class Evaluate():
         # Save evaluation
         save_file = os.path.join(self.recon_dir, 'evaluation.pckl')
         with open(save_file, 'wb') as f:
-            pickle.dump([score_rmse, score_pesq, score_stoi], f)
+            pickle.dump([self.score_rmse, self.score_pesq, self.score_stoi], f)
 
 
 
