@@ -253,10 +253,12 @@ class BuildDMM(BuildBasic):
         self.activation = self.cfg.get('Network', 'activation')
         self.dropout_p = self.cfg.getfloat('Network', 'dropout_p')
         # Inference
-        self.dense_x_g = [int(i) for i in self.cfg.get('Network', 'dense_x_g').split(',')]
+        self.dense_x_gx = [int(i) for i in self.cfg.get('Network', 'dense_x_gx').split(',')]
         self.dim_RNN_g = self.cfg.getint('Network', 'dim_RNN_g')
         self.num_RNN_g = self.cfg.getint('Network', 'num_RNN_g')
         self.bidir_g = self.cfg.getboolean('Network', 'bidir_g')
+        self.dense_ztm1_g = [int(i) for i in self.cfg.get('Network', 'dense_ztm1_g').split(',')]
+        self.dense_g_z = [int(i) for i in self.cfg.get('Network', 'dense_g_z').split(',')]
         # Generation
         self.dense_z_x = [int(i) for i in self.cfg.get('Network', 'dense_z_x').split(',')]
 
@@ -267,9 +269,9 @@ class BuildDMM(BuildBasic):
 
         # Build model
         self.model = DMM(x_dim=self.x_dim, z_dim=self.z_dim, activation=self.activation,
-                         dense_x_g=self.dense_x_g,
-                         dim_RNN_g=self.dim_RNN_g, num_RNN_g=self.num_RNN_g,
-                         bidir_g=self.bidir_g,
+                         dense_x_gx=self.dense_x_gx, dim_RNN_g=self.dim_RNN_g, 
+                         num_RNN_g=self.num_RNN_g, bidir_g=self.bidir_g,
+                         dense_ztm1_g=self.dense_ztm1_g, dense_g_z=self.dense_g_z,
                          dense_z_x=self.dense_z_x,
                          dropout_p = self.dropout_p, device=self.device).to(self.device)
         

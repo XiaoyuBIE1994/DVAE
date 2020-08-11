@@ -28,8 +28,8 @@ from collections import OrderedDict
 class DMM(nn.Module):
 
     def __init__(self, x_dim, z_dim=16, activation='tanh',
-                 dense_x_g=[],
-                 dim_RNN_g=128, num_RNN_g=1, bidir_g=False,
+                 dense_x_gx=[], dim_RNN_gx=128, num_RNN_gx=1, bidir_gx=False,
+                 dense_ztm1_g=[], dense_g_z=[],
                  dense_z_x=[128,128],
                  dropout_p = 0, device='cpu'):
 
@@ -47,10 +47,12 @@ class DMM(nn.Module):
             raise SystemExit('Wrong activation type!')
         self.device = device
         ### Inference
-        self.dense_x_g = dense_x_g
-        self.dim_RNN_g = dim_RNN_g
-        self.num_RNN_g = num_RNN_g
-        self.bidir_g = bidir_g
+        self.dense_x_gx = dense_x_gx
+        self.dim_RNN_gx = dim_RNN_gx
+        self.num_RNN_gx = num_RNN_gx
+        self.bidir_gx = bidir_gx
+        self.dense_ztm1_g = dense_ztm1_g
+        self.dense_g_z = dense_g_z
         ### Generation x
         self.dense_z_x = dense_z_x
 
@@ -62,29 +64,57 @@ class DMM(nn.Module):
         ###################
         #### Inference ####
         ###################
-        # 1. x_t to g_t
+        # 1. x_t to g_tˆx
         dic_layers = OrderedDict()
-        if len(self.dense_x_g) == 0:
-            dim_x_g = self.x_dim
+        if len(self.dense_x_gx) == 0:
+            dim_x_gx = self.x_dim
             dic_layers['Identity'] = nn.Identity()
         else:
-            dim_x_g = self.dense_x_g[-1]
-            for n in range(len(self.dense_x_g)):
+            dim_x_gx = self.dense_x_gx[-1]
+            for n in range(len(self.dense_x_gx)):
                 if n == 0:
-                    dic_layers['linear'+str(n)] = nn.Linear(self.x_dim, self.dense_x_g[n])
+                    dic_layers['linear'+str(n)] = nn.Linear(self.x_dim, self.dense_x_gx[n])
                 else:
-                    dic_layers['linear'+str(n)] = nn.Linear(self.dense_x_g[n-1], self.dense_x_g[n])
+                    dic_layers['linear'+str(n)] = nn.Linear(self.dense_x_gx[n-1], self.dense_x_gx[n])
                 dic_layers['activation'+str(n)] = self.activation
                 dic_layers['dropout'+str(n)] = nn.Dropout(p=self.dropout_p)
-        self.mlp_x_g = nn.Sequential(dic_layers)
-        self.rnn_g = nn.LSTM(dim_x_g, self.dim_RNN_g, self.num_RNN_g, bidirectional=self.bidir_g)
-        # 2. g_t and z_tm1 to z_t
+        self.mlp_x_gx = nn.Sequential(dic_layers)
+        self.rnn_gx = nn.LSTM(dim_x_gx, self.dim_RNN_gx, self.num_RNN_gx, bidirectional=self.bidir_gx)
+        # 2. g_tˆx and z_tm1 to g_t
         dic_layers = OrderedDict()
-        dic_layers['linear'] = nn.Linear(self.z_dim, self.dim_RNN_g)
-        dic_layers['activation'] = nn.Tanh()
-        self.mlp_z_z = nn.Sequential(dic_layers)
-        self.inf_mean = nn.Linear(self.dim_RNN_g, self.z_dim)
-        self.inf_logvar = nn.Linear(self.dim_RNN_g, self.z_dim)
+        if len(self.dense_ztm1_g) == 0:
+            dic_layers['linear_last'] = nn.Linear(self.z_dim, self.dim_RNN_gx)
+            dic_layers['activation_last'] = self.activation
+            dic_layers['dropout_last'+str(n)] = nn.Dropout(p=self.dropout_p)
+        else:
+            for n in range(len(self.dense_ztm1_g)):
+                if n == 0:
+                    dic_layers['linear'+str(n)] = nn.Linear(self.z_dim, self.dense_ztm1_g[n])
+                else:
+                    dic_layers['linear'+str(n)] = nn.Linear(self.dense_ztm1_g[n-1], self.dense_ztm1_g[n])
+                dic_layers['activation'+str(n)] = self.activation
+                dic_layers['dropout'+str(n)] = nn.Dropout(p=self.dropout_p)
+            dic_layers['linear_last'] = nn.Linear(self.dense_ztm1_g[-1], self.dim_RNN_gx)
+            dic_layers['activation_last'] = self.activation
+            dic_layers['dropout_last'+str(n)] = nn.Dropout(p=self.dropout_p)
+        self.mlp_ztm1_g = nn.Sequential(dic_layers)
+        # 3. g_t to z_t
+        dic_layers = OrderedDict()
+        if len(self.dense_g_z) == 0:
+            dim_g_z = self.dim_RNN_gx
+            dic_layers['Identity'] = nn.Identity()
+        else:
+            dim_g_z = self.dense_g_z[-1]
+            for n in range(len(self.dense_g_z)):
+                if n == 0:
+                    dic_layers['linear'+str(n)] = nn.Linear(self.dim_RNN_gx, self.dense_g_z[n])
+                else:
+                    dic_layers['linear'+str(n)] = nn.Linear(self.dense_g_z[n-1], self.dense_g_z[n])
+                dic_layers['activation'+str(n)] = self.activation
+                dic_layers['dropout'+str(n)] = nn.Dropout(p=self.dropout_p)
+        self.mlp_g_z = nn.Sequential(dic_layers)
+        self.inf_mean = nn.Linear(dim_g_z, self.z_dim)
+        self.inf_logvar = nn.Linear(dim_g_z, self.z_dim)
 
         ######################
         #### Generation z ####
@@ -148,25 +178,27 @@ class DMM(nn.Module):
         z_t = torch.zeros((batch_size, self.z_dim)).to(self.device)
 
         # 1. x_t to g_t, g_t and z_tm1 to z_t
-        x_g = self.mlp_x_g(x)
-        if self.bidir_g:
-            g, _ = self.rnn_g(x_g)
-            g = g.view(seq_len, batch_size, 2, self.dim_RNN_g)
+        x_g = self.mlp_x_gx(x)
+        if self.bidir_gx:
+            g, _ = self.rnn_gx(x_g)
+            g = g.view(seq_len, batch_size, 2, self.dim_RNN_gx)
             g_forward = g[:,:,0,:]
             g_backward = g[:,:,1,:]
             for t in range(seq_len):
-                g_t = (self.mlp_z_z(z_t) + g_forward[t,:,:] + g_backward[t,:,:]) / 3
-                z_mean[t,:,:] = self.inf_mean(g_t)
-                z_logvar[t,:,:] = self.inf_logvar(g_t)
+                g_t = (self.mlp_ztm1_g(z_t) + g_forward[t,:,:] + g_backward[t,:,:]) / 3
+                g_z = self.mlp_g_z(g_t)
+                z_mean[t,:,:] = self.inf_mean(g_z)
+                z_logvar[t,:,:] = self.inf_logvar(g_z)
                 z_t = self.reparameterization(z_mean[t,:,:], z_logvar[t,:,:]) 
                 z[t,:,:] = z_t
         else:
-            g, _ = self.rnn_g(torch.flip(x_g, [0]))
+            g, _ = self.rnn_gx(torch.flip(x_g, [0]))
             g = torch.flip(g, [0])
             for t in range(seq_len):
-                g_t = (self.mlp_z_z(z_t) + g[t,:,:]) / 2
-                z_mean[t,:,:] = self.inf_mean(g_t)
-                z_logvar[t,:,:] = self.inf_logvar(g_t)
+                g_t = (self.mlp_ztm1_g(z_t) + g[t,:,:]) / 2
+                g_z = self.mlp_g_z(g_t)
+                z_mean[t,:,:] = self.inf_mean(g_z)
+                z_logvar[t,:,:] = self.inf_logvar(g_z)
                 z_t = self.reparameterization(z_mean[t,:,:], z_logvar[t,:,:])
                 z[t,:,:] = z_t
 
@@ -248,12 +280,15 @@ class DMM(nn.Module):
         
         info = []
         info.append("----- Inference -----")
-        info.append('>>>> x_t to g_t')
-        for layer in self.mlp_x_g:
+        info.append('>>>> x_t to g_t^x')
+        for layer in self.mlp_x_gx:
             info.append(layer)
-        info.append(self.rnn_g)
-        info.append('>>>> mlp for z_tm1')
-        info.append(self.mlp_z_z)
+        info.append(self.rnn_gx)
+        info.append('>>>> z_tm1 to g_x')
+        info.append(self.mlp_ztm1_g)
+        info.append('>>>> g_x to z_t')
+        for layer in self.mlp_g_z:
+            info.append(layer)
 
         info.append("----- Bottleneck -----")
         info.append(self.inf_mean)
