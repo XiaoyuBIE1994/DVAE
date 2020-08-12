@@ -277,7 +277,7 @@ class SRNN(nn.Module):
 
         loss_recon = torch.sum( x/y - torch.log(x/y) - 1)
         loss_KLD = -0.5 * torch.sum(z_logvar - z_logvar_p 
-                - torch.div(z_logvar.exp() + (z_mean - z_mean_p).pow(2), 2 * z_logvar_p.exp())) / (batch_size * seq_len)
+                - torch.div(z_logvar.exp() + (z_mean - z_mean_p).pow(2), z_logvar_p.exp())) / (batch_size * seq_len)
         
         loss_recon = loss_recon / (batch_size * seq_len)
         loss_KLD = loss_KLD / (batch_size * seq_len)

@@ -58,6 +58,7 @@ class Evaluate():
             if '.ini' in file:
                 self.cfg_file = os.path.join(model_dir, file)
             if 'final_epoch' in file:
+            # if 'KVAE_epoch310' in file:
                 self.weight_file = os.path.join(model_dir, file)
 
         # Find all audio files
@@ -83,10 +84,10 @@ class Evaluate():
         self.model.eval()
 
         # Load STFT parameters
-        self.wlen_sec = cfg.getfloat('STFT', 'wlen_sec') # windows lenght in seconds
-        self.hop_percent = cfg.getfloat('STFT', 'hop_percent')
-        self.fs = cfg.getint('STFT', 'fs')
-        self.zp_percent = cfg.getint('STFT', 'zp_percent')
+        self.wlen_sec = self.cfg.getfloat('STFT', 'wlen_sec') # windows lenght in seconds
+        self.hop_percent = self.cfg.getfloat('STFT', 'hop_percent')
+        self.fs = self.cfg.getint('STFT', 'fs')
+        self.zp_percent = self.cfg.getint('STFT', 'zp_percent')
         self.trim = self.cfg.getboolean('STFT', 'trim')
         self.verbose = self.cfg.getboolean('STFT', 'verbose')
         # number of fft is supposed to be a power of 2 (num of rows in STFT Matrix is nfft/2 + 1)
@@ -105,18 +106,18 @@ class Evaluate():
     def evaluate(self):
 
          # Create re-synthesis folder
-        tag = model_class.tag
+        tag = self.model_class.tag
         root, audio_dir = os.path.split(self.data_dir)
-        recon_dir = os.path.join(root, audio_dir + '_{}_recon'.format(tag))
-        if os.path.isdir(recon_dir):
-            c = input("{} already exists, press 'e' to exist, or delete old one and continue".format(recon_dir))
+        self.recon_dir = os.path.join(root, audio_dir + '_{}_recon'.format(tag))
+        if os.path.isdir(self.recon_dir):
+            c = input("{} already exists, press 'e' to exist, or delete old one and continue".format(self.recon_dir))
             if c == 'e':
                 return
             else:
-                shutil.rmtree(recon_dir)
-                os.mkdir(recon_dir)
+                shutil.rmtree(self.recon_dir)
+                os.mkdir(self.recon_dir)
         else:
-            os.mkdir(recon_dir)
+            os.mkdir(self.recon_dir)
 
 
         # Loop over audio files
@@ -124,8 +125,8 @@ class Evaluate():
 
             # Define reconstruction file path
             root, file = os.path.split(audio_file)
-            file_orig = os.path.join(recon_dir, 'orig_'+file)
-            file_recon = os.path.join(recon_dir, 'recon_'+file)
+            file_orig = os.path.join(self.recon_dir, 'orig_'+file)
+            file_recon = os.path.join(self.recon_dir, 'recon_'+file)
 
             # Read audio file and do STFT
             x, fs_x = sf.read(audio_file)
@@ -139,7 +140,7 @@ class Evaluate():
 
             # Reconstruction
             with torch.no_grad():
-                data_recon = model(data_orig).to('cpu').detach().numpy()
+                data_recon = self.model(data_orig).to(self.local_device).detach().numpy()
 
             # Re-synthesis
             X_recon = np.sqrt(data_recon) * np.exp(1j * np.angle(X))
@@ -160,24 +161,24 @@ class Evaluate():
                                'stoi': self.score_stoi}
 
             # Print and save results 
-            self.print_save()
+        self.print_save()
         
 
     def evaluate_seq(self):
 
          # Create re-synthesis folder
-        tag = model_class.tag
+        tag = self.model_class.tag
         root, audio_dir = os.path.split(self.data_dir)
-        recon_dir = os.path.join(root, audio_dir + '_{}_recon-seq'.format(tag))
-        if os.path.isdir(recon_dir):
-            c = input("{} already exists, press 'e' to exist, or delete old one and continue".format(recon_dir))
+        self.recon_dir = os.path.join(root, audio_dir + '_{}_recon-seq'.format(tag))
+        if os.path.isdir(self.recon_dir):
+            c = input("{} already exists, press 'e' to exist, or delete old one and continue".format(self.recon_dir))
             if c == 'e':
                 return
             else:
-                shutil.rmtree(recon_dir)
-                os.mkdir(recon_dir)
+                shutil.rmtree(self.recon_dir)
+                os.mkdir(self.recon_dir)
         else:
-            os.mkdir(recon_dir)
+            os.mkdir(self.recon_dir)
 
         # Loop over audio files
         for audio_file in self.audio_list:
@@ -205,7 +206,7 @@ class Evaluate():
                 data_orig = torch.from_numpy(data_orig.astype(np.float32))
                 
                 with torch.no_grad():
-                    data_recon = self.model(data_orig).to('cpu').detach().numpy()
+                    data_recon = self.model(data_orig).to(self.local_device).detach().numpy()
                 
                 X_recon = np.sqrt(data_recon) * np.exp(1j * np.angle(sample))
                 x_recon = librosa.istft(X_recon, hop_length=self.hop, win_length=self.wlen, window=self.win)
@@ -213,8 +214,8 @@ class Evaluate():
                 
                 # Define reconstruction file path
                 root, file = os.path.split(audio_file)
-                file_orig = os.path.join(recon_dir, 'orig_{}_'.format(i) + file)
-                file_recon = os.path.join(recon_dir, 'recon_{}_'.format(i) + file)
+                file_orig = os.path.join(self.recon_dir, 'orig_{}_'.format(i) + file)
+                file_recon = os.path.join(self.recon_dir, 'recon_{}_'.format(i) + file)
 
                 # Save files
                 scale_norm = 1 / (np.maximum(np.max(np.abs(x_recon)), np.max(np.abs(x_orig)))) * 0.9
@@ -222,15 +223,15 @@ class Evaluate():
                 librosa.output.write_wav(file_recon, scale_norm*x_recon, fs_x)
 
                 # Evaluation
-                score_rmse.append(eval_rmse(file_recon, file_orig))
-                score_pesq.append(eval_pesq(file_recon, file_orig)['pesq'])
-                score_stoi.append(eval_stoi(file_recon, file_orig)['stoi'])
-                self.eval_score = {'rmse': score_rmse,
-                                'pesq': score_pesq,
-                                'stoi': score_stoi}
+                self.score_rmse.append(self.eval_rmse(file_recon, file_orig))
+                self.score_pesq.append(self.eval_pesq(file_recon, file_orig)['pesq'])
+                self.score_stoi.append(self.eval_stoi(file_recon, file_orig)['stoi'])
+                self.eval_score = {'rmse': self.score_rmse,
+                                   'pesq': self.score_pesq,
+                                   'stoi': self.score_stoi}
         
         # Print and save results 
-            self.print_save()
+        self.print_save()
 
 
     def print_save(self):
@@ -240,17 +241,17 @@ class Evaluate():
         array_pesq = np.array(self.score_pesq)
         array_stoi = np.array(self.score_stoi)
         print("===== RMSE =====")
-        print("mean: {}".format(array_rmse.mean()))
-        print("min: {}".format(array_rmse.min()))
-        print("max: {}".format(array_rmse.max()))
+        print("mean: {:.4f}".format(array_rmse.mean()))
+        print("min: {:.4f}".format(array_rmse.min()))
+        print("max: {:.4f}".format(array_rmse.max()))
         print("===== PESQ =====")
-        print("mean: {}".format(array_pesq.mean()))
-        print("min: {}".format(array_pesq.min()))
-        print("max: {}".format(array_pesq.max()))
+        print("mean: {:.4f}".format(array_pesq.mean()))
+        print("min: {:.4f}".format(array_pesq.min()))
+        print("max: {:.4f}".format(array_pesq.max()))
         print("===== STOI =====")
-        print("mean: {}".format(array_stoi.mean()))
-        print("min: {}".format(array_stoi.min()))
-        print("max: {}".format(array_stoi.max()))
+        print("mean: {:.4f}".format(array_stoi.mean()))
+        print("min: {:.4f}".format(array_stoi.min()))
+        print("max: {:.4f}".format(array_stoi.max()))
         
         # Save evaluation
         save_file = os.path.join(self.recon_dir, 'evaluation.pckl')
@@ -265,7 +266,7 @@ if __name__ == '__main__':
         model_dir = sys.argv[1]
         data_dir = sys.argv[2]
         ev = Evaluate(model_dir, data_dir)
-        ev.evaluate()
+        ev.evaluate_seq()
         
     else:
         print("Please follow: evaluate model_dir data_dir")

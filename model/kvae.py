@@ -256,8 +256,7 @@ class KVAE(nn.Module):
                 Sigma_t = I_KC.bmm(Sigma_t_pred).bmm(I_KC.transpose(1,2)) + K_t.matmul(self.R).matmul(K_t.transpose(1,2)) # (bs, z_dim, z_dim), general case
 
             # Save cache
-            mu_pred[t] = torch.squeeze(mu_t_pred)
-            mu_filter[t] = torch.squeeze(mu_t)
+            mu_pred[t] = mu_t_pred.view(batch_size, self.z_dim)
             Sigma_pred[t] = Sigma_t_pred
             Sigma_filter[t] = Sigma_t
   
@@ -273,12 +272,12 @@ class KVAE(nn.Module):
 
             # Backward smoothing
             dif_mu_tp1 = (mu_smooth[t+1] - mu_filter[t+1]).unsqueeze(-1) # (bs, z_dim, 1)
-            mu_smooth[t] = mu_filter[t] + J_t.matmul(dif_mu_tp1).squeeze() # (bs, z_dim)
+            mu_smooth[t] = mu_filter[t] + J_t.matmul(dif_mu_tp1).view(batch_size, self.z_dim) # (bs, z_dim)
             dif_Sigma_tp1 = Sigma_smooth[t+1] - Sigma_pred[t+1] # (bs, z_dim, z_dim)
             Sigma_smooth[t] = Sigma_filter[t] + J_t.bmm(dif_Sigma_tp1).bmm(J_t.transpose(1,2)) # (bs, z_dim, z_dim)
 
         # Generate a from smoothing z
-        a_gen = C_mix.matmul(mu_smooth.unsqueeze(-1)).squeeze() # (seq_len, bs, a_dim)
+        a_gen = C_mix.matmul(mu_smooth.unsqueeze(-1)).view(seq_len, batch_size, self.a_dim) # (seq_len, bs, a_dim)
         
         return a_gen, mu_smooth, Sigma_smooth, A_mix, B_mix, C_mix
 
@@ -326,6 +325,7 @@ class KVAE(nn.Module):
         
         # output of NN:    (seq_len, batch_size, dim)
         # output of model: (batch_size, dim, seq_len) or (dim, seq_len)
+        
         self.y = y.permute(1,-1,0).squeeze()
 
         return self.y
@@ -344,8 +344,8 @@ class KVAE(nn.Module):
         # >>> log p(z_t | z_tm1, u_t), transition
         mvn_smooth = MultivariateNormal(mu_smooth, Sigma_smooth)
         z_smooth = mvn_smooth.sample() # # (seq_len, bs, z_dim)
-        Az_tm1 = A[:-1].matmul(z_smooth[:-1].unsqueeze(-1)).squeeze() # (seq_len, bs, z_dim)
-        Bu_t = B[:-1].matmul(u[:-1].unsqueeze(-1)).squeeze() # (seq_len, bs, z_dim)
+        Az_tm1 = A[:-1].matmul(z_smooth[:-1].unsqueeze(-1)).view(seq_len-1, batch_size, -1) # (seq_len, bs, z_dim)
+        Bu_t = B[:-1].matmul(u[:-1].unsqueeze(-1)).view(seq_len-1, batch_size, -1) # (seq_len, bs, z_dim)
         mu_t_transition = Az_tm1 +Bu_t
         z_t_transition = z_smooth[1:]
         mvn_transition = MultivariateNormal(z_t_transition, self.Q)
@@ -355,7 +355,7 @@ class KVAE(nn.Module):
         mvn_0 = MultivariateNormal(self.mu, self.Sigma)
         log_prob_0 = mvn_0.log_prob(z_0)
         # >>> log p(a_t | z_t), emission
-        Cz_t = C.matmul(z_smooth.unsqueeze(-1)).squeeze()
+        Cz_t = C.matmul(z_smooth.unsqueeze(-1)).view(seq_len, batch_size, self.a_dim)
         mvn_emission = MultivariateNormal(Cz_t, self.R)
         log_prob_emission = mvn_emission.log_prob(a)
         # >>> log p_{\gamma}(a_tilde, z_tilde | u)

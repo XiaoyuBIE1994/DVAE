@@ -379,7 +379,7 @@ class BuildVRNN(BuildBasic):
                           dense_hx_z=self.dense_hx_z, dense_hz_x=self.dense_hz_x, 
                           dense_h_z=self.dense_h_z,
                           dim_RNN=self.dim_RNN, num_RNN=self.num_RNN,
-                          dropout_p= elf.dropout_p,
+                          dropout_p= self.dropout_p,
                           device=self.device).to(self.device)
 
         # Print model information
