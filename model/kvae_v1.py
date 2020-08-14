@@ -125,6 +125,22 @@ class KVAE(nn.Module):
         ############################
         #### Scheduler Training ####
         ############################
+        iter_kf = (p for p in [self.A, self.B, self.C, self.a_init])
+        
+        self.vars_vae = [{'params': self.mlp_x_a.parameters(),
+                          'params': self.inf_mean.parameters(),
+                          'params': self.inf_logvar.parameters(),
+                          'params': self.mlp_a_x.parameters(),
+                          'params': self.gen_logvar.parameters()}]
+        self.vars_vae_kf = [{'params': self.mlp_x_a.parameters(),
+                             'params': self.inf_mean.parameters(),
+                             'params': self.inf_logvar.parameters(),
+                             'params': self.mlp_a_x.parameters(),
+                             'params': self.gen_logvar.parameters(),
+                             'params': iter_kf}]
+        self.vars_all = [{'params': self.parameters(),
+                          'params': iter_kf}]
+        
         self.vars_vae = [v for v in self.mlp_x_a.parameters()] \
                       + [v for v in self.inf_mean.parameters()] \
                       + [v for v in self.inf_logvar.parameters()] \
@@ -278,34 +294,6 @@ class KVAE(nn.Module):
         return alpha
     
 
-    def forward_vae(self, x):
-
-        # train input: (batch_size, x_dim, seq_len)
-        # test input:  (x_dim, seq_len)
-        # need input:  (seq_len, batch_size, x_dim)
-        if len(x.shape) == 2:
-            x = x.unsqueeze(0)
-        x = x.permute(-1, 0, 1)
-
-        seq_len = x.shape[0]
-        batch_size = x.shape[1]
-        
-        # main part
-        a, a_mean, a_logvar = self.inference(x)
-        y = self.generation_x(a)
-
-        # calculate loss
-        loss_tot, loss_recon, loss_KLD = self.get_loss_vae(x, y, a_mean, a_logvar, batch_size, seq_len)
-        self.loss = (loss_tot, loss_recon, loss_KLD)
-
-        # output of NN:    (seq_len, batch_size, dim)
-        # output of model: (batch_size, dim, seq_len) or (dim, seq_len)
-        
-        self.y = y.permute(1,-1,0).squeeze()
-
-        return self.y
-
-    
     def forward(self, x):
 
         # train input: (batch_size, x_dim, seq_len)
@@ -341,18 +329,6 @@ class KVAE(nn.Module):
         self.y = y.permute(1,-1,0).squeeze()
 
         return self.y
-
-
-    def get_loss_vae(self, x, y, a_mean, a_logvar, batch_size, seq_len, beta=1):
-
-        loss_recon = torch.sum( x/y - torch.log(x/y) - 1)
-        loss_KLD = -0.5 * torch.sum(a_logvar -  a_logvar.exp() - a_mean.pow(2))
-
-        loss_recon = loss_recon / (batch_size * seq_len)
-        loss_KLD = loss_KLD / (batch_size * seq_len)
-        loss_tot = loss_recon + beta * loss_KLD
-
-        return loss_tot, loss_recon, loss_KLD
 
 
     def get_loss(self, x, y, u, a, a_mean, a_logvar, mu_smooth, Sigma_smooth,

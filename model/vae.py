@@ -122,29 +122,39 @@ class VAE(nn.Module):
 
     def forward(self, x):
         
-        # train input: (batch_size, x_dim)
-        # test input: (x_dim)
+        # train input: (batch_size, x_dim, seq_len)
+        # test input:  (x_dim, seq_len)
+        # need input:  (seq_len, batch_size, x_dim)
+        if len(x.shape) == 2:
+            x = x.unsqueeze(0)
+        x = x.permute(-1, 0, 1)
 
-        batch_size = x.shape[0]
-
+        seq_len = x.shape[0]
+        batch_size = x.shape[1]
+        
         # main part
         z, z_mean, z_logvar = self.inference(x)
         y = self.generation_x(z)
-
+        
         # calculate loss
-        loss_tot, loss_recon, loss_KLD = self.get_loss(x, y, z_mean, z_logvar, batch_size)
+        loss_tot, loss_recon, loss_KLD = self.get_loss(x, y, z_mean, z_logvar, batch_size, seq_len)
         self.loss = (loss_tot, loss_recon, loss_KLD)
 
-        return y
+        # output of NN:    (seq_len, batch_size, dim)
+        # output of model: (batch_size, dim, seq_len) or (dim, seq_len)
+        
+        self.y = y.permute(1,-1,0).squeeze()
+
+        return self.y
 
 
-    def get_loss(self, x, y, z_mean, z_logvar, batch_size, beta=1):
+    def get_loss(self, x, y, z_mean, z_logvar, batch_size, seq_len, beta=1):
 
         loss_recon = torch.sum( x/y - torch.log(x/y) - 1)
         loss_KLD = -0.5 * torch.sum(z_logvar -  z_logvar.exp() - z_mean.pow(2))
 
-        loss_recon = loss_recon / batch_size
-        loss_KLD = loss_KLD / batch_size
+        loss_recon = loss_recon / (batch_size * seq_len)
+        loss_KLD = loss_KLD / (batch_size * seq_len)
         loss_tot = loss_recon + beta * loss_KLD
 
         return loss_tot, loss_recon, loss_KLD

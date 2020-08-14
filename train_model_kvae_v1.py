@@ -35,18 +35,20 @@ def train_model(config_file):
     # Build model using config_file
     model_class = build_model(config_file)
     model = model_class.model
-    optimizer = model_class.optimizer
-    batch_size = model_class.batch_size
-    seq_len = model_class.sequence_len
     epochs = model_class.epochs
     logger = model_class.logger
     num_parameters = sum(p.numel() for p in model.parameters() if p.requires_grad)
     device = model_class.device
-    
+
+    optim_vae = model_class.optimizer_vae
+    optim_vae_kf = model_class.optimizer_vae_kf
+    optim_all = model_class.optimizer_all
+    optimizer_net = model_class.optimizer_net
+
     # Save the model parameters
     save_cfg = os.path.join(model_class.save_dir, 'config.ini')
     shutil.copy(config_file, save_cfg)
-
+    
     # Check if gpu is available on cluster
     if 'gpu' in model_class.hostname and device == 'cpu':
         logger.error('GPU unavailable on cluster, training stop')
@@ -54,55 +56,63 @@ def train_model(config_file):
 
     # Create dataloader
     train_dataloader, val_dataloader, train_num, val_num = model_class.build_dataloader()
-    log_message = 'Training samples: {}'.format(train_num)
-    logger.info(log_message)
-    log_message = 'Validation samples: {}'.format(val_num)
-    logger.info(log_message)
 
     # Create python list for loss
     train_loss = np.zeros((epochs,))
     val_loss = np.zeros((epochs,))
-    train_recon = np.zeros((epochs,))
-    train_KLD = np.zeros((epochs,))
-    val_recon = np.zeros((epochs,))
-    val_KLD = np.zeros((epochs,))
+    train_vae = np.zeros((epochs,))
+    train_lgssm = np.zeros((epochs,))
+    val_vae = np.zeros((epochs,))
+    val_lgssm = np.zeros((epochs,))
     best_val_loss = np.inf
     cpt_patience = 0
     cur_best_epoch = epochs
     best_state_dict = model.state_dict()
-
     # Train with mini-batch SGD
     for epoch in range(epochs):
+        
+        # Scheduler training, beneficial to achieve better convergence not to
+        # train alpha from the beginning
+        if model_class.scheduler_training:
+            if epoch < model_class.only_vae_epochs:
+                optimizer = model_class.optimizer_vae
+                # optimizer = model_class.optimizer_net
+            elif epoch < model_class.only_vae_epochs + model_class.kf_update_epochs:
+                optimizer = model_class.optimizer_vae_kf
+                # optimizer = model_class.optimizer_lgssm
+            else:
+                optimizer = model_class.optimizer_all
+        else:
+            optimizer = model_class.optimizer_all
 
         start_time = datetime.datetime.now()
         model.train()
 
         # Batch training
         for batch_idx, batch_data in enumerate(train_dataloader):
-            
-            batch_data = batch_data.to(device)
-            recon_batch_data = model(batch_data)
 
-            loss_tot, loss_recon, loss_KLD = model.loss
+            batch_data = batch_data.to(model_class.device)
             optimizer.zero_grad()
-            loss_tot.backward()
+            y = model(batch_data)
+            loss, loss_vae, loss_lgssm = model.loss
+        
+            loss.backward()
+            train_loss[epoch] += loss.item()
+            train_vae[epoch] += loss_vae.item()
+            train_lgssm[epoch] += loss_lgssm.item()
             optimizer.step()
-
-            train_loss[epoch] += loss_tot.item()
-            train_recon[epoch] += loss_recon.item()
-            train_KLD[epoch] += loss_KLD.item()
             
         # Validation
         for batch_idx, batch_data in enumerate(val_dataloader):
 
-            batch_data = batch_data.to(device)
-            recon_batch_data = model(batch_data)
+            batch_data = batch_data.to(model_class.device)
+            optimizer.zero_grad()
+            y = model(batch_data)
+            loss, loss_vae, loss_lgssm = model.loss
 
-            loss_tot, loss_recon, loss_KLD = model.loss
-            
-            val_loss[epoch] += loss_tot.item()
-            val_recon[epoch] += loss_recon.item()
-            val_KLD[epoch] += loss_KLD.item()
+            val_loss[epoch] += loss.item()
+            val_vae[epoch] += loss_vae.item()
+            val_lgssm[epoch] += loss_lgssm.item()
 
         # Early stop patiance
         if val_loss[epoch] < best_val_loss:
@@ -114,15 +124,14 @@ def train_model(config_file):
             cpt_patience += 1
 
 
-        # Loss normalization
         train_loss[epoch] = train_loss[epoch]/ train_num
         val_loss[epoch] = val_loss[epoch] / val_num
-        train_recon[epoch] = train_recon[epoch] / train_num 
-        train_KLD[epoch] = train_KLD[epoch]/ train_num
-        val_recon[epoch] = val_recon[epoch] / val_num 
-        val_KLD[epoch] = val_KLD[epoch] / val_num
 
-        # Training time
+        train_vae[epoch] = train_vae[epoch] / train_num 
+        train_lgssm[epoch] = train_lgssm[epoch]/ train_num
+        val_vae[epoch] = val_vae[epoch] / val_num 
+        val_lgssm[epoch] = val_lgssm[epoch] / val_num
+
         end_time = datetime.datetime.now()
         interval = (end_time - start_time).seconds / 60
         log_message = 'Epoch: {} train loss: {:.4f} val loss {:.4f} training time {:.2f}m'.format(epoch, train_loss[epoch], val_loss[epoch], interval)
@@ -142,10 +151,10 @@ def train_model(config_file):
     # Save the final weights of network with the best validation loss
     train_loss = train_loss[:epoch+1]
     val_loss = val_loss[:epoch+1]
-    train_recon = train_recon[:epoch+1]
-    train_KLD = train_KLD[:epoch+1]
-    val_recon = val_recon[:epoch+1]
-    val_KLD = val_KLD[:epoch+1]
+    train_vae = train_vae[:epoch+1]
+    train_lgssm = train_lgssm[:epoch+1]
+    val_vae = val_vae[:epoch+1]
+    val_lgssm = val_lgssm[:epoch+1]
     save_file = os.path.join(model_class.save_dir, 
                              model_class.model_name + '_final_epoch' + str(cur_best_epoch) + '.pt')
     torch.save(best_state_dict, save_file)
@@ -155,7 +164,7 @@ def train_model(config_file):
     # with open(loss_file, 'wb') as f:
     #     pickle.dump([train_loss, val_loss], f)
     with open(loss_file, 'wb') as f:
-        pickle.dump([train_loss, val_loss, train_recon, train_KLD, val_recon, val_KLD], f)
+        pickle.dump([train_loss, val_loss, train_vae, train_lgssm, val_vae, val_lgssm], f)
 
     # Save the loss figure
     plt.clf()
@@ -169,9 +178,9 @@ def train_model(config_file):
     plt.savefig(loss_figure_file) 
 
     plt.clf()
-    plt.plot(train_recon, '--o')
-    plt.plot(train_KLD, '--x')
-    plt.legend(('recon', 'KLD'))
+    plt.plot(train_vae, '--o')
+    plt.plot(train_lgssm, '--x')
+    plt.legend(('VAE', 'LGSSM'))
     plt.xlabel('epochs')
     plt.ylabel('loss')
     plt.title(model_class.filename + 'train loss')
@@ -179,9 +188,9 @@ def train_model(config_file):
     plt.savefig(loss_figure_file) 
 
     plt.clf()
-    plt.plot(val_recon, '--o')
-    plt.plot(val_KLD, '--x')
-    plt.legend(('recon', 'KLD'))
+    plt.plot(val_vae, '--o')
+    plt.plot(val_lgssm, '--x')
+    plt.legend(('VAE', 'LGSSM'))
     plt.xlabel('epochs')
     plt.ylabel('loss')
     plt.title(model_class.filename + 'validation loss')
@@ -194,4 +203,4 @@ if __name__ == '__main__':
         config_file = sys.argv[1]
         train_model(config_file)
     else:
-        print("Please indiquate config file")
+        logger.warning("Please indiquate config file")

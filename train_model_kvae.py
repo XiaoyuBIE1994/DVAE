@@ -64,11 +64,140 @@ def train_model(config_file):
     train_lgssm = np.zeros((epochs,))
     val_vae = np.zeros((epochs,))
     val_lgssm = np.zeros((epochs,))
+
+    vae_train_loss = np.zeros((epochs,))
+    vae_val_loss = np.zeros((epochs,))
+    vae_train_recon = np.zeros((epochs,))
+    vae_train_KLD = np.zeros((epochs,))
+    vae_val_recon = np.zeros((epochs,))
+    vae_val_KLD = np.zeros((epochs,))
+
     best_val_loss = np.inf
     cpt_patience = 0
     cur_best_epoch = epochs
     best_state_dict = model.state_dict()
-    # Train with mini-batch SGD
+
+    ############################
+    #### Pre-train VAE only ####
+    ############################
+    optimizer = model_class.optimizer_vae
+    logger.info('====> Only train VAE part')
+    for epoch in range(epochs):
+
+        start_time = datetime.datetime.now()
+        model.train()
+
+        # Batch training
+        for batch_idx, batch_data in enumerate(train_dataloader):
+
+            batch_data = batch_data.to(device)
+            recon_batch_data = model.forward_vae(batch_data)
+            
+            loss, loss_recon, loss_KLD = model.loss
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+
+            vae_train_loss[epoch] += loss.item()
+            vae_train_recon[epoch] += loss_recon.item()
+            vae_train_KLD[epoch] += loss_KLD.item()
+            
+        # Validation
+        for batch_idx, batch_data in enumerate(val_dataloader):
+
+            batch_data = batch_data.to(device)
+            recon_batch_data = model.forward_vae(batch_data)
+
+            loss, loss_recon, loss_KLD = model.loss
+
+            vae_val_loss[epoch] += loss.item()
+            vae_val_recon[epoch] += loss_recon.item()
+            vae_val_KLD[epoch] += loss_KLD.item()        
+
+        # Early stop patiance
+        if vae_val_loss[epoch] < best_val_loss:
+            best_val_loss = vae_val_loss[epoch]
+            cpt_patience = 0
+            best_state_dict = model.state_dict()
+            cur_best_epoch = epoch
+        else:
+            cpt_patience += 1
+
+
+        vae_train_loss[epoch] = vae_train_loss[epoch]/ train_num
+        vae_val_loss[epoch] = vae_val_loss[epoch] / val_num
+
+        vae_train_recon[epoch] = vae_train_recon[epoch] / train_num 
+        vae_train_KLD[epoch] = vae_train_KLD[epoch]/ train_num
+        vae_val_recon[epoch] = vae_val_recon[epoch] / val_num 
+        vae_val_KLD[epoch] = vae_val_KLD[epoch] / val_num
+
+        end_time = datetime.datetime.now()
+        interval = (end_time - start_time).seconds / 60
+        log_message = 'Epoch: {} train loss: {:.4f} val loss {:.4f} training time {:.2f}m'.format(epoch, vae_train_loss[epoch], vae_val_loss[epoch], interval)
+        logger.info(log_message)
+
+        # Stop traning if early-stop triggers
+        if cpt_patience == 5:
+            logger.info('Early stop patience for VAE training achieved')
+            break
+
+        # Save model parameters regularly
+        if epoch % model_class.save_frequency == 0:
+            save_file = os.path.join(model_class.save_dir, 
+                                     model_class.model_name + '_VAE_epoch' + str(cur_best_epoch) + '.pt')
+            torch.save(best_state_dict, save_file)
+
+    # Save the training loss and validation loss
+    loss_file = os.path.join(model_class.save_dir, 'loss_vae.pckl')
+    with open(loss_file, 'wb') as f:
+        pickle.dump([vae_train_loss, vae_val_loss, vae_train_recon, vae_train_KLD, vae_val_recon, vae_val_KLD], f)
+
+    # Save the loss figure
+    plt.clf()
+    plt.plot(vae_train_loss, '--o')
+    plt.plot(vae_val_loss, '--x')
+    plt.legend(('train loss', 'val loss'))
+    plt.xlabel('epochs')
+    plt.ylabel('loss')
+    plt.title(model_class.filename)
+    loss_figure_file = os.path.join(model_class.save_dir, 'VAE_loss_{}.png'.format(model_class.tag))
+    plt.savefig(loss_figure_file) 
+
+    plt.clf()
+    plt.plot(vae_train_recon, '--o')
+    plt.plot(vae_val_recon, '--x')
+    plt.legend(('train', 'val'))
+    plt.xlabel('epochs')
+    plt.ylabel('loss')
+    plt.title(model_class.filename + 'train loss')
+    loss_figure_file = os.path.join(model_class.save_dir, 'VAE_loss_recon_{}.png'.format(model_class.tag))
+    plt.savefig(loss_figure_file) 
+
+    plt.clf()
+    plt.plot(vae_train_KLD, '--o')
+    plt.plot(vae_val_KLD, '--x')
+    plt.legend(('train', 'val'))
+    plt.xlabel('epochs')
+    plt.ylabel('loss')
+    plt.title(model_class.filename + 'validation loss')
+    loss_figure_file = os.path.join(model_class.save_dir, 'VAE_loss_KLD_{}.png'.format(model_class.tag))
+    plt.savefig(loss_figure_file) 
+    
+    # VAE pre-training finished
+    logger.info('====> VAE pre-training finished')
+    logger.info('====> Best epoch for VAE training: {}'.format(cur_best_epoch))
+    logger.info('====> Loading best state dict...')
+    model.load_state_dict(best_state_dict)
+    
+    #######################
+    #### KVAE Training ####
+    #######################
+    logger.info('====> KVAE Training')
+    best_val_loss = np.inf
+    cpt_patience = 0
+    cur_best_epoch = epochs
+
     for epoch in range(epochs):
         
         # Scheduler training, beneficial to achieve better convergence not to
@@ -92,22 +221,24 @@ def train_model(config_file):
         for batch_idx, batch_data in enumerate(train_dataloader):
 
             batch_data = batch_data.to(model_class.device)
-            optimizer.zero_grad()
-            y = model(batch_data)
+            recon_batch_data = model(batch_data)
+
             loss, loss_vae, loss_lgssm = model.loss
-        
+            optimizer.zero_grad()
             loss.backward()
+            optimizer.step()
+
             train_loss[epoch] += loss.item()
             train_vae[epoch] += loss_vae.item()
             train_lgssm[epoch] += loss_lgssm.item()
-            optimizer.step()
+            
             
         # Validation
         for batch_idx, batch_data in enumerate(val_dataloader):
 
             batch_data = batch_data.to(model_class.device)
-            optimizer.zero_grad()
-            y = model(batch_data)
+            recon_batch_data = model(batch_data)
+
             loss, loss_vae, loss_lgssm = model.loss
 
             val_loss[epoch] += loss.item()
@@ -161,8 +292,6 @@ def train_model(config_file):
     
     # Save the training loss and validation loss
     loss_file = os.path.join(model_class.save_dir, 'loss_model.pckl')
-    # with open(loss_file, 'wb') as f:
-    #     pickle.dump([train_loss, val_loss], f)
     with open(loss_file, 'wb') as f:
         pickle.dump([train_loss, val_loss, train_vae, train_lgssm, val_vae, val_lgssm], f)
 
@@ -174,27 +303,27 @@ def train_model(config_file):
     plt.xlabel('epochs')
     plt.ylabel('loss')
     plt.title(model_class.filename)
-    loss_figure_file = os.path.join(model_class.save_dir, 'loss_{}.png'.format(model_class.tag))
+    loss_figure_file = os.path.join(model_class.save_dir, 'Total_loss_{}.png'.format(model_class.tag))
     plt.savefig(loss_figure_file) 
 
     plt.clf()
     plt.plot(train_vae, '--o')
-    plt.plot(train_lgssm, '--x')
-    plt.legend(('VAE', 'LGSSM'))
+    plt.plot(val_vae, '--x')
+    plt.legend(('train', 'val'))
     plt.xlabel('epochs')
     plt.ylabel('loss')
     plt.title(model_class.filename + 'train loss')
-    loss_figure_file = os.path.join(model_class.save_dir, 'loss_train_{}.png'.format(model_class.tag))
+    loss_figure_file = os.path.join(model_class.save_dir, 'Total_loss_vae_{}.png'.format(model_class.tag))
     plt.savefig(loss_figure_file) 
 
     plt.clf()
-    plt.plot(val_vae, '--o')
+    plt.plot(train_lgssm, '--o')
     plt.plot(val_lgssm, '--x')
-    plt.legend(('VAE', 'LGSSM'))
+    plt.legend(('train', 'val'))
     plt.xlabel('epochs')
     plt.ylabel('loss')
     plt.title(model_class.filename + 'validation loss')
-    loss_figure_file = os.path.join(model_class.save_dir, 'loss_val_{}.png'.format(model_class.tag))
+    loss_figure_file = os.path.join(model_class.save_dir, 'Total_loss_lgssm_{}.png'.format(model_class.tag))
     plt.savefig(loss_figure_file) 
 
 

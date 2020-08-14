@@ -203,42 +203,6 @@ class BuildVAE(BuildBasic):
             self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
 
 
-    def build_dataloader(self):
-        # List all the data with certain suffix
-        self.data_suffix = self.cfg.get('DataFrame', 'suffix')
-        self.train_file_list = librosa.util.find_files(self.train_data_dir, ext=self.data_suffix)
-        self.val_file_list = librosa.util.find_files(self.val_data_dir, ext=self.data_suffix)
-        # Generate dataloader for pytorch
-        self.num_workers = self.cfg.getint('DataFrame', 'num_workers')
-        self.shuffle_file_list = self.cfg.get('DataFrame', 'shuffle_file_list')
-        self.shuffle_samples_in_batch = self.cfg.get('DataFrame', 'shuffle_samples_in_batch')
-
-        # Instantiate dataloader
-        train_dataset = SpeechDatasetFrames(file_list=self.train_file_list,
-                                            wlen_sec=self.wlen_sec, hop_percent=self.hop_percent, fs=self.fs,
-                                            zp_percent=self.zp_percent, trim=self.trim, verbose=self.verbose,
-                                            batch_size=self.batch_size, shuffle_file_list=self.shuffle_file_list,
-                                            name=self.dataset_name)
-        val_dataset = SpeechDatasetFrames(file_list=self.val_file_list,
-                                          wlen_sec=self.wlen_sec, hop_percent=self.hop_percent, fs=self.fs,
-                                          zp_percent=self.zp_percent, trim=self.trim, verbose=self.verbose,
-                                          batch_size=self.batch_size, shuffle_file_list=self.shuffle_file_list,
-                                          name=self.dataset_name)
-        train_num = train_dataset.num_samples
-        val_num = val_dataset.num_samples
-
-        # Create dataloader
-        train_dataloader = data.DataLoader(train_dataset, batch_size=self.batch_size, 
-                                           shuffle=self.shuffle_samples_in_batch,
-                                           num_workers = self.num_workers)
-        val_dataloader = data.DataLoader(val_dataset, batch_size=self.batch_size,
-                                         shuffle=self.shuffle_samples_in_batch,
-                                         num_workers = self.num_workers)
-
-        return train_dataloader, val_dataloader, train_num, val_num
-
-
-
 
 class BuildDMM(BuildBasic):
 
@@ -631,7 +595,7 @@ class BuildKVAE(BuildBasic):
         # Init optimizer (Adam by default):
         if self.optimization == 'adam':
             self.optimizer_vae = torch.optim.Adam(self.model.vars_vae, lr=self.lr)
-            self.optimizer_vae_kf = torch.optim.Adam(self.model.vars_vae+self.model.vars_kf, lr=self.lr)
+            self.optimizer_vae_kf = torch.optim.Adam(self.model.vars_vae+self.model.vars_kf, lr=self.lr_tot)
             self.optimizer_net = torch.optim.Adam(self.model.vars_vae+self.model.vars_alpha, lr=self.lr)
             self.optimizer_lgssm =  torch.optim.Adam(self.model.vars_kf+self.model.vars_alpha, lr=self.lr)
             self.optimizer_all = torch.optim.Adam(self.model.vars_vae+self.model.vars_kf+self.model.vars_alpha, lr=self.lr_tot)
