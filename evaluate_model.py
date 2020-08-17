@@ -57,6 +57,7 @@ class Evaluate():
         for file in os.listdir(self.model_dir):
             if '.ini' in file:
                 self.cfg_file = os.path.join(model_dir, file)
+                print(self.cfg_file)
             if 'final_epoch' in file:
             # if 'KVAE_epoch310' in file:
                 self.weight_file = os.path.join(model_dir, file)
