@@ -198,7 +198,7 @@ class Evaluate():
             x = np.pad(x, int(self.nfft // 2), mode='reflect')
             X = librosa.stft(x, n_fft=self.nfft, hop_length=self.hop, win_length=self.wlen, window=self.win)
             # n_seq = (1 + int((len(x) - self.wlen) / self.hop) )//self.sequence_len
-            n_seq = len(X) // self.sequence_len
+            n_seq = X.shape[1] // self.sequence_len
 
             for i in range(n_seq):
                 sample = X[:, i*self.sequence_len:(i+1)*self.sequence_len]
