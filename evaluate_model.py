@@ -28,10 +28,11 @@ def rmse_frame():
         len_x = len(x_est)
         x_ref = x_ref[:len_x]
         # scaling
-        x_est_ = np.expand_dims(x_est, axis=1)
-        scale = np.linalg.lstsq(x_est_, x_ref, rcond=None)[0][0]
-        x_est_scaled = scale * x_est
-        return np.sqrt(np.square(x_est_scaled, x_ref).mean())
+        alpha = np.sum(x_est*x_ref) / np.sum(x_est**2)
+        # x_est_ = np.expand_dims(x_est, axis=1)
+        # alpha = np.linalg.lstsq(x_est_, x_ref, rcond=None)[0][0]
+        x_est_scaled = alpha * x_est
+        return np.sqrt(np.square(x_est_scaled - x_ref).mean())
 
     return get_result
 
@@ -55,7 +56,6 @@ class Evaluate():
 
         # Find config file and training weight
         for file in os.listdir(self.model_dir):
-            print(file)
             if '.ini' in file:
                 self.cfg_file = os.path.join(model_dir, file)
             if 'final_epoch' in file:
@@ -76,9 +76,6 @@ class Evaluate():
         self.eval_rmse = rmse_frame()
         self.eval_pesq = speechmetrics.load('pesq', window=None)
         self.eval_stoi = speechmetrics.load('stoi', window=None)
-        self.score_rmse = []
-        self.score_pesq = []
-        self.score_stoi = []
 
         # Load weight
         self.model.load_state_dict(torch.load(self.weight_file, map_location=self.local_device))
@@ -104,35 +101,41 @@ class Evaluate():
         self.sequence_len = self.cfg.getint('DataFrame','sequence_len')
 
 
-    def evaluate(self):
+    def evaluate_utterance(self):
 
-         # Create re-synthesis folder
+        # Create re-synthesis folder
         tag = self.model_class.tag
         root, audio_dir = os.path.split(self.data_dir)
-        self.recon_dir = os.path.join(root, audio_dir + '_{}_recon'.format(tag))
-        if os.path.isdir(self.recon_dir):
-            c = input("{} already exists, press 'e' to exist, or delete old one and continue".format(self.recon_dir))
+        recon_dir = os.path.join(root, audio_dir + '_{}_recon-utt'.format(tag))
+        if os.path.isdir(recon_dir):
+            c = input("{} already exists, press 'e' to exist, or delete old one and continue".format(recon_dir))
             if c == 'e':
                 return
             else:
-                shutil.rmtree(self.recon_dir)
-                os.mkdir(self.recon_dir)
+                shutil.rmtree(recon_dir)
+                os.mkdir(recon_dir)
         else:
-            os.mkdir(self.recon_dir)
+            os.mkdir(recon_dir)
 
+        # Create score list
+        score_rmse = []
+        score_pesq = []
+        score_stoi = []
 
         # Loop over audio files
         for audio_file in self.audio_list:
 
             # Define reconstruction file path
             root, file = os.path.split(audio_file)
-            file_orig = os.path.join(self.recon_dir, 'orig_'+file)
-            file_recon = os.path.join(self.recon_dir, 'recon_'+file)
+            file_orig = os.path.join(recon_dir, 'orig_'+file)
+            file_recon = os.path.join(recon_dir, 'recon_'+file)
 
             # Read audio file and do STFT
             x, fs_x = sf.read(audio_file)
             scale = np.max(np.abs(x))
             x = x / scale
+            if self.trim:
+                x, _ = librosa.effects.trim(x, top_db=30)
             X = librosa.stft(x, n_fft=self.nfft, hop_length=self.hop, win_length=self.wlen, window=self.win)
 
             # Prepare data input
@@ -154,32 +157,34 @@ class Evaluate():
             librosa.output.write_wav(file_recon, scale_norm*x_recon, fs_x)
 
             # Evaluation
-            self.score_rmse.append(self.eval_rmse(file_recon, file_orig))
-            self.score_pesq.append(self.eval_pesq(file_recon, file_orig)['pesq'])
-            self.score_stoi.append(self.eval_stoi(file_recon, file_orig)['stoi'])
-            self.eval_score = {'rmse': self.score_rmse,
-                               'pesq': self.score_pesq,
-                               'stoi': self.score_stoi}
+            score_rmse.append(self.eval_rmse(file_recon, file_orig))
+            score_pesq.append(self.eval_pesq(file_recon, file_orig)['pesq'])
+            score_stoi.append(self.eval_stoi(file_recon, file_orig)['stoi'])
 
-            # Print and save results 
-        self.print_save()
+        # Print and save results 
+        self.print_save(score_rmse, score_pesq, score_stoi, recon_dir, tag='utterance')
         
 
-    def evaluate_seq(self):
+    def evaluate_sequence(self):
 
-         # Create re-synthesis folder
+        # Create re-synthesis folder
         tag = self.model_class.tag
         root, audio_dir = os.path.split(self.data_dir)
-        self.recon_dir = os.path.join(root, audio_dir + '_{}_recon-seq'.format(tag))
-        if os.path.isdir(self.recon_dir):
-            c = input("{} already exists, press 'e' to exist, or delete old one and continue".format(self.recon_dir))
+        recon_dir = os.path.join(root, audio_dir + '_{}_recon-seq'.format(tag))
+        if os.path.isdir(recon_dir):
+            c = input("{} already exists, press 'e' to exist, or delete old one and continue".format(recon_dir))
             if c == 'e':
                 return
             else:
-                shutil.rmtree(self.recon_dir)
-                os.mkdir(self.recon_dir)
+                shutil.rmtree(recon_dir)
+                os.mkdir(recon_dir)
         else:
-            os.mkdir(self.recon_dir)
+            os.mkdir(recon_dir)
+
+        # Create score list
+        score_rmse = []
+        score_pesq = []
+        score_stoi = []
 
         # Loop over audio files
         for audio_file in self.audio_list:
@@ -215,8 +220,8 @@ class Evaluate():
                 
                 # Define reconstruction file path
                 root, file = os.path.split(audio_file)
-                file_orig = os.path.join(self.recon_dir, 'orig_{}_'.format(i) + file)
-                file_recon = os.path.join(self.recon_dir, 'recon_{}_'.format(i) + file)
+                file_orig = os.path.join(recon_dir, 'orig_{}_'.format(i) + file)
+                file_recon = os.path.join(recon_dir, 'recon_{}_'.format(i) + file)
 
                 # Save files
                 scale_norm = 1 / (np.maximum(np.max(np.abs(x_recon)), np.max(np.abs(x_orig)))) * 0.9
@@ -224,23 +229,23 @@ class Evaluate():
                 librosa.output.write_wav(file_recon, scale_norm*x_recon, fs_x)
 
                 # Evaluation
-                self.score_rmse.append(self.eval_rmse(file_recon, file_orig))
-                self.score_pesq.append(self.eval_pesq(file_recon, file_orig)['pesq'])
-                self.score_stoi.append(self.eval_stoi(file_recon, file_orig)['stoi'])
-                self.eval_score = {'rmse': self.score_rmse,
-                                   'pesq': self.score_pesq,
-                                   'stoi': self.score_stoi}
+                score_rmse.append(self.eval_rmse(file_recon, file_orig))
+                score_pesq.append(self.eval_pesq(file_recon, file_orig)['pesq'])
+                score_stoi.append(self.eval_stoi(file_recon, file_orig)['stoi'])
         
         # Print and save results 
-        self.print_save()
+        self.print_save(score_rmse, score_pesq, score_stoi, recon_dir, tag='sequence')
 
 
-    def print_save(self):
+    def print_save(self, score_rmse, score_pesq, score_stoi, recon_dir, tag):
 
         # Print results
-        array_rmse = np.array(self.score_rmse)
-        array_pesq = np.array(self.score_pesq)
-        array_stoi = np.array(self.score_stoi)
+        array_rmse = np.array(score_rmse)
+        array_pesq = np.array(score_pesq)
+        array_stoi = np.array(score_stoi)
+        print('****************************')
+        print('*** Evaluation on {} level'.format(tag))
+        print('****************************')
         print("===== RMSE =====")
         print("mean: {:.4f}".format(array_rmse.mean()))
         print("min: {:.4f}".format(array_rmse.min()))
@@ -255,20 +260,37 @@ class Evaluate():
         print("max: {:.4f}".format(array_stoi.max()))
         
         # Save evaluation
-        save_file = os.path.join(self.recon_dir, 'evaluation.pckl')
+        save_file = os.path.join(recon_dir, 'evaluation.pckl')
         with open(save_file, 'wb') as f:
-            pickle.dump([self.score_rmse, self.score_pesq, self.score_stoi], f)
+            pickle.dump([score_rmse, score_pesq, score_stoi], f)
 
 
 
 if __name__ == '__main__':
 
-    if len(sys.argv) == 3:
-        model_dir = sys.argv[1]
-        data_dir = sys.argv[2]
-        ev = Evaluate(model_dir, data_dir)
-        ev.evaluate_seq()
+    # if len(sys.argv) == 3:
+    #     data_dir = sys.argv[1]
+    #     model_dir = sys.argv[2]
+    #     ev = Evaluate(model_dir, data_dir)
+    #     ev.evaluate_utterance()
+    #     ev.evaluate_sequence()
         
-    else:
-        print("Please follow: evaluate model_dir data_dir")
-    
+    # else:
+    #     print("Please follow: evaluate data_dir model_dir")
+
+    data_dir = '/local_scratch/xbie/Data/clean_speech/wsj0_si_et_05'
+    model_root = '/local_scratch/xbie/Results/2020_DVAE/saved_model_DVAE'
+    model_list = ['WSJ0_2020-08-13-13h54_VAE_z_dim=16_F',
+                  'WSJ0_2020-08-12-21h08_DMM_z_dim=16_F',
+                  'WSJ0_2020-07-30-12h14_STORN_z_dim=16_F',
+                  'WSJ0_2020-08-12-21h06_VRNN_z_dim=16_F',
+                  'WSJ0_2020-08-12-21h00_SRNN_z_dim=16_F',
+                  'WSJ0_2020-07-30-12h12_RVAE-Causal_z_dim=16_F',
+                  'WSJ0_2020-08-01-07h58_RVAE-NonCausal_z_dim=16_F',
+                  'WSJ0_2020-08-12-21h07_DSAE_z_dim=16_F']
+    for model in model_list:
+        print("Evaluation for {}".format(model))
+        model_dir = os.path.join(model_root, model)
+        ev = Evaluate(model_dir, data_dir)
+        ev.evaluate_utterance()
+        ev.evaluate_sequence()

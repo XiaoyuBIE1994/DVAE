@@ -4,6 +4,8 @@
 Copyright (c) 2020 by Inria
 Authoried by Xiaoyu BIE (xiaoyu.bie@inrai.fr)
 License agreement in LICENSE.txt
+
+To be deleted in the future, replaced by evaluate_model.py
 """
 
 import os
