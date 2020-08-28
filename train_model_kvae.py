@@ -57,6 +57,150 @@ def train_model(config_file):
     # Create dataloader
     train_dataloader, val_dataloader, train_num, val_num = model_class.build_dataloader()
 
+    # ############################
+    # #### Pre-train VAE only ####
+    # ############################
+
+    # Create python list for loss
+    # vae_train_loss = np.zeros((epochs,))
+    # vae_val_loss = np.zeros((epochs,))
+    # vae_train_recon = np.zeros((epochs,))
+    # vae_train_KLD = np.zeros((epochs,))
+    # vae_val_recon = np.zeros((epochs,))
+    # vae_val_KLD = np.zeros((epochs,))
+
+    # best_val_loss = np.inf
+    # cpt_patience = 0
+    # cur_best_epoch = epochs
+    # best_state_dict = model.state_dict()
+
+    # optimizer = model_class.optimizer_vae
+
+    # logger.info('====> Only train VAE part')
+    # for epoch in range(0):
+
+    #     start_time = datetime.datetime.now()
+    #     model.train()
+
+    #     # Batch training
+    #     for batch_idx, batch_data in enumerate(train_dataloader):
+
+    #         batch_data = batch_data.to(device)
+    #         recon_batch_data = model.forward_vae(batch_data)
+            
+    #         loss, loss_recon, loss_KLD = model.loss
+    #         optimizer.zero_grad()
+    #         loss.backward()
+    #         optimizer.step()
+
+    #         vae_train_loss[epoch] += loss.item()
+    #         vae_train_recon[epoch] += loss_recon.item()
+    #         vae_train_KLD[epoch] += loss_KLD.item()
+            
+    #     # Validation
+    #     for batch_idx, batch_data in enumerate(val_dataloader):
+
+    #         batch_data = batch_data.to(device)
+    #         recon_batch_data = model.forward_vae(batch_data)
+
+    #         loss, loss_recon, loss_KLD = model.loss
+
+    #         vae_val_loss[epoch] += loss.item()
+    #         vae_val_recon[epoch] += loss_recon.item()
+    #         vae_val_KLD[epoch] += loss_KLD.item()        
+
+    #     # Early stop patiance
+    #     if vae_val_loss[epoch] < best_val_loss:
+    #         best_val_loss = vae_val_loss[epoch]
+    #         cpt_patience = 0
+    #         best_state_dict = model.state_dict()
+    #         cur_best_epoch = epoch
+    #     else:
+    #         cpt_patience += 1
+
+
+    #     vae_train_loss[epoch] = vae_train_loss[epoch]/ train_num
+    #     vae_val_loss[epoch] = vae_val_loss[epoch] / val_num
+
+    #     vae_train_recon[epoch] = vae_train_recon[epoch] / train_num 
+    #     vae_train_KLD[epoch] = vae_train_KLD[epoch]/ train_num
+    #     vae_val_recon[epoch] = vae_val_recon[epoch] / val_num 
+    #     vae_val_KLD[epoch] = vae_val_KLD[epoch] / val_num
+
+    #     end_time = datetime.datetime.now()
+    #     interval = (end_time - start_time).seconds / 60
+    #     log_message = 'Epoch: {} train loss: {:.4f} val loss {:.4f} training time {:.2f}m'.format(epoch, vae_train_loss[epoch], vae_val_loss[epoch], interval)
+    #     logger.info(log_message)
+
+    #     # Stop traning if early-stop triggers
+    #     if cpt_patience == 5:
+    #         logger.info('Early stop patience for VAE training achieved')
+    #         break
+
+    #     # Save model parameters regularly
+    #     if epoch % model_class.save_frequency == 0:
+    #         save_file = os.path.join(model_class.save_dir, 
+    #                                  model_class.model_name + '_VAE_epoch' + str(cur_best_epoch) + '.pt')
+    #         torch.save(best_state_dict, save_file)
+
+    # # Save the final weights of network with the best validation loss
+    # vae_train_loss = vae_train_loss[:epoch+1]
+    # vae_val_loss = vae_val_loss[:epoch+1]
+    # vae_train_recon = vae_train_recon[:epoch+1]
+    # vae_train_KLD = vae_train_KLD[:epoch+1]
+    # vae_val_recon = vae_val_recon[:epoch+1]
+    # vae_val_KLD = vae_val_KLD[:epoch+1]
+    
+    # # Save the training loss and validation loss
+    # loss_file = os.path.join(model_class.save_dir, 'loss_vae.pckl')
+    # with open(loss_file, 'wb') as f:
+    #     pickle.dump([vae_train_loss, vae_val_loss, vae_train_recon, vae_train_KLD, vae_val_recon, vae_val_KLD], f)
+
+    # # Save the loss figure
+    # plt.clf()
+    # plt.plot(vae_train_loss, '--o')
+    # plt.plot(vae_val_loss, '--x')
+    # plt.legend(('train loss', 'val loss'))
+    # plt.xlabel('epochs')
+    # plt.ylabel('loss')
+    # plt.title(model_class.filename)
+    # loss_figure_file = os.path.join(model_class.save_dir, 'VAE_loss_{}.png'.format(model_class.tag))
+    # plt.savefig(loss_figure_file) 
+
+    # plt.clf()
+    # plt.plot(vae_train_recon, '--o')
+    # plt.plot(vae_val_recon, '--x')
+    # plt.legend(('train', 'val'))
+    # plt.xlabel('epochs')
+    # plt.ylabel('loss')
+    # plt.title(model_class.filename + 'train loss')
+    # loss_figure_file = os.path.join(model_class.save_dir, 'VAE_loss_recon_{}.png'.format(model_class.tag))
+    # plt.savefig(loss_figure_file) 
+
+    # plt.clf()
+    # plt.plot(vae_train_KLD, '--o')
+    # plt.plot(vae_val_KLD, '--x')
+    # plt.legend(('train', 'val'))
+    # plt.xlabel('epochs')
+    # plt.ylabel('loss')
+    # plt.title(model_class.filename + 'validation loss')
+    # loss_figure_file = os.path.join(model_class.save_dir, 'VAE_loss_KLD_{}.png'.format(model_class.tag))
+    # plt.savefig(loss_figure_file) 
+    
+    # # VAE pre-training finished
+    # logger.info('====> VAE pre-training finished')
+    # logger.info('====> Best epoch for VAE training: {}'.format(cur_best_epoch))
+    # logger.info('====> Loading best state dict...')
+    # model.load_state_dict(best_state_dict)
+
+    stat_file = '/mnt/xbie/Results/2020_DVAE/saved_model/WSJ0_2020-08-24-13h36_KVAE_vae-pretrain_kf20_z_dim=16/KVAE_VAE_epoch27.pt'
+    model.load_state_dict(torch.load(stat_file, map_location=device))
+    optimizer = model_class.optimizer_vae_kf
+    
+    #######################
+    #### KVAE Training ####
+    #######################
+
     # Create python list for loss
     train_loss = np.zeros((epochs,))
     val_loss = np.zeros((epochs,))
@@ -65,154 +209,27 @@ def train_model(config_file):
     val_vae = np.zeros((epochs,))
     val_lgssm = np.zeros((epochs,))
 
-    vae_train_loss = np.zeros((epochs,))
-    vae_val_loss = np.zeros((epochs,))
-    vae_train_recon = np.zeros((epochs,))
-    vae_train_KLD = np.zeros((epochs,))
-    vae_val_recon = np.zeros((epochs,))
-    vae_val_KLD = np.zeros((epochs,))
-
     best_val_loss = np.inf
     cpt_patience = 0
     cur_best_epoch = epochs
-    best_state_dict = model.state_dict()
 
-    ############################
-    #### Pre-train VAE only ####
-    ############################
-    optimizer = model_class.optimizer_vae
-    logger.info('====> Only train VAE part')
-    for epoch in range(epochs):
-
-        start_time = datetime.datetime.now()
-        model.train()
-
-        # Batch training
-        for batch_idx, batch_data in enumerate(train_dataloader):
-
-            batch_data = batch_data.to(device)
-            recon_batch_data = model.forward_vae(batch_data)
-            
-            loss, loss_recon, loss_KLD = model.loss
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
-
-            vae_train_loss[epoch] += loss.item()
-            vae_train_recon[epoch] += loss_recon.item()
-            vae_train_KLD[epoch] += loss_KLD.item()
-            
-        # Validation
-        for batch_idx, batch_data in enumerate(val_dataloader):
-
-            batch_data = batch_data.to(device)
-            recon_batch_data = model.forward_vae(batch_data)
-
-            loss, loss_recon, loss_KLD = model.loss
-
-            vae_val_loss[epoch] += loss.item()
-            vae_val_recon[epoch] += loss_recon.item()
-            vae_val_KLD[epoch] += loss_KLD.item()        
-
-        # Early stop patiance
-        if vae_val_loss[epoch] < best_val_loss:
-            best_val_loss = vae_val_loss[epoch]
-            cpt_patience = 0
-            best_state_dict = model.state_dict()
-            cur_best_epoch = epoch
-        else:
-            cpt_patience += 1
-
-
-        vae_train_loss[epoch] = vae_train_loss[epoch]/ train_num
-        vae_val_loss[epoch] = vae_val_loss[epoch] / val_num
-
-        vae_train_recon[epoch] = vae_train_recon[epoch] / train_num 
-        vae_train_KLD[epoch] = vae_train_KLD[epoch]/ train_num
-        vae_val_recon[epoch] = vae_val_recon[epoch] / val_num 
-        vae_val_KLD[epoch] = vae_val_KLD[epoch] / val_num
-
-        end_time = datetime.datetime.now()
-        interval = (end_time - start_time).seconds / 60
-        log_message = 'Epoch: {} train loss: {:.4f} val loss {:.4f} training time {:.2f}m'.format(epoch, vae_train_loss[epoch], vae_val_loss[epoch], interval)
-        logger.info(log_message)
-
-        # Stop traning if early-stop triggers
-        if cpt_patience == 5:
-            logger.info('Early stop patience for VAE training achieved')
-            break
-
-        # Save model parameters regularly
-        if epoch % model_class.save_frequency == 0:
-            save_file = os.path.join(model_class.save_dir, 
-                                     model_class.model_name + '_VAE_epoch' + str(cur_best_epoch) + '.pt')
-            torch.save(best_state_dict, save_file)
-
-    # Save the training loss and validation loss
-    loss_file = os.path.join(model_class.save_dir, 'loss_vae.pckl')
-    with open(loss_file, 'wb') as f:
-        pickle.dump([vae_train_loss, vae_val_loss, vae_train_recon, vae_train_KLD, vae_val_recon, vae_val_KLD], f)
-
-    # Save the loss figure
-    plt.clf()
-    plt.plot(vae_train_loss, '--o')
-    plt.plot(vae_val_loss, '--x')
-    plt.legend(('train loss', 'val loss'))
-    plt.xlabel('epochs')
-    plt.ylabel('loss')
-    plt.title(model_class.filename)
-    loss_figure_file = os.path.join(model_class.save_dir, 'VAE_loss_{}.png'.format(model_class.tag))
-    plt.savefig(loss_figure_file) 
-
-    plt.clf()
-    plt.plot(vae_train_recon, '--o')
-    plt.plot(vae_val_recon, '--x')
-    plt.legend(('train', 'val'))
-    plt.xlabel('epochs')
-    plt.ylabel('loss')
-    plt.title(model_class.filename + 'train loss')
-    loss_figure_file = os.path.join(model_class.save_dir, 'VAE_loss_recon_{}.png'.format(model_class.tag))
-    plt.savefig(loss_figure_file) 
-
-    plt.clf()
-    plt.plot(vae_train_KLD, '--o')
-    plt.plot(vae_val_KLD, '--x')
-    plt.legend(('train', 'val'))
-    plt.xlabel('epochs')
-    plt.ylabel('loss')
-    plt.title(model_class.filename + 'validation loss')
-    loss_figure_file = os.path.join(model_class.save_dir, 'VAE_loss_KLD_{}.png'.format(model_class.tag))
-    plt.savefig(loss_figure_file) 
-    
-    # VAE pre-training finished
-    logger.info('====> VAE pre-training finished')
-    logger.info('====> Best epoch for VAE training: {}'.format(cur_best_epoch))
-    logger.info('====> Loading best state dict...')
-    model.load_state_dict(best_state_dict)
-    
-    #######################
-    #### KVAE Training ####
-    #######################
     logger.info('====> KVAE Training')
-    best_val_loss = np.inf
-    cpt_patience = 0
-    cur_best_epoch = epochs
 
     for epoch in range(epochs):
         
         # Scheduler training, beneficial to achieve better convergence not to
         # train alpha from the beginning
-        if model_class.scheduler_training:
-            if epoch < model_class.only_vae_epochs:
-                optimizer = model_class.optimizer_vae
-                # optimizer = model_class.optimizer_net
-            elif epoch < model_class.only_vae_epochs + model_class.kf_update_epochs:
-                optimizer = model_class.optimizer_vae_kf
-                # optimizer = model_class.optimizer_lgssm
-            else:
-                optimizer = model_class.optimizer_all
-        else:
-            optimizer = model_class.optimizer_all
+        # if model_class.scheduler_training:
+        #     if epoch < model_class.only_vae_epochs:
+        #         optimizer = model_class.optimizer_vae
+        #         # optimizer = model_class.optimizer_net
+        #     elif epoch < model_class.only_vae_epochs + model_class.kf_update_epochs:
+        #         optimizer = model_class.optimizer_vae_kf
+        #         # optimizer = model_class.optimizer_lgssm
+        #     else:
+        #         optimizer = model_class.optimizer_all
+        # else:
+        #     optimizer = model_class.optimizer_all
 
         start_time = datetime.datetime.now()
         model.train()
@@ -274,7 +291,9 @@ def train_model(config_file):
             break
 
         # Save model parameters regularly
-        if epoch % model_class.save_frequency == 0:
+        # if epoch % model_class.save_frequency == 0:
+        print(model.A[0])
+        if True:
             save_file = os.path.join(model_class.save_dir, 
                                      model_class.model_name + '_epoch' + str(cur_best_epoch) + '.pt')
             torch.save(best_state_dict, save_file)
