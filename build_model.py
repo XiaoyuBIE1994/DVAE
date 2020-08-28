@@ -25,8 +25,10 @@ from model.rvae import RVAE
 from model.dsae import DSAE
 from model.kvae import KVAE
 
+from utils.speech_dataset import *
 
-from backup_simon.speech_dataset import *
+
+# from backup_simon.speech_dataset import *
 
 
 
@@ -128,12 +130,12 @@ class BuildBasic():
         self.shuffle_samples_in_batch = self.cfg.get('DataFrame', 'shuffle_samples_in_batch')
 
         # Instantiate dataloader
-        train_dataset = SpeechDatasetSequences(file_list=self.train_file_list, sequence_len=self.sequence_len,
+        train_dataset = SpeechSequencesQ(file_list=self.train_file_list, seq_len=self.sequence_len,
                                                wlen_sec=self.wlen_sec, hop_percent=self.hop_percent, fs=self.fs,
                                                zp_percent=self.zp_percent, trim=self.trim, verbose=self.verbose,
                                                batch_size=self.batch_size, shuffle_file_list=self.shuffle_file_list,
                                                name=self.dataset_name)
-        val_dataset = SpeechDatasetSequences(file_list=self.val_file_list, sequence_len=self.sequence_len,
+        val_dataset = SpeechSequencesQ(file_list=self.val_file_list, seq_len=self.sequence_len,
                                              wlen_sec=self.wlen_sec, hop_percent=self.hop_percent, fs=self.fs,
                                              zp_percent=self.zp_percent, trim=self.trim, verbose=self.verbose,
                                              batch_size=self.batch_size, shuffle_file_list=self.shuffle_file_list,
