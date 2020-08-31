@@ -15,7 +15,8 @@ import torch
 from torch.utils import data
 
 
-class SpeechSequences(data.Dataset):
+
+class SpeechSequencesFull(data.Dataset):
     """
     Customize a dataset of speech sequences for Pytorch
     at least the three following functions should be defined.
@@ -29,14 +30,14 @@ class SpeechSequences(data.Dataset):
 
         # STFT parameters
         self.wlen_sec = wlen_sec
-        self.hot_percent = hop_percent
+        self.hop_percent = hop_percent
         self.fs = fs
         self.zp_percent = zp_percent
         self.wlen = self.wlen_sec * self.fs
         self.wlen = np.int(np.power(2, np.ceil(np.log2(self.wlen)))) # pwoer of 2
-        self.hop = np.int(self.hot_percent * self.wlen)
+        self.hop = np.int(self.hop_percent * self.wlen)
         self.nfft = self.wlen + self.zp_percent * self.wlen
-        self.win = np.sin(np.arange(0.5, self.wlen+0.5) / self.wlen * np.pi)
+        self.win = torch.sin(torch.arange(0.5, self.wlen+0.5) / self.wlen * np.pi)
 
         # data parameters
         self.file_list = file_list
@@ -56,9 +57,9 @@ class SpeechSequences(data.Dataset):
 
     def compute_len(self):
 
-        self.num_samples = 0
+        self.valid_seq_list = []
 
-        for cpt_file, wavfile in enumerate(self.file_list):
+        for wavfile in self.file_list:
 
             x, fs_x = sf.read(wavfile)
             if self.fs != fs_x:
@@ -78,13 +79,22 @@ class SpeechSequences(data.Dataset):
                     raise NameError('The first of last lines of the .phn file should contain #')
                 ind_beg = int(first_line.split(' ')[1])
                 ind_end = int(last_line.split(' ')[0])
-                x = x[ind_beg, ind_end]
             elif self.trim:
-                x, _ = librosa.effects.trim(x, top_db=30)
-            
-            n_seq = (1 + int(len(x) / self.hop) )//self.seq_len
+                _, (ind_beg, ind_end) = librosa.effects.trim(x, top_db=30)
 
-            self.num_samples += n_seq
+
+            # Check valid wav files
+            seq_length = (self.seq_len - 1) * self.hop
+            file_length = ind_end - ind_beg 
+            n_seq = (1 + int(file_length / self.hop)) // self.seq_len
+            for i in range(n_seq):
+                seq_start = i * seq_length + ind_beg
+                seq_end = (i + 1) * seq_length + ind_beg
+                seq_info = (wavfile, seq_start, seq_end)
+                self.valid_seq_list.append(seq_info)
+
+        if self.shuffle_file_list:
+            random.shuffle(self.valid_seq_list)
 
 
     def __len__(self):
@@ -92,7 +102,7 @@ class SpeechSequences(data.Dataset):
         arguments should not be modified
         Return the total number of samples
         """
-        return self.num_samples
+        return len(self.valid_seq_list)
 
 
     def __getitem__(self, index):
@@ -102,73 +112,29 @@ class SpeechSequences(data.Dataset):
         parameter 'index'
         """
         
-        if (self.tot_num_frame - self.current_frame) < self.seq_len:
+        # Read wav files
+        wavfile, seq_start, seq_end = self.valid_seq_list[index]
+        x, fs_x = sf.read(wavfile)
 
-            while True:
-            
-                if self.cpt_file == len(self.file_list):
-                    self.cpt_file = 0
-                    if self.shuffle_file_list:
-                        random.shuffle(self.file_list)
-                
-                wavfile = self.file_list[self.cpt_file]
-                self.cpt_file += 1
-                
-                x, fs_x = sf.read(wavfile)
-                if self.fs != fs_x:
-                    raise ValueError('Unexpected sampling rate')        
-                x = x/np.max(np.abs(x))
-                
-                # remove beginning and ending silence
-                if self.trim and ('TIMIT' in self.name): 
-                    path, file_name = os.path.split(wavfile)
-                    path, speaker = os.path.split(path)
-                    path, dialect = os.path.split(path)
-                    path, set_type = os.path.split(path)
-                    with open(os.path.join(path, set_type, dialect, speaker,
-                                           file_name[:-4]+'.PHN'), 'r') as f:
-                        first_line = f.readline() # Read the first line
-                        for last_line in f: # Loop through the whole file reading it all
-                            pass
-        
-                    if not('#' in first_line) or not('#' in last_line):
-                        raise NameError('The first or last lines of the .phn file should contain #')
-            
-                    ind_beg = int(first_line.split(' ')[1])
-                    ind_end = int(last_line.split(' ')[0])
-                    x = x[ind_beg:ind_end]
-                    
-                elif self.trim: 
-                    x, index = librosa.effects.trim(x, top_db=30)
-                
-                X = librosa.stft(x, n_fft=self.nfft, hop_length=self.hop, 
-                                 win_length=self.wlen,
-                                 window=self.win) # STFT
-                
-                self.data = np.abs(X)**2
-                self.current_frame = 0
-                self.tot_num_frame = self.data.shape[1]
-                
-                if self.tot_num_frame >= self.seq_len:
-                    break
-            
-        sample = self.data[:,self.current_frame:self.current_frame+self.seq_len]    
-        if sample.shape[1] != self.seq_len:
-            print(self.data.shape)
-        self.current_frame += self.seq_len
-        
+        # Sequence tailor
+        x = x[seq_start:seq_end]
 
-        # turn numpy array to torch tensor with torch.from_numpy#
-        """
-        e.g.
-        matrix = torch.from_numpy(matrix.astype(np.float32))
-        target = torch.from_numpy(np.load(t_pth).astype(np.int32))
-        """
-        sample = torch.from_numpy(sample.astype(np.float32))
+        # Normalize sequence
+        x = x/np.max(np.abs(x))
+
+        # STFT transformation
+        audio_spec = torch.stft(torch.from_numpy(x), n_fft=self.nfft, hop_length=self.hop, 
+                                win_length=self.wlen, window=self.win, 
+                                center=True, pad_mode='reflect', normalized=False, onesided=True)
+
+        # Square of magnitude
+        sample = (audio_spec[:,:,0]**2 + audio_spec[:,:,1]**2).float()
+
         return sample
 
+
                 
-class SpeechSequencesQ(data.Dataset):
+class SpeechSequencesRandom(data.Dataset):
     """
     Customize a dataset of speech sequences for Pytorch
     at least the three following functions should be defined.
@@ -184,12 +150,12 @@ class SpeechSequencesQ(data.Dataset):
 
         # STFT parameters
         self.wlen_sec = wlen_sec
-        self.hot_percent = hop_percent
+        self.hop_percent = hop_percent
         self.fs = fs
         self.zp_percent = zp_percent
         self.wlen = self.wlen_sec * self.fs
         self.wlen = np.int(np.power(2, np.ceil(np.log2(self.wlen)))) # pwoer of 2
-        self.hop = np.int(self.hot_percent * self.wlen)
+        self.hop = np.int(self.hop_percent * self.wlen)
         self.nfft = self.wlen + self.zp_percent * self.wlen
         self.win = torch.sin(torch.arange(0.5, self.wlen+0.5) / self.wlen * np.pi)
 
@@ -214,10 +180,10 @@ class SpeechSequencesQ(data.Dataset):
         self.valid_file_list = []
 
         for wavfile in self.file_list:
+
             x, fs_x = sf.read(wavfile)
             if self.fs != fs_x:
                 raise ValueError('Unexpected sampling rate')
-            x = x/np.max(np.abs(x))
 
             # Silence clipping
             if self.trim:
@@ -231,15 +197,13 @@ class SpeechSequencesQ(data.Dataset):
         if self.shuffle_file_list:
             random.shuffle(self.valid_file_list)
 
-        self.num_samples = len(self.valid_file_list)
-
 
     def __len__(self):
         """
         arguments should not be modified
         Return the total number of samples
         """
-        return self.num_samples
+        return len(self.valid_file_list)
 
 
     def __getitem__(self, index):
@@ -252,23 +216,41 @@ class SpeechSequencesQ(data.Dataset):
         # Read wav files
         wavfile = self.valid_file_list[index]
         x, fs_x = sf.read(wavfile)
-        if self.fs != fs_x:
-            raise ValueError('Unexpected sampling rate')
-        x = x/np.max(np.abs(x))
 
         # Silence clipping
-        if self.trim:
-            x, idx = librosa.effects.trim(x, top_db=30)
+        if self.trim and ('TIMIT' in self.name):
+            path, file_name = os.path.split(wavfile)
+            path, speaker = os.path.split(path)
+            path, dialect = os.path.split(path)
+            path, set_type = os.path.split(path)
+            with open(os.path.join(path, set_type, dialect, speaker, file_name[:-4] + '.PHN'), 'r') as f:
+                first_line = f.readline() # Read the first line
+                for last_line in f: # Loop through the whole file reading it all
+                    pass
+            if not('#' in first_line) or not('#' in last_line):
+                raise NameError('The first of last lines of the .phn file should contain #')
+            ind_beg = int(first_line.split(' ')[1])
+            ind_end = int(last_line.split(' ')[0])
+            x = x[ind_beg:ind_end]
+        elif self.trim:
+            x, _ = librosa.effects.trim(x, top_db=30)
 
+        # Sequence tailor
         file_length = len(x)
         seq_length = (self.seq_len - 1) * self.hop # sequence length in time domain
         start = np.random.randint(0, file_length - seq_length)
         end = start + seq_length
+        x = x[start:end]
 
-        audio_spec = torch.stft(torch.from_numpy(x[start:end]), n_fft=self.nfft, hop_length=self.hop, 
+        # Normalize sequence
+        x = x/np.max(np.abs(x))
+
+        # STFT transformation
+        audio_spec = torch.stft(torch.from_numpy(x), n_fft=self.nfft, hop_length=self.hop, 
                                 win_length=self.wlen, window=self.win, 
                                 center=True, pad_mode='reflect', normalized=False, onesided=True)
 
+        # Square of magnitude
         sample = (audio_spec[:,:,0]**2 + audio_spec[:,:,1]**2).float()
 
         return sample

@@ -130,18 +130,18 @@ class BuildBasic():
         self.shuffle_samples_in_batch = self.cfg.get('DataFrame', 'shuffle_samples_in_batch')
 
         # Instantiate dataloader
-        train_dataset = SpeechSequencesQ(file_list=self.train_file_list, seq_len=self.sequence_len,
+        train_dataset = SpeechSequencesRandom(file_list=self.train_file_list, seq_len=self.sequence_len,
                                                wlen_sec=self.wlen_sec, hop_percent=self.hop_percent, fs=self.fs,
                                                zp_percent=self.zp_percent, trim=self.trim, verbose=self.verbose,
                                                batch_size=self.batch_size, shuffle_file_list=self.shuffle_file_list,
                                                name=self.dataset_name)
-        val_dataset = SpeechSequencesQ(file_list=self.val_file_list, seq_len=self.sequence_len,
+        val_dataset = SpeechSequencesRandom(file_list=self.val_file_list, seq_len=self.sequence_len,
                                              wlen_sec=self.wlen_sec, hop_percent=self.hop_percent, fs=self.fs,
                                              zp_percent=self.zp_percent, trim=self.trim, verbose=self.verbose,
                                              batch_size=self.batch_size, shuffle_file_list=self.shuffle_file_list,
                                              name=self.dataset_name)
-        train_num = train_dataset.num_samples
-        val_num = val_dataset.num_samples
+        train_num = train_dataset.__len__()
+        val_num = val_dataset.__len__()
 
         # Create dataloader
         train_dataloader = data.DataLoader(train_dataset, batch_size=self.batch_size, 
