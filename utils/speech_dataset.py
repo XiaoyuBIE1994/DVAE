@@ -21,36 +21,24 @@ class SpeechSequencesFull(data.Dataset):
     Customize a dataset of speech sequences for Pytorch
     at least the three following functions should be defined.
     """
-    def __init__(self,file_list, seq_len=50, wlen_sec=64e-3,
-                 hop_percent=0.25, fs=16000, zp_percent=0, trim=True,
-                 verbose=False, batch_size=32, shuffle_file_list=True,
-                 name='WSJ0'):
+    def __init__(self, file_list, sequence_len, STFT_dict, shuffle, name='WSJ0'):
 
         super().__init__()
 
         # STFT parameters
-        self.wlen_sec = wlen_sec
-        self.hop_percent = hop_percent
-        self.fs = fs
-        self.zp_percent = zp_percent
-        self.wlen = self.wlen_sec * self.fs
-        self.wlen = np.int(np.power(2, np.ceil(np.log2(self.wlen)))) # pwoer of 2
-        self.hop = np.int(self.hop_percent * self.wlen)
-        self.nfft = self.wlen + self.zp_percent * self.wlen
-        self.win = torch.sin(torch.arange(0.5, self.wlen+0.5) / self.wlen * np.pi)
-
+        self.fs = STFT_dict['fs']
+        self.nfft = STFT_dict['nfft']
+        self.hop = STFT_dict['hop']
+        self.wlen = STFT_dict['wlen']
+        self.win = STFT_dict['win']
+        self.trim = STFT_dict['trim']
+        self.verbose = STFT_dict['verbose']
+        
         # data parameters
         self.file_list = file_list
-        self.seq_len = seq_len
-        self.batch_size = batch_size
+        self.sequence_len = sequence_len
         self.name = name
-        self.cpt_file = 0
-        self.trim = trim
-        self.current_frame = 0
-        self.tot_num_frame = 0
-        self.data = None
-        self.verbose = verbose
-        self.shuffle_file_list = shuffle_file_list
+        self.shuffle = shuffle
 
         self.compute_len()
 
@@ -84,16 +72,16 @@ class SpeechSequencesFull(data.Dataset):
 
 
             # Check valid wav files
-            seq_length = (self.seq_len - 1) * self.hop
+            seq_length = (self.sequence_len - 1) * self.hop
             file_length = ind_end - ind_beg 
-            n_seq = (1 + int(file_length / self.hop)) // self.seq_len
+            n_seq = (1 + int(file_length / self.hop)) // self.sequence_len
             for i in range(n_seq):
                 seq_start = i * seq_length + ind_beg
                 seq_end = (i + 1) * seq_length + ind_beg
                 seq_info = (wavfile, seq_start, seq_end)
                 self.valid_seq_list.append(seq_info)
 
-        if self.shuffle_file_list:
+        if self.shuffle:
             random.shuffle(self.valid_seq_list)
 
 
@@ -141,36 +129,24 @@ class SpeechSequencesRandom(data.Dataset):
     
     This is a quick speech sequence data loader which allow multiple workers
     """
-    def __init__(self,file_list, seq_len=50, wlen_sec=64e-3,
-                 hop_percent=0.25, fs=16000, zp_percent=0, trim=True,
-                 verbose=False, batch_size=32, shuffle_file_list=True,
-                 name='WSJ0'):
+    def __init__(self, file_list, sequence_len, STFT_dict, shuffle, name='WSJ0'):
 
         super().__init__()
 
         # STFT parameters
-        self.wlen_sec = wlen_sec
-        self.hop_percent = hop_percent
-        self.fs = fs
-        self.zp_percent = zp_percent
-        self.wlen = self.wlen_sec * self.fs
-        self.wlen = np.int(np.power(2, np.ceil(np.log2(self.wlen)))) # pwoer of 2
-        self.hop = np.int(self.hop_percent * self.wlen)
-        self.nfft = self.wlen + self.zp_percent * self.wlen
-        self.win = torch.sin(torch.arange(0.5, self.wlen+0.5) / self.wlen * np.pi)
-
+        self.fs = STFT_dict['fs']
+        self.nfft = STFT_dict['nfft']
+        self.hop = STFT_dict['hop']
+        self.wlen = STFT_dict['wlen']
+        self.win = STFT_dict['win']
+        self.trim = STFT_dict['trim']
+        self.verbose = STFT_dict['verbose']
+        
         # data parameters
         self.file_list = file_list
-        self.seq_len = seq_len
-        self.batch_size = batch_size
+        self.sequence_len = sequence_len
         self.name = name
-        self.cpt_file = 0
-        self.trim = trim
-        self.current_frame = 0
-        self.tot_num_frame = 0
-        self.data = None
-        self.verbose = verbose
-        self.shuffle_file_list = shuffle_file_list
+        self.shuffle = shuffle
 
         self.compute_len()
 
@@ -190,11 +166,11 @@ class SpeechSequencesRandom(data.Dataset):
                 x, idx = librosa.effects.trim(x, top_db=30)
 
             # Check valid wav files
-            seq_length = (self.seq_len - 1) * self.hop
+            seq_length = (self.sequence_len - 1) * self.hop
             if len(x) >= seq_length:
                 self.valid_file_list.append(wavfile)
 
-        if self.shuffle_file_list:
+        if self.shuffle:
             random.shuffle(self.valid_file_list)
 
 
@@ -237,7 +213,7 @@ class SpeechSequencesRandom(data.Dataset):
 
         # Sequence tailor
         file_length = len(x)
-        seq_length = (self.seq_len - 1) * self.hop # sequence length in time domain
+        seq_length = (self.sequence_len - 1) * self.hop # sequence length in time domain
         start = np.random.randint(0, file_length - seq_length)
         end = start + seq_length
         x = x[start:end]

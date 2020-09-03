@@ -9,10 +9,9 @@ The code in this file is based on:
 - “Deep Kalman Filter” arXiv, 2015, Rahul G.Krishnan et al.
 - "Structured Inference Networks for Nonlinear State Space Models" AAAI, 2017, Rahul G.Krishnan et al.
 
-DMM refers to the deep Markov model in the second paper,
-with only forward RNN in inference, it's a Deep Kalman Filter (DKF),
-with only backwrad RNN in inference, it's a Deep Kalman Smoother (DKS),
-with bi-directional RNN in inference, it's a ST-LR
+DKF refers to the deep Markov model in the second paper, which has two possibilities:
+- with only backwrad RNN in inference, it's a Deep Kalman Smoother (DKS),
+- with bi-directional RNN in inference, it's a ST-LR
 
 To have consistant expression comparing with other models we change some functions' name:
 Emissino Function -> Generation
@@ -25,7 +24,7 @@ import torch
 from collections import OrderedDict
 
 
-class DMM(nn.Module):
+class DKF(nn.Module):
 
     def __init__(self, x_dim, z_dim=16, activation='tanh',
                  dense_x_gx=[], dim_RNN_gx=128, num_RNN_gx=1, bidir_gx=False,
@@ -317,10 +316,10 @@ if __name__ == '__main__':
     x_dim = 513
     z_dim = 16
     device = 'cpu'
-    dmm = DMM(x_dim=x_dim, z_dim=z_dim).to(device)
+    dkf = DKF(x_dim=x_dim, z_dim=z_dim).to(device)
 
     x = torch.ones((2,513,3))
-    y, z_mean, z_logvar, z_mean_p, z_logvar_p, z = dmm.forward(x)
+    y, z_mean, z_logvar, z_mean_p, z_logvar_p, z = dkf.forward(x)
 
     def loss_function(recon_x, x, mu, logvar, mu_prior, logvar_prior):
         recon = torch.sum(  x/recon_x - torch.log(x/recon_x) - 1 ) 

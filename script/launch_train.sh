@@ -42,7 +42,7 @@ oarsub -S /scratch/virgo/xbie/Code/dvae-speech/script/train_srnn.sh \
 
 oarsub -I -l /host=1/gpudevice=1 -p "cluster='perception' AND not host like 'gpu5-perception.inrialpes.fr' AND not host like 'gpu6-perception.inrialpes.fr' AND not host like 'gpu7-perception.inrialpes.fr'"
 
-oarsub -I -l /host=1/gpudevice=1 -p "cluster='perception' AND host like 'gpu1-perception.inrialpes.fr'"
+oarsub -I -l /host=1/gpudevice=1 -p "cluster='perception' AND host like 'gpu6-perception.inrialpes.fr'"
 
 
-# singularity shell --nv --bind /scratch/virgo/xbie/:/mnt/xbie/ /scratch/virgo/xbie/Simgs/test
+# singularity shell --nv --bind /scratch/virgo/xbie/:/mnt/xbie/ /scratch/virgo/xbie/Simgs/sig_dvae

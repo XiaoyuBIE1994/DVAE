@@ -1,0 +1,26 @@
+# -*- coding: utf-8 -*-
+
+from setuptools import setup, find_packages
+
+with open('README.md', 'r') as f:
+    long_description = f.read()
+
+setup(
+    name="dave-speech",
+    version="1.0",
+    author="Xiaoyu BIE",
+    author_email="xiaoyu.bie@inria.fr",
+    description="A PyTorch implementation of DVAE models on speech processing",
+    long_description=long_description,
+    long_description_content_type='text/markdown',
+    url='',
+    packages=find_packages(),
+    install_requires=[
+        'numpy',
+        'speechmetrics @ git+https://github.com/aliutkus/speechmetrics#egg=speechmetrics[cpu]',
+    ],
+    include_package_data=True,
+    classifiers=[
+        "Programming Language :: Python :: 3",
+    ],
+)
