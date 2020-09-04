@@ -18,8 +18,7 @@ import librosa
 import soundfile as sf
 import speechmetrics
 from utils import myconf, get_logger, rmse_frame, SpeechSequencesFull, SpeechSequencesRandom
-from build_model import build_VAE, build_DKF, build_KVAE, build_STORN, build_VRNN, build_SRNN, build_RVAE, build_DSAE
-
+from model import build_VAE, build_DKF, build_KVAE, build_STORN, build_VRNN, build_SRNN, build_RVAE, build_DSAE
 
 
 class LearningAlgorithm():
@@ -64,7 +63,6 @@ class LearningAlgorithm():
         STFT_dict['nfft'] = nfft
         STFT_dict['win'] = win
         STFT_dict['trim'] = self.cfg.getboolean('STFT', 'trim')
-        STFT_dict['verbose'] = self.cfg.getboolean('STFT', 'verbose')
         self.STFT_dict = STFT_dict
 
         # Load model parameters
@@ -105,11 +103,9 @@ class LearningAlgorithm():
         if self.model_name=='KVAE':
             lr_tot = self.cfg.getfloat('Training', 'lr_tot')
             if self.optimization == 'adam':
-                self.optimizer_vae = torch.optim.Adam(self.model.vars_vae, lr=lr)
-                self.optimizer_net = torch.optim.Adam(self.model.vars_vae+self.model.vars_alpha, lr=lr)
-                self.optimizer_lgssm =  torch.optim.Adam(self.model.vars_kf+self.model.vars_alpha, lr=lr)
-                self.optimizer_vae_kf = torch.optim.Adam(self.model.vars_vae+self.model.vars_kf, lr=lr_tot)
-                self.optimizer_all = torch.optim.Adam(self.model.vars_vae+self.model.vars_kf+self.model.vars_alpha, lr=lr_tot)
+                self.optimizer_vae = torch.optim.Adam(self.model.iter_vae, lr=lr)
+                self.optimizer_vae_kf = torch.optim.Adam(self.model.iter_vae_kf, lr=lr_tot)
+                self.optimizer_all = torch.optim.Adam(self.model.iter_all, lr=lr_tot)
             else:
                 self.optimizer = torch.optim.Adam(self.model.parameters(), lr=lr)
 
@@ -208,14 +204,11 @@ class LearningAlgorithm():
         # Init optimizer
         self.init_optimizer()
 
-        # Load training parameters
+        
         batch_size = self.cfg.getint('Training', 'batch_size')
         sequence_len = self.cfg.getint('DataFrame','sequence_len')
         use_random_seq = self.cfg.getboolean('DataFrame','use_random_seq')
-        epochs = self.cfg.getint('Training', 'epochs')
-        early_stop_patience = self.cfg.getint('Training', 'early_stop_patience')
-        save_frequency = self.cfg.getint('Training', 'save_frequency')
-
+        
         # Create data loader
         train_data_dir = self.cfg.get('User', 'train_data_dir')
         val_data_dir = self.cfg.get('User', 'val_data_dir')
@@ -227,6 +220,20 @@ class LearningAlgorithm():
         logger.info(log_message)
         log_message = 'Validation samples: {}'.format(val_num)
         logger.info(log_message)
+        
+        # KVAE needs a schedule training
+        if self.model_name == 'KVAE':
+            self.train_kvae(logger, save_dir, train_dataloader, val_dataloader, train_num, val_num)
+        else:
+            self.train_normal(logger, save_dir, train_dataloader, val_dataloader, train_num, val_num)
+
+
+    def train_normal(self, logger, save_dir, train_dataloader, val_dataloader, train_num, val_num):
+
+        # Load training parameters
+        epochs = self.cfg.getint('Training', 'epochs')
+        early_stop_patience = self.cfg.getint('Training', 'early_stop_patience')
+        save_frequency = self.cfg.getint('Training', 'save_frequency')
 
         # Create python list for loss
         train_loss = np.zeros((epochs,))
@@ -360,7 +367,164 @@ class LearningAlgorithm():
         plt.savefig(fig_file)
 
 
+    def train_kvae(self, logger, save_dir, train_dataloader, val_dataloader, train_num, val_num):
+
+        # Load training parameters
+        epochs = self.cfg.getint('Training', 'epochs')
+        early_stop_patience = self.cfg.getint('Training', 'early_stop_patience')
+        save_frequency = self.cfg.getint('Training', 'save_frequency')
+        scheduler_training = self.cfg.getboolean('Training', 'scheduler_training')
+        only_vae_epochs = self.cfg.getint('Training', 'only_vae_epochs')
+        kf_update_epochs = self.cfg.getint('Training', 'kf_update_epochs')
+
+        # Create python list for loss
+        train_loss = np.zeros((epochs,))
+        val_loss = np.zeros((epochs,))
+        train_vae = np.zeros((epochs,))
+        train_lgssm = np.zeros((epochs,))
+        val_vae = np.zeros((epochs,))
+        val_lgssm = np.zeros((epochs,))
+        best_val_loss = np.inf
+        cpt_patience = 0
+        cur_best_epoch = epochs
+        best_state_dict = self.model.state_dict()
+
+
+        # Train with mini-batch SGD
+        for epoch in range(epochs):
+
+            if scheduler_training:
+                if epoch < only_vae_epochs:
+                    optimizer = self.optimizer_vae
+                elif epoch < only_vae_epochs + kf_update_epochs:
+                    optimizer = self.optimizer_vae_kf
+                else:
+                    optimizer = self.optimizer_all
+            else:
+                optimizer = self.optimizer_all
+
+
+            start_time = datetime.datetime.now()
+            self.model.train()
+
+            # Batch training
+            for batch_idx, batch_data in enumerate(train_dataloader):
+                
+                batch_data = batch_data.to(self.device)
+                recon_batch_data = self.model(batch_data)
+
+                loss_tot, loss_vae, loss_lgssm = self.model.loss
+                optimizer.zero_grad()
+                loss_tot.backward()
+                optimizer.step()
+
+                train_loss[epoch] += loss_tot.item()
+                train_vae[epoch] += loss_vae.item()
+                train_lgssm[epoch] += loss_lgssm.item()
+                
+            # Validation
+            for batch_idx, batch_data in enumerate(val_dataloader):
+
+                batch_data = batch_data.to(self.device)
+                recon_batch_data = self.model(batch_data)
+
+                loss_tot, loss_vae, loss_lgssm = self.model.loss
+
+                val_loss[epoch] += loss_tot.item()
+                val_vae[epoch] += loss_vae.item()
+                val_lgssm[epoch] += loss_lgssm.item()
+
+
+            # Loss normalization
+            train_loss[epoch] = train_loss[epoch]/ train_num
+            val_loss[epoch] = val_loss[epoch] / val_num
+            train_vae[epoch] = train_vae[epoch] / train_num 
+            train_lgssm[epoch] = train_lgssm[epoch]/ train_num
+            val_vae[epoch] = val_vae[epoch] / val_num 
+            val_lgssm[epoch] = val_lgssm[epoch] / val_num
+
+            
+            # Early stop patiance
+            if val_loss[epoch] < best_val_loss:
+                best_val_loss = val_loss[epoch]
+                cpt_patience = 0
+                best_state_dict = self.model.state_dict()
+                cur_best_epoch = epoch
+            else:
+                cpt_patience += 1
+
+            # Training time
+            end_time = datetime.datetime.now()
+            interval = (end_time - start_time).seconds / 60
+            log_message = 'Epoch: {} train loss: {:.4f} val loss {:.4f} training time {:.2f}m'.format(epoch, train_loss[epoch], val_loss[epoch], interval)
+            logger.info(log_message)
+
+            # Stop traning if early-stop triggers
+            if cpt_patience == early_stop_patience:
+                logger.info('Early stop patience achieved')
+                break
+
+            # Save model parameters regularly
+            if epoch % save_frequency == 0:
+                save_file = os.path.join(save_dir, self.model_name + '_epoch' + str(cur_best_epoch) + '.pt')
+                torch.save(self.model.state_dict(), save_file)
+        
+        # Save the final weights of network with the best validation loss
+        train_loss = train_loss[:epoch+1]
+        val_loss = val_loss[:epoch+1]
+        train_vae = train_vae[:epoch+1]
+        train_lgssm = train_lgssm[:epoch+1]
+        val_vae = val_vae[:epoch+1]
+        val_lgssm = val_lgssm[:epoch+1]
+        save_file = os.path.join(save_dir, self.model_name + '_final_epoch' + str(cur_best_epoch) + '.pt')
+        torch.save(best_state_dict, save_file)
+        
+        # Save the training loss and validation loss
+        loss_file = os.path.join(save_dir, 'loss_model.pckl')
+        with open(loss_file, 'wb') as f:
+            pickle.dump([train_loss, val_loss, train_recon, train_KLD, val_recon, val_KLD], f)
+
+
+        # Save the loss figure
+        plt.clf()
+        fig = plt.figure(figsize=(8,6))
+        plt.rcParams['font.size'] = 12
+        plt.plot(train_loss, label='training loss')
+        plt.plot(val_loss, label='validation loss')
+        plt.legend(fontsize=16, title=self.model_name, title_fontsize=20)
+        plt.xlabel('epochs', fontdict={'size':16})
+        plt.ylabel('loss', fontdict={'size':16})
+        fig_file = os.path.join(save_dir, 'loss_{}.png'.format(tag))
+        plt.savefig(fig_file)
+
+        plt.clf()
+        fig = plt.figure(figsize=(8,6))
+        plt.rcParams['font.size'] = 12
+        plt.plot(train_vae, label='VAE')
+        plt.plot(train_lgssm, label='LGSSM')
+        plt.legend(fontsize=16, title='{}: Training'.format(self.model_name), title_fontsize=20)
+        plt.xlabel('epochs', fontdict={'size':16})
+        plt.ylabel('loss', fontdict={'size':16})
+        fig_file = os.path.join(save_dir, 'loss_train_{}.png'.format(tag))
+        plt.savefig(fig_file) 
+
+        plt.clf()
+        fig = plt.figure(figsize=(8,6))
+        plt.rcParams['font.size'] = 12
+        plt.plot(val_vae, label='VAE')
+        plt.plot(val_lgssm, label='LGSSM')
+        plt.legend(fontsize=16, title='{}: Validation'.format(self.model_name), title_fontsize=20)
+        plt.xlabel('epochs', fontdict={'size':16})
+        plt.ylabel('loss', fontdict={'size':16})
+        fig_file = os.path.join(save_dir, 'loss_val_{}.png'.format(tag))
+        plt.savefig(fig_file)
+
+
     def generate(self, audio_orig, audio_recon=None, state_dict_file=None):
+        """
+        Input: a reference audio (and a predefined path for generated audio
+        Output: generated audio
+        """
         
         # Define generated 
         if audio_recon == None:
@@ -415,6 +579,10 @@ class LearningAlgorithm():
 
     
     def eval(self, audio_ref, audio_est, metric='all', state_dict_file=None):
+        """
+        Input: a reference audio and a generated audio
+        Output: score(s) from different evaluation metrics
+        """
         
         # Load model state
         if state_dict_file != None:

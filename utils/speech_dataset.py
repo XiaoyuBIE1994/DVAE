@@ -32,7 +32,6 @@ class SpeechSequencesFull(data.Dataset):
         self.wlen = STFT_dict['wlen']
         self.win = STFT_dict['win']
         self.trim = STFT_dict['trim']
-        self.verbose = STFT_dict['verbose']
         
         # data parameters
         self.file_list = file_list
@@ -140,7 +139,6 @@ class SpeechSequencesRandom(data.Dataset):
         self.wlen = STFT_dict['wlen']
         self.win = STFT_dict['win']
         self.trim = STFT_dict['trim']
-        self.verbose = STFT_dict['verbose']
         
         # data parameters
         self.file_list = file_list

@@ -16,6 +16,43 @@ import torch
 from collections import OrderedDict
 
 
+def build_SRNN(cfg, device='cpu'):
+
+    ### Load parameters for SRNN
+    # General
+    x_dim = cfg.getint('Network', 'x_dim')
+    z_dim = cfg.getint('Network','z_dim')
+    activation = cfg.get('Network', 'activation')
+    dropout_p = cfg.getfloat('Network', 'dropout_p')
+    # Deterministic
+    dense_x_h = [int(i) for i in cfg.get('Network', 'dense_x_h').split(',')]
+    dim_RNN_h = cfg.getint('Network', 'dim_RNN_h')
+    num_RNN_h = cfg.getint('Network', 'num_RNN_h')
+    # Inference
+    dense_hx_g = [int(i) for i in cfg.get('Network', 'dense_hx_g').split(',')]
+    dim_RNN_g = cfg.getint('Network', 'dim_RNN_g')
+    num_RNN_g = cfg.getint('Network', 'num_RNN_g')
+    dense_gz_z = [int(i) for i in cfg.get('Network', 'dense_gz_z').split(',')]
+    # Prior
+    dense_hz_z = [int(i) for i in cfg.get('Network', 'dense_hz_z').split(',')]
+    # Generation
+    dense_hz_x = [int(i) for i in cfg.get('Network', 'dense_hz_x').split(',')]
+
+    # Build model
+    model = SRNN(x_dim=x_dim, z_dim=z_dim, activation=activation,
+                 dense_x_h=dense_x_h,
+                 dim_RNN_h=dim_RNN_h, num_RNN_h=num_RNN_h,
+                 dense_hx_g=dense_hx_g,
+                 dim_RNN_g=dim_RNN_g, num_RNN_g=num_RNN_g,
+                 dense_gz_z=dense_gz_z,
+                 dense_hz_x=dense_hz_x,
+                 dense_hz_z=dense_hz_z,
+                 dropout_p=dropout_p, device=device).to(device)
+
+    return model
+
+
+    
 class SRNN(nn.Module):
 
     def __init__(self, x_dim, z_dim=16, activation = 'tanh',

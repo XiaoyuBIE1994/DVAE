@@ -14,6 +14,27 @@ from torch import nn
 import torch
 from collections import OrderedDict
 
+
+def build_VAE(cfg, device='cpu'):
+
+    ### Load parameters
+    # General
+    x_dim = cfg.getint('Network', 'x_dim')
+    z_dim = cfg.getint('Network','z_dim')
+    activation = cfg.get('Network', 'activation')
+    dropout_p = cfg.getfloat('Network', 'dropout_p')
+    # Inference and generation
+    dense_x_z = [int(i) for i in cfg.get('Network', 'dense_x_z').split(',')]
+
+    # Build model
+    model = VAE(x_dim=x_dim, z_dim=z_dim,
+                dense_x_z=dense_x_z, activation=activation,
+                dropout_p=dropout_p, device=device).to(device)
+
+    return model
+
+
+    
 class VAE(nn.Module):
 
     '''

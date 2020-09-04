@@ -13,11 +13,52 @@ Not include:
 - no imputation
 """
 
+import numpy as np
+import torch
 from torch import nn
 from torch.distributions.multivariate_normal import MultivariateNormal
-import torch
-import numpy as np
 from collections import OrderedDict
+
+
+def build_KVAE(cfg, device='cpu'):
+
+    ### Load special parameters for KVAE
+    # General
+    x_dim = cfg.getint('Network', 'x_dim')
+    a_dim = cfg.getint('Network', 'a_dim')
+    z_dim = cfg.getint('Network', 'z_dim')
+    activation = cfg.get('Network', 'activation')
+    dropout_p = cfg.getfloat('Network', 'dropout_p')
+    scale_reconstruction = cfg.getfloat('Network', 'scale_reconstruction')
+    # VAE
+    dense_x_a = [int(i) for i in cfg.get('Network', 'dense_x_a').split(',')]
+    dense_a_x = [int(i) for i in cfg.get('Network', 'dense_a_x').split(',')]
+    # LGSSM
+    init_kf_mat = cfg.getfloat('Network', 'init_kf_mat')
+    noise_transition = cfg.getfloat('Network', 'noise_transition')
+    noise_emission = cfg.getfloat('Network', 'noise_emission')
+    init_cov = cfg.getfloat('Network', 'init_cov')
+    # Dynamics
+    K = cfg.getint('Network', 'K')
+    dim_RNN_alpha = cfg.getint('Network', 'dim_RNN_alpha')
+    num_RNN_alpha = cfg.getint('Network', 'num_RNN_alpha')
+    # Training set
+    scheduler_training = cfg.getboolean('Training', 'scheduler_training')
+    only_vae_epochs = cfg.getint('Training', 'only_vae_epochs')
+    kf_update_epochs = cfg.getint('Training', 'kf_update_epochs')
+    
+    # Build model
+    model = KVAE(x_dim=x_dim, a_dim=a_dim, z_dim=z_dim, activation=activation,
+                 dense_x_a=dense_x_a, dense_a_x=dense_a_x,
+                 init_kf_mat=init_kf_mat, noise_transition=noise_transition,
+                 noise_emission=noise_emission, init_cov=init_cov,
+                 K=K, dim_RNN_alpha=dim_RNN_alpha, num_RNN_alpha=num_RNN_alpha,
+                 dropout_p=dropout_p, scale_reconstruction = scale_reconstruction,
+                 device=device).to(device)
+
+    return model
+
+
 
 
 class KVAE(nn.Module):
@@ -125,15 +166,28 @@ class KVAE(nn.Module):
         ############################
         #### Scheduler Training ####
         ############################
-        self.vars_vae = [v for v in self.mlp_x_a.parameters()] \
-                      + [v for v in self.inf_mean.parameters()] \
-                      + [v for v in self.inf_logvar.parameters()] \
-                      + [v for v in self.mlp_a_x.parameters()] \
-                      + [v for v in self.gen_logvar.parameters()]
-        self.vars_kf = [self.A, self.B, self.C, self.a_init]
-        self.vars_alpha = [v for v in self.rnn_alpha.parameters()] \
-                        + [v for v in self.mlp_alpha.parameters()]
+        self.A = nn.Parameter(self.A)
+        self.B = nn.Parameter(self.B)
+        self.C = nn.Parameter(self.C)
+        self.a_init = nn.Parameter(self.a_init)
+        kf_params = [self.A, self.B, self.C, self.a_init]
+
+        self.iter_kf = (i for i in kf_params)
+        self.iter_vae = self.concat_iter(self.mlp_x_a.parameters(),
+                                         self.inf_mean.parameters(),
+                                         self.inf_logvar.parameters(),
+                                         self.mlp_a_x.parameters(),
+                                         self.gen_logvar.parameters())
+        self.iter_alpha = self.concat_iter(self.rnn_alpha.parameters(),
+                                           self.mlp_alpha.parameters())
+        self.iter_vae_kf = self.concat_iter(self.iter_vae, self.iter_kf)
+        self.iter_all = self.concat_iter(self.iter_kf, self.iter_vae, self.iter_alpha)
                 
+
+    def concat_iter(self, *iter_list):
+
+        for i in iter_list:
+            yield from i
 
 
     def reparameterization(self, mean, logvar):
@@ -430,6 +484,8 @@ class KVAE(nn.Module):
 
 
         return info
+
+
 
 
 if __name__ == '__main__':

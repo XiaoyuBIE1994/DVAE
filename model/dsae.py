@@ -13,6 +13,49 @@ from torch import nn
 import torch
 from collections import OrderedDict
 
+
+def build_DSAE(cfg, device='cpu'):
+
+    ### Load special parameters for DSAE
+    # General
+    x_dim = cfg.getint('Network', 'x_dim')
+    z_dim = cfg.getint('Network','z_dim')
+    v_dim = cfg.getint('Network','v_dim')
+    activation = cfg.get('Network', 'activation')
+    dropout_p = cfg.getfloat('Network', 'dropout_p')
+    # Inference
+    dense_x = [int(i) for i in cfg.get('Network', 'dense_x').split(',')]
+    dim_RNN_gv = cfg.getint('Network', 'dim_RNN_gv')
+    num_RNN_gv = cfg.getint("Network", 'num_RNN_gv')
+    dense_gv_v = [int(i) for i in cfg.get('Network', 'dense_gv_v').split(',')]
+    dense_xv_gxv = [int(i) for i in cfg.get('Network', 'dense_xv_gxv').split(',')]
+    dim_RNN_gxv = cfg.getint('Network', 'dim_RNN_gxv')
+    num_RNN_gxv = cfg.getint('Network', 'num_RNN_gxv')
+    dense_gxv_gz = [int(i) for i in cfg.get('Network', 'dense_gxv_gz').split(',')]
+    dim_RNN_gz = cfg.getint('Network', 'dim_RNN_gz')
+    num_RNN_gz = cfg.getint('Network', 'num_RNN_gz')
+    # Prior
+    dim_RNN_prior = cfg.getint('Network', 'dim_RNN_prior')
+    num_RNN_prior = cfg.getint('Network', 'num_RNN_prior')
+    # Generation
+    dense_vz_x = [int(i) for i in cfg.get('Network', 'dense_vz_x').split(',')]
+
+    # Build model
+    model = DSAE(x_dim=x_dim, z_dim=z_dim, v_dim=v_dim, activation=activation,
+                 dense_x=dense_x,
+                 dim_RNN_gv=dim_RNN_gv, num_RNN_gv=num_RNN_gv,
+                 dense_gv_v=dense_gv_v, dense_xv_gxv=dense_xv_gxv,
+                 dim_RNN_gxv=dim_RNN_gxv, num_RNN_gxv=num_RNN_gxv,
+                 dense_gxv_gz=dense_gxv_gz,
+                 dim_RNN_gz=dim_RNN_gz, num_RNN_gz=num_RNN_gz,
+                 dim_RNN_prior=dim_RNN_prior, num_RNN_prior=num_RNN_prior,
+                 dense_vz_x=dense_vz_x,
+                 dropout_p=dropout_p, device=device).to(device)
+
+    return model
+
+
+    
 class DSAE(nn.Module):
 
     def __init__(self, x_dim, z_dim=16, v_dim=16,activation='tanh',

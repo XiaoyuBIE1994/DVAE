@@ -14,6 +14,49 @@ from torch import nn
 import torch
 from collections import OrderedDict
 
+
+def build_RVAE(cfg, device='cpu'):
+
+    ### Load special paramters for RVAE
+    # General
+    x_dim = cfg.getint('Network', 'x_dim')
+    z_dim = cfg.getint('Network','z_dim')
+    activation = cfg.get('Network', 'activation')
+    dropout_p = cfg.getfloat('Network', 'dropout_p')
+    # Inference
+    dense_x_gx = [int(i) for i in cfg.get('Network', 'dense_x_gx').split(',')]
+    dim_RNN_g_x = cfg.getint('Network', 'dim_RNN_g_x')
+    num_RNN_g_x = cfg.getint('Network', 'num_RNN_g_x')
+    bidir_g_x = cfg.getboolean('Network', 'bidir_g_x')
+    dense_z_gz = [int(i) for i in cfg.get('Network', 'dense_z_gz').split(',')]
+    dim_RNN_g_z = cfg.getint('Network', 'dim_RNN_g_z')
+    num_RNN_g_z = cfg.getint('Network', 'num_RNN_g_z')
+    dense_g_z = [int(i) for i in cfg.get('Network', 'dense_g_z').split(',')]
+    # Generation
+    dense_z_h = [int(i) for i in cfg.get('Network', 'dense_z_h').split(',')]
+    dim_RNN_h = cfg.getint('Network', 'dim_RNN_h')
+    num_RNN_h = cfg.getint('Network', 'num_RNN_h')
+    bidir_h = cfg.getboolean('Network', 'bidir_h')
+    dense_h_x = [int(i) for i in cfg.get('Network', 'dense_h_x').split(',')]
+
+    # Build model
+    model = RVAE(x_dim=x_dim, z_dim=z_dim, activation=activation,
+                 dense_x_gx=dense_x_gx,
+                 dim_RNN_g_x=dim_RNN_g_x, num_RNN_g_x=num_RNN_g_x,
+                 bidir_g_x=bidir_g_x, 
+                 dense_z_gz=dense_z_gz,
+                 dim_RNN_g_z=dim_RNN_g_z, num_RNN_g_z=num_RNN_g_z,
+                 dense_g_z=dense_g_z,
+                 dense_z_h=dense_z_h,
+                 dim_RNN_h=dim_RNN_h, num_RNN_h=num_RNN_h,
+                 bidir_h=bidir_h,
+                 dense_h_x=dense_h_x,
+                 dropout_p=dropout_p, device=device).to(device)
+
+    return model
+
+
+    
 class RVAE(nn.Module):
 
     def __init__(self, x_dim, z_dim=16, activation = 'tanh',

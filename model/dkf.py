@@ -24,6 +24,36 @@ import torch
 from collections import OrderedDict
 
 
+def build_DKF(cfg, device='cpu'):
+
+    ### Load parameters
+    # General
+    x_dim = cfg.getint('Network', 'x_dim')
+    z_dim = cfg.getint('Network','z_dim')
+    activation = cfg.get('Network', 'activation')
+    dropout_p = cfg.getfloat('Network', 'dropout_p')
+    # Inference
+    dense_x_gx = [int(i) for i in cfg.get('Network', 'dense_x_gx').split(',')]
+    dim_RNN_gx = cfg.getint('Network', 'dim_RNN_gx')
+    num_RNN_gx = cfg.getint('Network', 'num_RNN_gx')
+    bidir_gx = cfg.getboolean('Network', 'bidir_gx')
+    dense_ztm1_g = [int(i) for i in cfg.get('Network', 'dense_ztm1_g').split(',')]
+    dense_g_z = [int(i) for i in cfg.get('Network', 'dense_g_z').split(',')]
+    # Generation
+    dense_z_x = [int(i) for i in cfg.get('Network', 'dense_z_x').split(',')]
+
+    # Build model
+    model = DKF(x_dim=x_dim, z_dim=z_dim, activation=activation,
+                dense_x_gx=dense_x_gx, dim_RNN_gx=dim_RNN_gx, 
+                num_RNN_gx=num_RNN_gx, bidir_gx=bidir_gx,
+                dense_ztm1_g=dense_ztm1_g, dense_g_z=dense_g_z,
+                dense_z_x=dense_z_x,
+                dropout_p=dropout_p, device=device).to(device)
+
+    return model
+
+
+
 class DKF(nn.Module):
 
     def __init__(self, x_dim, z_dim=16, activation='tanh',

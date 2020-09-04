@@ -45,4 +45,4 @@ oarsub -I -l /host=1/gpudevice=1 -p "cluster='perception' AND not host like 'gpu
 oarsub -I -l /host=1/gpudevice=1 -p "cluster='perception' AND host like 'gpu6-perception.inrialpes.fr'"
 
 
-# singularity shell --nv --bind /scratch/virgo/xbie/:/mnt/xbie/ /scratch/virgo/xbie/Simgs/sig_dvae
+# singularity shell --nv --bind /scratch/virgo/xbie/:/mnt/xbie/ /scratch/virgo/xbie/Simgs/dvae.sif

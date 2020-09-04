@@ -14,6 +14,37 @@ import torch
 from collections import OrderedDict
 
 
+def build_VRNN(cfg, device='cpu'):
+
+    ### Load parameters for VRNN
+    # General
+    x_dim = cfg.getint('Network', 'x_dim')
+    z_dim = cfg.getint('Network','z_dim')
+    activation = cfg.get('Network', 'activation')
+    dropout_p = cfg.getfloat('Network', 'dropout_p')
+    # Feature extractor
+    dense_x = [int(i) for i in cfg.get('Network', 'dense_x').split(',')]
+    dense_z = [int(i) for i in cfg.get('Network', 'dense_z').split(',')]
+    # Dense layers
+    dense_hx_z = [int(i) for i in cfg.get('Network', 'dense_hx_z').split(',')]
+    dense_hz_x = [int(i) for i in cfg.get('Network', 'dense_hz_x').split(',')]
+    dense_h_z = [int(i) for i in cfg.get('Network', 'dense_h_z').split(',')]
+    # RNN
+    dim_RNN = cfg.getint('Network', 'dim_RNN')
+    num_RNN = cfg.getint('Network', 'num_RNN')
+
+    # Build model
+    model = VRNN(x_dim=x_dim, z_dim=z_dim, activation=activation,
+                 dense_x=dense_x, dense_z=dense_z,
+                 dense_hx_z=dense_hx_z, dense_hz_x=dense_hz_x, 
+                 dense_h_z=dense_h_z,
+                 dim_RNN=dim_RNN, num_RNN=num_RNN,
+                 dropout_p= dropout_p, device=device).to(device)
+
+    return model
+
+
+    
 class VRNN(nn.Module):
 
     def __init__(self, x_dim, z_dim=16, activation = 'tanh',

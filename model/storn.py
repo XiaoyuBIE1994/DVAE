@@ -20,6 +20,42 @@ import torch
 from collections import OrderedDict
 
 
+def build_STORN(cfg, device='cpu'):
+
+    ### Load parameters for STORN
+    # General
+    x_dim = cfg.getint('Network', 'x_dim')
+    z_dim = cfg.getint('Network','z_dim')
+    activation = cfg.get('Network', 'activation')
+    dropout_p = cfg.getfloat('Network', 'dropout_p')
+    # Inference
+    dense_x_g = [int(i) for i in cfg.get('Network', 'dense_x_g').split(',')]
+    dim_RNN_g = cfg.getint('Network', 'dim_RNN_g')
+    num_RNN_g = cfg.getint('Network', 'num_RNN_g')
+    dense_g_z = [int(i) for i in cfg.get('Network', 'dense_g_z').split(',')]
+    # Generation
+    dense_z_h = [int(i) for i in cfg.get('Network', 'dense_z_h').split(',')]
+    dense_xtm1_h = [int(i) for i in cfg.get('Network', 'dense_xtm1_h').split(',')]
+    dim_RNN_h = cfg.getint('Network', 'dim_RNN_h')
+    num_RNN_h = cfg.getint('Network', 'num_RNN_h')
+    dense_h_x = [int(i) for i in cfg.get('Network', 'dense_h_x').split(',')]
+    
+    # Beta-vae
+    beta = cfg.getfloat('Training', 'beta')
+
+    # Build model
+    model = STORN(x_dim=x_dim, z_dim=z_dim, activation=activation,
+                 dense_x_g=dense_x_g, dense_g_z=dense_g_z,
+                 dim_RNN_g=dim_RNN_g, num_RNN_g=num_RNN_g,
+                 dense_z_h=dense_z_h, dense_xtm1_h=dense_xtm1_h,
+                 dense_h_x=dense_h_x,
+                 dim_RNN_h=dim_RNN_h, num_RNN_h=num_RNN_h,
+                 dropout_p=dropout_p, beta=beta, device=device).to(device)
+
+    return model
+
+    
+
 class STORN(nn.Module):
 
     def __init__(self, x_dim, z_dim=16, activation = 'tanh',
