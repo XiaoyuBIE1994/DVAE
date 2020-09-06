@@ -17,6 +17,10 @@ setup(
     packages=find_packages(),
     install_requires=[
         'numpy',
+        'matplotlib',
+        'soundfile',
+        'librosa',
+        'torch>=1.3.0+cu92',
         'speechmetrics @ git+https://github.com/aliutkus/speechmetrics#egg=speechmetrics[cpu]',
     ],
     include_package_data=True,

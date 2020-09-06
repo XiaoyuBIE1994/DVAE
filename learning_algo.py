@@ -532,6 +532,10 @@ class LearningAlgorithm():
             audio_dir, audio_file = os.path.split(audio_orig)
             file_name, file_ext = os.path.splitext(audio_file)
             audio_recon = os.path.join(audio_dir, file_name+'_recon'+file_ext)
+        else:
+            root_dir, filename = os.path.split(audio_recon)
+            if not os.path.isdir(root_dir):
+                os.makedirs(root_dir)
         
         # Load model state
         if state_dict_file != None:
@@ -612,7 +616,7 @@ class LearningAlgorithm():
             raise ValueError('Evaluation only support: rmse, pesq, stoi, all')
 
 
-    def test(self, data_dir, state_dict_file=None, print_results=True):
+    def test(self, data_dir, state_dict_file=None):
         """
         Apply re-synthesis for all audio files in a given directory, and return evaluation results
         All generated audio files in the same root as data_dir, named audio_dir + '_{}_recon'.format(tag)
