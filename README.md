@@ -138,28 +138,28 @@ We propose the evaluation results in average and their training curve:
 | DSAE           | 0.0469 | 2.32 | 0.90 |
 
 #### VAE
-![](https://gitlab.inria.fr/xbie/dvae-speech/-/blob/master/figures/loss_VAE.png)
+![vae](https://gitlab.inria.fr/xbie/dvae-speech/-/raw/master/figures/loss_VAE.png)
 
 #### DKF
-![](https://gitlab.inria.fr/xbie/dvae-speech/-/blob/master/figures/loss_DKF.png)
+![dkf](https://gitlab.inria.fr/xbie/dvae-speech/-/raw/master/figures/loss_DKF.png)
 
 #### STORN
-![](https://gitlab.inria.fr/xbie/dvae-speech/-/blob/master/figures/loss_STORN.png)
+![storn](https://gitlab.inria.fr/xbie/dvae-speech/-/raw/master/figures/loss_STORN.png)
 
 #### VRNN
-![](https://gitlab.inria.fr/xbie/dvae-speech/-/blob/master/figures/loss_VRNN.png)
+![vrnn](https://gitlab.inria.fr/xbie/dvae-speech/-/raw/master/figures/loss_VRNN.png)
 
 #### SRNN
-![](https://gitlab.inria.fr/xbie/dvae-speech/-/blob/master/figures/loss_SRNN.png)
+![srnn](https://gitlab.inria.fr/xbie/dvae-speech/-/raw/master/figures/loss_SRNN.png)
 
 #### RVAE-Causal
-![](https://gitlab.inria.fr/xbie/dvae-speech/-/blob/master/figures/loss_RVAE-Causal.png)
+![rvae-causal](https://gitlab.inria.fr/xbie/dvae-speech/-/raw/master/figures/loss_RVAE-Causal.png)
 
 #### RVAE-NonCausal
-![](https://gitlab.inria.fr/xbie/dvae-speech/-/blob/master/figures/loss_RVAE-NonCausal.png)
+![rvae-noncausal](https://gitlab.inria.fr/xbie/dvae-speech/-/raw/master/figures/loss_RVAE-NonCausal.png)
 
 #### DSAE
-![](https://gitlab.inria.fr/xbie/dvae-speech/-/blob/master/figures/loss_DSAE.png)
+![dsae](https://gitlab.inria.fr/xbie/dvae-speech/-/raw/master/figures/loss_DSAE.png)
 
 
 ## Tips
