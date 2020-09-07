@@ -1,3 +1,4 @@
+[TOC]
 # Dynamical Variational Autoencoders
 
 This repository contains the code for this paper:
@@ -44,7 +45,7 @@ pip install git+https://gitlab.inria.fr/xbie/dvae-speech
 import dvae
 ```
 
-, for more detailed usage tutorial, pleas find in section Example
+, for more detailed usage tutorial, pleas find in section [Example](#Example)
 
 
 ### Use container
