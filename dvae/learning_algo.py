@@ -17,8 +17,8 @@ import torch
 import librosa
 import soundfile as sf
 import speechmetrics
-from utils import myconf, get_logger, rmse_frame, SpeechSequencesFull, SpeechSequencesRandom
-from model import build_VAE, build_DKF, build_KVAE, build_STORN, build_VRNN, build_SRNN, build_RVAE, build_DSAE
+from .utils import myconf, get_logger, rmse_frame, SpeechSequencesFull, SpeechSequencesRandom
+from .model import build_VAE, build_DKF, build_KVAE, build_STORN, build_VRNN, build_SRNN, build_RVAE, build_DSAE
 
 
 class LearningAlgorithm():

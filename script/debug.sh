@@ -1,1 +1,0 @@
-oarsub -I -l/host=1/gpudevice=1 -p "cluster='perception'"

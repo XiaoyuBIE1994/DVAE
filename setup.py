@@ -15,6 +15,7 @@ setup(
     long_description_content_type='text/markdown',
     url='https://gitlab.inria.fr/xbie/dvae-speech',
     packages=find_packages(),
+    # package_dir={'dvae', 'dvae'},
     install_requires=[
         'numpy',
         'matplotlib',
