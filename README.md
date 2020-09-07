@@ -67,6 +67,10 @@ singularity exec --nv --bind /path_to_your_dir/:/mnt singularity/dvae.sif python
 
 For more information about singularity, please read [Singularity User Guide](https://singularity-userdoc.readthedocs.io/en/latest/)
 
+### Tips
+
+- One who want to use the package on `MacOS` should disable `speechmetrics` since there exist some compilation errors for `pypesq` on `MacOS`
+- Python 3.8 support requires Tensorflow 2.2 or later ([link](https://www.tensorflow.org/install/pip)), so it is recommended to use Python 3.7 since `speechmetrics` package needs `Tensorflow 2.0`
 
 
 ## Usage
@@ -161,8 +165,3 @@ We propose the evaluation results in average and their training curve:
 #### DSAE
 ![dsae](https://gitlab.inria.fr/xbie/dvae-speech/-/raw/master/figures/loss_DSAE.png)
 
-
-## Tips
-
-- One who want to use the package on `MacOS` should disable `speechmetrics` since there exist some compilation errors for `pypesq` on `MacOS`
-- Python 3.8 support requires Tensorflow 2.2 or later ([link](https://www.tensorflow.org/install/pip)), so it is recommended to use Python 3.7 since `speechmetrics` package needs `Tensorflow 2.0`
