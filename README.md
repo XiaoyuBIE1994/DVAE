@@ -27,13 +27,45 @@ TODO
 
 ## Installation instructions
 
-### Dependencies
 
-This code has been tested on Ubuntu 16.04, Python 3.7, Pytorch=1.3.1, CUDA 9.2, NVIDIA Titan X and NVIDIA Titan RTX, it deepends on:
+This code has been tested on Ubuntu 16.04, Python 3.7, Pytorch=1.3.1, CUDA 9.2, NVIDIA Titan X and NVIDIA Titan RTX, you could use it in the following methods:
 
-- soundfile
-- librosa
-- CUDA 9.2
+
+### Install as a package
+The simplest way to use our code is install it as a python package:
+
+```bash
+pip install git+https://gitlab.inria.fr/xbie/dvae-speech
+```
+
+, then you could import it like other packages:
+
+```python
+import dvae
+```
+
+, for more detailed usage tutorial, pleas find in section Example
+
+
+### Use container
+It's highly recommended to use Singularity container for results reproducing or further application, we provide a sigularity definition file `singularity/dvae.def` to build the images:
+
+```bash
+# Download singularity
+sudo apt-get install -y singularity-container
+
+# Build singularity image
+sudo singularity build dvae.sif singularity/dvae.def
+
+# Shell into the image, no cuda
+singularity shell --bind /path_to_your_dir/:/mnt singularity/dvae.sif
+
+# Execute commands, enable cuda
+singularity exec --nv --bind /path_to_your_dir/:/mnt singularity/dvae.sif python train_model.py config/cfg_dkf.ini
+```
+
+For more information about singularity, please read [Singularity User Guide](https://singularity-userdoc.readthedocs.io/en/latest/)
+
 
 
 ## Usage
@@ -44,8 +76,6 @@ This code has been tested on Ubuntu 16.04, Python 3.7, Pytorch=1.3.1, CUDA 9.2, 
 - generate(): generate a reconstructed audio with an input audio file
 - eval(): evaluate reconstrcuted audio file with specified metric (`rmse`, `pesq`, `stoi`, `all`) 
 - test(): apply reconstruction for all audio files with indicated test dataset directory path
-
-
 
 ### Example
 
@@ -78,27 +108,60 @@ test_data_dir = 'data_to_test'
 list_score_rmse, list_score_pesq, list_score_stoi = learning_algo.test(data_dir=test_data_dir, state_dict_file=None)
 ```
 
+### Config file
+
+We provide all configuration examples of the above models in `config/`. For results reproducing, all you need to do is to replace `saved_root`, `train_data_dir` and `val_data_dir` with your own directory path 
 
 
 ## Main results
 
-To show training results and re-synthesis results here
+All models are trained with Adam with a batch size of 32, using:
+
+- training dataset: wsj0_si_tr_s
+- validation dataset: wsj0_si_dt_05
+- test dataset: wsj0_si_et_05
+
+For more details, pleas visit Chapter 13 Experiments in our article.
+
+We propose the evaluation results in average and their training curve:
+
+| DVAE           |  RMSE  | PESQ | STOI |
+| ----           |  ----  | ---- | ---- |
+| VAE            | 0.0510 | 2.05 | 0.86 |
+| DKF            | 0.0344 | 3.30 | 0.94 |
+| STORN          | 0.0338 | 3.05 | 0.93 |
+| VRNN           | 0.0267 | 3.60 | 0.96 |
+| SRNN           | 0.0248 | 3.64 | 0.97 |
+| RVAE-Causal    | 0.0499 | 2.27 | 0.89 |
+| RVAE-NonCausal | 0.0479 | 2.37 | 0.89 |
+| DSAE           | 0.0469 | 2.32 | 0.90 |
+
+#### VAE
+![](https://gitlab.inria.fr/xbie/dvae-speech/-/blob/master/figures/loss_VAE.png)
+
+#### DKF
+![](https://gitlab.inria.fr/xbie/dvae-speech/-/blob/master/figures/loss_DKF.png)
+
+#### STORN
+![](https://gitlab.inria.fr/xbie/dvae-speech/-/blob/master/figures/loss_STORN.png)
+
+#### VRNN
+![](https://gitlab.inria.fr/xbie/dvae-speech/-/blob/master/figures/loss_VRNN.png)
+
+#### SRNN
+![](https://gitlab.inria.fr/xbie/dvae-speech/-/blob/master/figures/loss_SRNN.png)
+
+#### RVAE-Causal
+![](https://gitlab.inria.fr/xbie/dvae-speech/-/blob/master/figures/loss_RVAE-Causal.png)
+
+#### RVAE-NonCausal
+![](https://gitlab.inria.fr/xbie/dvae-speech/-/blob/master/figures/loss_RVAE-NonCausal.png)
+
+#### DSAE
+![](https://gitlab.inria.fr/xbie/dvae-speech/-/blob/master/figures/loss_DSAE.png)
 
 
 ## Tips
 
 - One who want to use the package on `MacOS` should disable `speechmetrics` since there exist some compilation errors for `pypesq` on `MacOS`
 - Python 3.8 support requires Tensorflow 2.2 or later ([link](https://www.tensorflow.org/install/pip)), so it is recommended to use Python 3.7 since `speechmetrics` package needs `Tensorflow 2.0`
-
-### To add license
-
-'''
-Software dvae
-Copyright Inria
-Year 2020
-Contact : xiaoyu.bie@inria.fr
-
-The software dvae is provided "as is", for reproducibility purposes only.
-The user is not authorized to distribute the software dvae, modified or not.
-The user expressly undertakes not to remove, or modify, in any manner, the intellectual property notice attached to the software dvae.
-'''
