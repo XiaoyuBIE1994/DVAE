@@ -48,7 +48,7 @@ import dvae
 
 
 ### Use container
-It's highly recommended to use Singularity container for results reproducing or further application, we provide a sigularity definition file `singularity/dvae.def` to build the images:
+It's highly recommended to use Singularity container for results reproducing or further application, we provide a sigularity definition file [singularity/dvae.def](https://gitlab.inria.fr/xbie/dvae-speech/-/blob/master/singularity/dvae.def) to build the images:
 
 ```bash
 # Download singularity
@@ -114,7 +114,7 @@ list_score_rmse, list_score_pesq, list_score_stoi = learning_algo.test(data_dir=
 
 ### Config file
 
-We provide all configuration examples of the above models in `config/`. For results reproducing, all you need to do is to replace `saved_root`, `train_data_dir` and `val_data_dir` with your own directory path 
+We provide all configuration examples of the above models in [config/](https://gitlab.inria.fr/xbie/dvae-speech/-/tree/master/config). For results reproducing, all you need to do is to replace `saved_root`, `train_data_dir` and `val_data_dir` with your own directory path 
 
 
 ## Main results
