@@ -6,14 +6,14 @@ with open('README.md', 'r') as f:
     long_description = f.read()
 
 setup(
-    name="dave-speech",
+    name="dvae-speech",
     version="1.0",
     author="Xiaoyu BIE",
     author_email="xiaoyu.bie@inria.fr",
     description="A PyTorch implementation of DVAE models on speech processing",
     long_description=long_description,
     long_description_content_type='text/markdown',
-    url='',
+    url='https://gitlab.inria.fr/xbie/dvae-speech',
     packages=find_packages(),
     install_requires=[
         'numpy',
