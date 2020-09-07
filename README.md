@@ -1,3 +1,6 @@
+```
+[TOC]
+```
 # Dynamical Variational Autoencoders
 
 This repository contains the code for this paper:
