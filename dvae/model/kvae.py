@@ -332,7 +332,7 @@ class KVAE(nn.Module):
         return alpha
     
 
-    def forward_vae(self, x):
+    def forward_vae(self, x, compute_loss=False):
 
         # train input: (batch_size, x_dim, seq_len)
         # test input:  (x_dim, seq_len)
@@ -349,8 +349,9 @@ class KVAE(nn.Module):
         y = self.generation_x(a)
 
         # calculate loss
-        loss_tot, loss_recon, loss_KLD = self.get_loss_vae(x, y, a_mean, a_logvar, batch_size, seq_len)
-        self.loss = (loss_tot, loss_recon, loss_KLD)
+        if compute_loss:
+            loss_tot, loss_recon, loss_KLD = self.get_loss_vae(x, y, a_mean, a_logvar, batch_size, seq_len)
+            self.loss = (loss_tot, loss_recon, loss_KLD)
 
         # output of NN:    (seq_len, batch_size, dim)
         # output of model: (batch_size, dim, seq_len) or (dim, seq_len)
@@ -360,7 +361,7 @@ class KVAE(nn.Module):
         return self.y
 
     
-    def forward(self, x):
+    def forward(self, x, compute_loss=False):
 
         # train input: (batch_size, x_dim, seq_len)
         # test input:  (x_dim, seq_len)
@@ -381,13 +382,14 @@ class KVAE(nn.Module):
         y = self.generation_x(a_gen)
 
         # calculate loss
-        loss_tot, loss_vae, loss_lgssm = self.get_loss(x, y, u, 
-                                                       a, a_mean, a_logvar, 
-                                                       mu_smooth, Sigma_smooth, 
-                                                       A_mix, B_mix, C_mix,
-                                                       self.scale_reconstruction,
-                                                       seq_len, batch_size)
-        self.loss = (loss_tot, loss_vae, loss_lgssm)
+        if compute_loss:
+            loss_tot, loss_vae, loss_lgssm = self.get_loss(x, y, u, 
+                                                        a, a_mean, a_logvar, 
+                                                        mu_smooth, Sigma_smooth, 
+                                                        A_mix, B_mix, C_mix,
+                                                        self.scale_reconstruction,
+                                                        seq_len, batch_size)
+            self.loss = (loss_tot, loss_vae, loss_lgssm)
         
         # output of NN:    (seq_len, batch_size, dim)
         # output of model: (batch_size, dim, seq_len) or (dim, seq_len)

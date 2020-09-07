@@ -166,6 +166,8 @@ class LearningAlgorithm():
 
     def train(self):
 
+        # Set module.training = True
+        self.model.train()
         torch.autograd.set_detect_anomaly(True)
 
         # Create directory for results
@@ -185,11 +187,6 @@ class LearningAlgorithm():
         log_file = os.path.join(save_dir, 'log.txt')
         logger_type = self.cfg.getint('User', 'logger_type')
         logger = get_logger(log_file, logger_type)
-
-        # Check if gpu is available on cluster (To be removed in the future)
-        if 'gpu' in self.hostname and self.device == 'cpu':
-            logger.error('GPU unavailable on cluster, training stop')
-            return
 
         # Print basical infomation
         for log in self.get_basic_info():
@@ -254,13 +251,12 @@ class LearningAlgorithm():
         for epoch in range(epochs):
 
             start_time = datetime.datetime.now()
-            self.model.train()
 
             # Batch training
             for batch_idx, batch_data in enumerate(train_dataloader):
                 
                 batch_data = batch_data.to(self.device)
-                recon_batch_data = self.model(batch_data)
+                recon_batch_data = self.model(batch_data, compute_loss=True)
 
                 loss_tot, loss_recon, loss_KLD = self.model.loss
                 optimizer.zero_grad()
@@ -275,7 +271,7 @@ class LearningAlgorithm():
             for batch_idx, batch_data in enumerate(val_dataloader):
 
                 batch_data = batch_data.to(self.device)
-                recon_batch_data = self.model(batch_data)
+                recon_batch_data = self.model(batch_data, compute_loss=True)
 
                 loss_tot, loss_recon, loss_KLD = self.model.loss
                 
@@ -405,13 +401,12 @@ class LearningAlgorithm():
 
 
             start_time = datetime.datetime.now()
-            self.model.train()
 
             # Batch training
             for batch_idx, batch_data in enumerate(train_dataloader):
                 
                 batch_data = batch_data.to(self.device)
-                recon_batch_data = self.model(batch_data)
+                recon_batch_data = self.model(batch_data, compute_loss=True)
 
                 loss_tot, loss_vae, loss_lgssm = self.model.loss
                 optimizer.zero_grad()
@@ -426,7 +421,7 @@ class LearningAlgorithm():
             for batch_idx, batch_data in enumerate(val_dataloader):
 
                 batch_data = batch_data.to(self.device)
-                recon_batch_data = self.model(batch_data)
+                recon_batch_data = self.model(batch_data, compute_loss=True)
 
                 loss_tot, loss_vae, loss_lgssm = self.model.loss
 
@@ -525,7 +520,7 @@ class LearningAlgorithm():
         Input: a reference audio (and a predefined path for generated audio
         Output: generated audio
         """
-        
+
         # Define generated 
         if audio_recon == None:
             print('Generated audio file will be saved in the same directory as reference audio')
@@ -568,10 +563,13 @@ class LearningAlgorithm():
         # Prepare data input        
         data_orig = np.abs(X) ** 2 # (x_dim, seq_len)
         data_orig = torch.from_numpy(data_orig.astype(np.float32)).to(self.device) 
+                
+        # Set module.training = False
+        self.model.eval()
 
         # Reconstruction
         with torch.no_grad():
-            data_recon = self.model(data_orig).to('cpu').detach().numpy()
+            data_recon = self.model(data_orig, compute_loss=False).to('cpu').detach().numpy()
 
         # Re-synthesis
         X_recon = np.sqrt(data_recon) * np.exp(1j * np.angle(X))
@@ -582,15 +580,11 @@ class LearningAlgorithm():
         sf.write(audio_recon, scale_norm*x_recon, fs_x)
 
     
-    def eval(self, audio_ref, audio_est, metric='all', state_dict_file=None):
+    def eval(self, audio_ref, audio_est, metric='all'):
         """
         Input: a reference audio and a generated audio
         Output: score(s) from different evaluation metrics
         """
-        
-        # Load model state
-        if state_dict_file != None:
-            self.model.load_state_dict(torch.load(state_dict_file, map_location=self.device))
 
         if metric  == 'rmse':
             eval_func = rmse_frame()
@@ -666,7 +660,7 @@ class LearningAlgorithm():
 
             # Evaluation
             score_rmse, score_pesq, score_stoi = self.eval(audio_ref=audio_file, audio_est=audio_file_recon, 
-                                                           metric='all', state_dict_file=None)
+                                                           metric='all')
             
             list_score_rmse.append(score_rmse)
             list_score_pesq.append(score_pesq)

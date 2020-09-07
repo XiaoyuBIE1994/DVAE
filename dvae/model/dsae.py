@@ -271,7 +271,7 @@ class DSAE(nn.Module):
         return y
 
 
-    def forward(self, x):
+    def forward(self, x, compute_loss=False):
 
         # train input: (batch_size, x_dim, seq_len)
         # test input:  (x_dim, seq_len)
@@ -280,6 +280,7 @@ class DSAE(nn.Module):
             x = x.unsqueeze(0)
         x = x.permute(-1, 0, 1)
 
+        seq_len = x.shape[0]
         batch_size = x.shape[1]
 
         # main part
@@ -290,11 +291,10 @@ class DSAE(nn.Module):
         y = self.generation_x(v, z)
 
         # calculate loss
-        seq_len = x.shape[0]
-        batch_size = x.shape[1]
-        loss_tot, loss_recon, loss_KLD = self.get_loss(x, y, z_mean, z_logvar, z_mean_p, z_logvar_p,
-                                                       v_mean, v_logvar, seq_len, batch_size)
-        self.loss = (loss_tot, loss_recon, loss_KLD)
+        if compute_loss:
+            loss_tot, loss_recon, loss_KLD = self.get_loss(x, y, z_mean, z_logvar, z_mean_p, z_logvar_p,
+                                                        v_mean, v_logvar, seq_len, batch_size)
+            self.loss = (loss_tot, loss_recon, loss_KLD)
         
         # output of NN:    (seq_len, batch_size, dim)
         # output of model: (batch_size, dim, seq_len) or (dim, seq_len)

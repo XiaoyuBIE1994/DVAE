@@ -222,7 +222,7 @@ class VRNN(nn.Module):
         return h_tp1, c_tp1
 
 
-    def forward(self, x):
+    def forward(self, x, compute_loss=False):
 
         # train input: (batch_size, x_dim, seq_len)
         # test input:  (x_dim, seq_len)
@@ -264,10 +264,11 @@ class VRNN(nn.Module):
         z_mean_p, z_logvar_p  = self.generation_z(h)
         
         # Calculate loss
-        loss_tot, loss_recon, loss_KLD = self.get_loss(x, y, z_mean, z_logvar,
-                                                       z_mean_p, z_logvar_p,
-                                                       seq_len, batch_size)
-        self.loss = (loss_tot, loss_recon, loss_KLD)
+        if compute_loss:
+            loss_tot, loss_recon, loss_KLD = self.get_loss(x, y, z_mean, z_logvar,
+                                                        z_mean_p, z_logvar_p,
+                                                        seq_len, batch_size)
+            self.loss = (loss_tot, loss_recon, loss_KLD)
         
         # output of NN:    (seq_len, batch_size, dim)
         # output of model: (batch_size, dim, seq_len) or (dim, seq_len)

@@ -104,8 +104,8 @@ model_state = 'model_state.pt'
 learning_algo.generate(audio_orig=audio_ref, audio_recon=audio_recon, state_dict_file=model_state)
 
 # evaluate audio quality with model state in cache
-score_rmse = learning_algo.eval(audio_ref=audio_ref, audio_est=audio_recon, metric='rmse', state_dict_file=None) # only RMSE
-score_rmse, score_pesq, score_stoi = learning_algo.eval(audio_ref=audio_ref, audio_est=audio_recon, metric='all', state_dict_file=None) # both RMSE, PESQ and STOI
+score_rmse = learning_algo.eval(audio_ref=audio_ref, audio_est=audio_recon, metric='rmse') # only RMSE
+score_rmse, score_pesq, score_stoi = learning_algo.eval(audio_ref=audio_ref, audio_est=audio_recon, metric='all') # both RMSE, PESQ and STOI
 
 # test model on test dataset with model state in cache
 test_data_dir = 'data_to_test'
