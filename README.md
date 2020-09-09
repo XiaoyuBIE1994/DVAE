@@ -2,7 +2,7 @@
 
 This repository contains the code for this paper:
 
-**Dynamical Variational Autoencoders: A Review of Recent Trend**  
+**Dynamical Variational Autoencoders: A Comprehensive Review**  
 [Laurent Girin](http://www.gipsa-lab.grenoble-inp.fr/~laurent.girin/cv_en.html), [Simon Leglaive](https://sleglaive.github.io/index.html), [Xiaoyu Bie](https://team.inria.fr/perception/team-members/xiaoyu-bie/), [Julien Diard](https://diard.wordpress.com/), [Thomas Hueber](http://www.gipsa-lab.grenoble-inp.fr/~thomas.hueber/), [Xavier Alameda-Pineda](http://xavirema.eu/)  
 **[[Paper](https://hal.inria.fr/hal-02926215)]**
 
@@ -21,7 +21,13 @@ More precisely, it is a re-implementation of the following models in Pytorch for
 If you find this code useful, please star the project and consider citing:
 
 ```
-TODO
+@article{dvae2020,
+  title={Dynamical Variational Autoencoders: A Comprehensive Review},
+  author={Girin, Laurent and Leglaive, Simon and Bie, Xiaoyu and Diard, Julien and Hueber, Thomas and Alameda-Pineda, Xavier},
+  Journal={arXiv preprint arXiv:2008.12595},
+  year={2020}
+}
+
 ```
 
 
