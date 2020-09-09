@@ -3,6 +3,6 @@ OAR.*
 **/*.ipynb_checkpoints/*
 *.ipynb
 *.pyc
-config/cfg_debug*
+config/*
 .DS_Store
 .vscode/*

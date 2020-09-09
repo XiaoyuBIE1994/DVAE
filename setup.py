@@ -10,7 +10,7 @@ setup(
     version="1.0",
     author="Xiaoyu BIE",
     author_email="xiaoyu.bie@inria.fr",
-    description="A PyTorch implementation of DVAE models on speech processing",
+    description="Dynamical Variation Auto-Encoder for speech re-synthesis",
     long_description=long_description,
     long_description_content_type='text/markdown',
     url='https://gitlab.inria.fr/xbie/dvae-speech',
