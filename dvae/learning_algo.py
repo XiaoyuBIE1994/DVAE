@@ -595,7 +595,7 @@ class LearningAlgorithm():
             score = eval_func(audio_est, audio_ref)['pesq']
             return score
         elif metric == 'stoi':
-            eval_func = speechmetrics,load('stoi', window=None)
+            eval_func = speechmetrics.load('stoi', window=None)
             score = eval_func(audio_est, audio_ref)['stoi']
             return score
         elif metric == 'all':
