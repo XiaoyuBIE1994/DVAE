@@ -26,10 +26,13 @@ def build_VAE(cfg, device='cpu'):
     # Inference and generation
     dense_x_z = [int(i) for i in cfg.get('Network', 'dense_x_z').split(',')]
 
+    # Beta-vae
+    beta = cfg.getfloat('Training', 'beta')
+
     # Build model
     model = VAE(x_dim=x_dim, z_dim=z_dim,
                 dense_x_z=dense_x_z, activation=activation,
-                dropout_p=dropout_p, device=device).to(device)
+                dropout_p=dropout_p, beta=beta, device=device).to(device)
 
     return model
 
@@ -48,7 +51,7 @@ class VAE(nn.Module):
 
     def __init__(self, x_dim=None, z_dim=16,
                  dense_x_z=[128], activation='tanh',
-                 dropout_p = 0, device='cpu'):
+                 dropout_p = 0, beta=1, device='cpu'):
 
         super().__init__()
         ### General parameters for storn        
@@ -66,6 +69,8 @@ class VAE(nn.Module):
         self.dense_x_z = dense_x_z
         ### Generation
         self.dense_z_x = list(reversed(dense_x_z))
+        ### Beta-loss
+        self.beta = beta
         
         self.build()
         
@@ -159,7 +164,7 @@ class VAE(nn.Module):
         
         # calculate loss
         if compute_loss:
-            loss_tot, loss_recon, loss_KLD = self.get_loss(x, y, z_mean, z_logvar, batch_size, seq_len)
+            loss_tot, loss_recon, loss_KLD = self.get_loss(x, y, z_mean, z_logvar, batch_size, seq_len, self.beta)
             self.loss = (loss_tot, loss_recon, loss_KLD)
 
         # output of NN:    (seq_len, batch_size, dim)

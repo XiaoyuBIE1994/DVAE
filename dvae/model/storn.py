@@ -89,7 +89,7 @@ class STORN(nn.Module):
         self.dense_h_x = dense_h_x
         self.dim_RNN_h = dim_RNN_h
         self.num_RNN_h = num_RNN_h
-        #### Beta-vae
+        ### Beta-loss
         self.beta = beta
 
         self.build()

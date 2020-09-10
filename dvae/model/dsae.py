@@ -40,6 +40,9 @@ def build_DSAE(cfg, device='cpu'):
     # Generation
     dense_vz_x = [int(i) for i in cfg.get('Network', 'dense_vz_x').split(',')]
 
+    # Beta-vae
+    beta = cfg.getfloat('Training', 'beta')
+
     # Build model
     model = DSAE(x_dim=x_dim, z_dim=z_dim, v_dim=v_dim, activation=activation,
                  dense_x=dense_x,
@@ -50,7 +53,7 @@ def build_DSAE(cfg, device='cpu'):
                  dim_RNN_gz=dim_RNN_gz, num_RNN_gz=num_RNN_gz,
                  dim_RNN_prior=dim_RNN_prior, num_RNN_prior=num_RNN_prior,
                  dense_vz_x=dense_vz_x,
-                 dropout_p=dropout_p, device=device).to(device)
+                 dropout_p=dropout_p, beta=beta, device=device).to(device)
 
     return model
 
@@ -67,7 +70,7 @@ class DSAE(nn.Module):
                  dim_RNN_gz=128, num_RNN_gz=1,
                  dim_RNN_prior=16, num_RNN_prior=1,
                  dense_vz_x=[128,128],
-                 dropout_p=0, device='cpu'):
+                 dropout_p=0, beta=1, device='cpu'):
 
         super().__init__()
         ## General parameters
@@ -99,6 +102,8 @@ class DSAE(nn.Module):
         self.num_RNN_prior = num_RNN_prior
         # Generation x
         self.dense_vz_x = dense_vz_x
+        ### Beta-loss
+        self.beta = beta
 
         self.build()
 
@@ -293,7 +298,7 @@ class DSAE(nn.Module):
         # calculate loss
         if compute_loss:
             loss_tot, loss_recon, loss_KLD = self.get_loss(x, y, z_mean, z_logvar, z_mean_p, z_logvar_p,
-                                                        v_mean, v_logvar, seq_len, batch_size)
+                                                        v_mean, v_logvar, seq_len, batch_size, self.beta)
             self.loss = (loss_tot, loss_recon, loss_KLD)
         
         # output of NN:    (seq_len, batch_size, dim)

@@ -33,13 +33,16 @@ def build_VRNN(cfg, device='cpu'):
     dim_RNN = cfg.getint('Network', 'dim_RNN')
     num_RNN = cfg.getint('Network', 'num_RNN')
 
+    # Beta-vae
+    beta = cfg.getfloat('Training', 'beta')
+
     # Build model
     model = VRNN(x_dim=x_dim, z_dim=z_dim, activation=activation,
                  dense_x=dense_x, dense_z=dense_z,
                  dense_hx_z=dense_hx_z, dense_hz_x=dense_hz_x, 
                  dense_h_z=dense_h_z,
                  dim_RNN=dim_RNN, num_RNN=num_RNN,
-                 dropout_p= dropout_p, device=device).to(device)
+                 dropout_p= dropout_p, beta=beta, device=device).to(device)
 
     return model
 
@@ -51,7 +54,7 @@ class VRNN(nn.Module):
                  dense_x=[128], dense_z=[128],
                  dense_hx_z=[128], dense_hz_x=[128], dense_h_z=[128],
                  dim_RNN=128, num_RNN=1,
-                 dropout_p = 0, device='cpu'):
+                 dropout_p = 0, beta=1, device='cpu'):
 
         super().__init__()
         ### General parameters
@@ -76,6 +79,8 @@ class VRNN(nn.Module):
         ### RNN
         self.dim_RNN = dim_RNN
         self.num_RNN = num_RNN
+        ### Beta-loss
+        self.beta = beta
 
         self.build()
 
@@ -267,7 +272,7 @@ class VRNN(nn.Module):
         if compute_loss:
             loss_tot, loss_recon, loss_KLD = self.get_loss(x, y, z_mean, z_logvar,
                                                         z_mean_p, z_logvar_p,
-                                                        seq_len, batch_size)
+                                                        seq_len, batch_size, self.beta)
             self.loss = (loss_tot, loss_recon, loss_KLD)
         
         # output of NN:    (seq_len, batch_size, dim)

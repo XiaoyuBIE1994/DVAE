@@ -4,5 +4,6 @@ OAR.*
 *.ipynb
 *.pyc
 config/*
+script/*
 .DS_Store
 .vscode/*

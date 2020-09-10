@@ -38,6 +38,9 @@ def build_SRNN(cfg, device='cpu'):
     # Generation
     dense_hz_x = [int(i) for i in cfg.get('Network', 'dense_hz_x').split(',')]
 
+    # Beta-vae
+    beta = cfg.getfloat('Training', 'beta')
+
     # Build model
     model = SRNN(x_dim=x_dim, z_dim=z_dim, activation=activation,
                  dense_x_h=dense_x_h,
@@ -47,7 +50,7 @@ def build_SRNN(cfg, device='cpu'):
                  dense_gz_z=dense_gz_z,
                  dense_hz_x=dense_hz_x,
                  dense_hz_z=dense_hz_z,
-                 dropout_p=dropout_p, device=device).to(device)
+                 dropout_p=dropout_p, beta=beta, device=device).to(device)
 
     return model
 
@@ -61,7 +64,7 @@ class SRNN(nn.Module):
                  dense_gz_z=[128,128],
                  dense_hz_z=[128,128],
                  dense_hz_x=[128,128],
-                 dropout_p = 0, device='cpu'):
+                 dropout_p = 0, beta=1, device='cpu'):
 
         super().__init__()
         ### General parameters      
@@ -89,6 +92,8 @@ class SRNN(nn.Module):
         self.dense_hz_z = dense_hz_z
         ### Generation x
         self.dense_hz_x = dense_hz_x
+        ### Beta-loss
+        self.beta=beta
         
         self.build()
 
@@ -296,7 +301,7 @@ class SRNN(nn.Module):
         if compute_loss:
             loss_tot, loss_recon, loss_KLD = self.get_loss(x, y, z_mean, z_logvar,
                                                         z_mean_p, z_logvar_p,
-                                                        seq_len, batch_size)
+                                                        seq_len, batch_size, self.beta)
             self.loss = (loss_tot, loss_recon, loss_KLD)
         
         # output of NN:    (seq_len, batch_size, dim)

@@ -39,6 +39,9 @@ def build_RVAE(cfg, device='cpu'):
     bidir_h = cfg.getboolean('Network', 'bidir_h')
     dense_h_x = [int(i) for i in cfg.get('Network', 'dense_h_x').split(',')]
 
+    # Beta-vae
+    beta = cfg.getfloat('Training', 'beta')
+
     # Build model
     model = RVAE(x_dim=x_dim, z_dim=z_dim, activation=activation,
                  dense_x_gx=dense_x_gx,
@@ -51,7 +54,7 @@ def build_RVAE(cfg, device='cpu'):
                  dim_RNN_h=dim_RNN_h, num_RNN_h=num_RNN_h,
                  bidir_h=bidir_h,
                  dense_h_x=dense_h_x,
-                 dropout_p=dropout_p, device=device).to(device)
+                 dropout_p=dropout_p, beta=beta, device=device).to(device)
 
     return model
 
@@ -95,6 +98,8 @@ class RVAE(nn.Module):
         self.num_RNN_h = num_RNN_h
         self.bidir_h = bidir_h
         self.dense_h_x = dense_h_x
+        ### Beta-loss
+        self.beta = beta
         
         
         self.build()
@@ -283,7 +288,7 @@ class RVAE(nn.Module):
 
         # calculate loss
         if compute_loss:
-            loss_tot, loss_recon, loss_KLD = self.get_loss(x, y, z_mean, z_logvar, seq_len, batch_size)
+            loss_tot, loss_recon, loss_KLD = self.get_loss(x, y, z_mean, z_logvar, seq_len, batch_size, self.beta)
             self.loss = (loss_tot, loss_recon, loss_KLD)
 
         # output of NN:    (seq_len, batch_size, dim)

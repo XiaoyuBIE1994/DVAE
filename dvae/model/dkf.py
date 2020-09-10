@@ -42,13 +42,16 @@ def build_DKF(cfg, device='cpu'):
     # Generation
     dense_z_x = [int(i) for i in cfg.get('Network', 'dense_z_x').split(',')]
 
+    # Beta-vae
+    beta = cfg.getfloat('Training', 'beta')
+
     # Build model
     model = DKF(x_dim=x_dim, z_dim=z_dim, activation=activation,
                 dense_x_gx=dense_x_gx, dim_RNN_gx=dim_RNN_gx, 
                 num_RNN_gx=num_RNN_gx, bidir_gx=bidir_gx,
                 dense_ztm1_g=dense_ztm1_g, dense_g_z=dense_g_z,
                 dense_z_x=dense_z_x,
-                dropout_p=dropout_p, device=device).to(device)
+                dropout_p=dropout_p, beta=beta, device=device).to(device)
 
     return model
 
@@ -60,7 +63,7 @@ class DKF(nn.Module):
                  dense_x_gx=[], dim_RNN_gx=128, num_RNN_gx=1, bidir_gx=False,
                  dense_ztm1_g=[], dense_g_z=[],
                  dense_z_x=[128,128],
-                 dropout_p = 0, device='cpu'):
+                 dropout_p = 0, beta=1, device='cpu'):
 
         super().__init__()
         ### General parameters  
@@ -84,6 +87,8 @@ class DKF(nn.Module):
         self.dense_g_z = dense_g_z
         ### Generation x
         self.dense_z_x = dense_z_x
+        ### Beta-loss
+        self.beta = beta
 
         self.build()
 
@@ -278,7 +283,7 @@ class DKF(nn.Module):
         if compute_loss:
             loss_tot, loss_recon, loss_KLD = self.get_loss(x, y, z_mean, z_logvar,
                                                         z_mean_p, z_logvar_p,
-                                                        seq_len, batch_size)
+                                                        seq_len, batch_size, self.beta)
             self.loss = (loss_tot, loss_recon, loss_KLD)
         
         # output of NN:    (seq_len, batch_size, dim)
