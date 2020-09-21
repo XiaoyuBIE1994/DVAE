@@ -29,6 +29,7 @@ oarsub -S /scratch/virgo/xbie/Code/dvae-speech/script/train_srnn.sh \
         -t idempotent
 
 oarsub -S /scratch/virgo/xbie/Code/dvae-speech/script/train_kvae.sh \
+-       -n train_KVAE
         -l /host=1/gpudevice=1,walltime=90:00:00 \
         -p "cluster='perception' OR cluster='kinovis'" \
         -t besteffort \
