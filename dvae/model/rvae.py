@@ -67,7 +67,7 @@ class RVAE(nn.Module):
                  dense_z_gz=[], dim_RNN_g_z=128, num_RNN_g_z=1,
                  dense_g_z=[128],
                  dense_z_h=[], dim_RNN_h=128, num_RNN_h=1, bidir_h=False, dense_h_x=[],
-                 dropout_p = 0, device='cpu'):
+                 dropout_p = 0, beta=1, device='cpu'):
                  
         super().__init__()
 
