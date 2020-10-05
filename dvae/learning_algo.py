@@ -633,7 +633,7 @@ class LearningAlgorithm():
         if recon_dir == None:
             tag = self.cfg.get('Network', 'tag')
             root, audio_dir = os.path.split(data_dir)
-            recon_dir = os.path.join(root, audio_dir + '_{}_recon-utt'.format(self.tag))
+            recon_dir = os.path.join(root, audio_dir + '_{}_recon-utt'.format(tag))
             if os.path.isdir(recon_dir):
                 shutil.rmtree(recon_dir)
             os.mkdir(recon_dir)
