@@ -25,18 +25,18 @@ def build_SRNN(cfg, device='cpu'):
     activation = cfg.get('Network', 'activation')
     dropout_p = cfg.getfloat('Network', 'dropout_p')
     # Deterministic
-    dense_x_h = [int(i) for i in cfg.get('Network', 'dense_x_h').split(',')]
+    dense_x_h = [] if cfg.get('Network', 'dense_x_h') == '' else [int(i) for i in cfg.get('Network', 'dense_x_h').split(',')]
     dim_RNN_h = cfg.getint('Network', 'dim_RNN_h')
     num_RNN_h = cfg.getint('Network', 'num_RNN_h')
     # Inference
-    dense_hx_g = [int(i) for i in cfg.get('Network', 'dense_hx_g').split(',')]
+    dense_hx_g = [] if cfg.get('Network', 'dense_hx_g') == '' else [int(i) for i in cfg.get('Network', 'dense_hx_g').split(',')]
     dim_RNN_g = cfg.getint('Network', 'dim_RNN_g')
     num_RNN_g = cfg.getint('Network', 'num_RNN_g')
-    dense_gz_z = [int(i) for i in cfg.get('Network', 'dense_gz_z').split(',')]
+    dense_gz_z = [] if cfg.get('Network', 'dense_gz_z') == '' else [int(i) for i in cfg.get('Network', 'dense_gz_z').split(',')]
     # Prior
-    dense_hz_z = [int(i) for i in cfg.get('Network', 'dense_hz_z').split(',')]
+    dense_hz_z = [] if cfg.get('Network', 'dense_hz_z') == '' else [int(i) for i in cfg.get('Network', 'dense_hz_z').split(',')]
     # Generation
-    dense_hz_x = [int(i) for i in cfg.get('Network', 'dense_hz_x').split(',')]
+    dense_hz_x = [] if cfg.get('Network', 'dense_hz_x') == '' else [int(i) for i in cfg.get('Network', 'dense_hz_x').split(',')]
 
     # Beta-vae
     beta = cfg.getfloat('Training', 'beta')

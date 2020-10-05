@@ -29,16 +29,16 @@ def build_STORN(cfg, device='cpu'):
     activation = cfg.get('Network', 'activation')
     dropout_p = cfg.getfloat('Network', 'dropout_p')
     # Inference
-    dense_x_g = [int(i) for i in cfg.get('Network', 'dense_x_g').split(',')]
+    dense_x_g = [] if cfg.get('Network', 'dense_x_g') == '' else [int(i) for i in cfg.get('Network', 'dense_x_g').split(',')]
     dim_RNN_g = cfg.getint('Network', 'dim_RNN_g')
     num_RNN_g = cfg.getint('Network', 'num_RNN_g')
-    dense_g_z = [int(i) for i in cfg.get('Network', 'dense_g_z').split(',')]
+    dense_g_z = [] if cfg.get('Network', 'dense_g_z') == '' else [int(i) for i in cfg.get('Network', 'dense_g_z').split(',')]
     # Generation
-    dense_z_h = [int(i) for i in cfg.get('Network', 'dense_z_h').split(',')]
-    dense_xtm1_h = [int(i) for i in cfg.get('Network', 'dense_xtm1_h').split(',')]
+    dense_z_h = [] if cfg.get('Network', 'dense_z_h') == '' else [int(i) for i in cfg.get('Network', 'dense_z_h').split(',')]
+    dense_xtm1_h = [] if cfg.get('Network', 'dense_xtm1_h') == '' else [int(i) for i in cfg.get('Network', 'dense_xtm1_h').split(',')]
     dim_RNN_h = cfg.getint('Network', 'dim_RNN_h')
     num_RNN_h = cfg.getint('Network', 'num_RNN_h')
-    dense_h_x = [int(i) for i in cfg.get('Network', 'dense_h_x').split(',')]
+    dense_h_x = [] if cfg.get('Network', 'dense_h_x') == '' else [int(i) for i in cfg.get('Network', 'dense_h_x').split(',')]
     
     # Beta-vae
     beta = cfg.getfloat('Training', 'beta')

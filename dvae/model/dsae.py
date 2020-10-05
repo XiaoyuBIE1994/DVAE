@@ -24,21 +24,21 @@ def build_DSAE(cfg, device='cpu'):
     activation = cfg.get('Network', 'activation')
     dropout_p = cfg.getfloat('Network', 'dropout_p')
     # Inference
-    dense_x = [int(i) for i in cfg.get('Network', 'dense_x').split(',')]
+    dense_x = [] if cfg.get('Network', 'dense_x') == '' else [int(i) for i in cfg.get('Network', 'dense_x').split(',')]
     dim_RNN_gv = cfg.getint('Network', 'dim_RNN_gv')
     num_RNN_gv = cfg.getint("Network", 'num_RNN_gv')
-    dense_gv_v = [int(i) for i in cfg.get('Network', 'dense_gv_v').split(',')]
-    dense_xv_gxv = [int(i) for i in cfg.get('Network', 'dense_xv_gxv').split(',')]
+    dense_gv_v = [] if cfg.get('Network', 'dense_gv_v') == '' else [int(i) for i in cfg.get('Network', 'dense_gv_v').split(',')]
+    dense_xv_gxv = [] if cfg.get('Network', 'dense_xv_gxv') == '' else [int(i) for i in cfg.get('Network', 'dense_xv_gxv').split(',')]
     dim_RNN_gxv = cfg.getint('Network', 'dim_RNN_gxv')
     num_RNN_gxv = cfg.getint('Network', 'num_RNN_gxv')
-    dense_gxv_gz = [int(i) for i in cfg.get('Network', 'dense_gxv_gz').split(',')]
+    dense_gxv_gz = [] if cfg.get('Network', 'dense_gxv_gz') == '' else [int(i) for i in cfg.get('Network', 'dense_gxv_gz').split(',')]
     dim_RNN_gz = cfg.getint('Network', 'dim_RNN_gz')
     num_RNN_gz = cfg.getint('Network', 'num_RNN_gz')
     # Prior
     dim_RNN_prior = cfg.getint('Network', 'dim_RNN_prior')
     num_RNN_prior = cfg.getint('Network', 'num_RNN_prior')
     # Generation
-    dense_vz_x = [int(i) for i in cfg.get('Network', 'dense_vz_x').split(',')]
+    dense_vz_x = [] if cfg.get('Network', 'dense_vz_x') == '' else [int(i) for i in cfg.get('Network', 'dense_vz_x').split(',')]
 
     # Beta-vae
     beta = cfg.getfloat('Training', 'beta')

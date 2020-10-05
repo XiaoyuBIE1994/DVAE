@@ -24,20 +24,20 @@ def build_RVAE(cfg, device='cpu'):
     activation = cfg.get('Network', 'activation')
     dropout_p = cfg.getfloat('Network', 'dropout_p')
     # Inference
-    dense_x_gx = [int(i) for i in cfg.get('Network', 'dense_x_gx').split(',')]
+    dense_x_gx = [] if cfg.get('Network', 'dense_x_gx') == '' else [int(i) for i in cfg.get('Network', 'dense_x_gx').split(',')]
     dim_RNN_g_x = cfg.getint('Network', 'dim_RNN_g_x')
     num_RNN_g_x = cfg.getint('Network', 'num_RNN_g_x')
     bidir_g_x = cfg.getboolean('Network', 'bidir_g_x')
-    dense_z_gz = [int(i) for i in cfg.get('Network', 'dense_z_gz').split(',')]
+    dense_z_gz = [] if cfg.get('Network', 'dense_z_gz') == '' else [int(i) for i in cfg.get('Network', 'dense_z_gz').split(',')]
     dim_RNN_g_z = cfg.getint('Network', 'dim_RNN_g_z')
     num_RNN_g_z = cfg.getint('Network', 'num_RNN_g_z')
-    dense_g_z = [int(i) for i in cfg.get('Network', 'dense_g_z').split(',')]
+    dense_g_z = [] if cfg.get('Network', 'dense_g_z') == '' else [int(i) for i in cfg.get('Network', 'dense_g_z').split(',')]
     # Generation
-    dense_z_h = [int(i) for i in cfg.get('Network', 'dense_z_h').split(',')]
+    dense_z_h = [] if cfg.get('Network', 'dense_z_h') == '' else [int(i) for i in cfg.get('Network', 'dense_z_h').split(',')]
     dim_RNN_h = cfg.getint('Network', 'dim_RNN_h')
     num_RNN_h = cfg.getint('Network', 'num_RNN_h')
     bidir_h = cfg.getboolean('Network', 'bidir_h')
-    dense_h_x = [int(i) for i in cfg.get('Network', 'dense_h_x').split(',')]
+    dense_h_x = [] if cfg.get('Network', 'dense_h_x') == '' else [int(i) for i in cfg.get('Network', 'dense_h_x').split(',')]
 
     # Beta-vae
     beta = cfg.getfloat('Training', 'beta')

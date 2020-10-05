@@ -31,8 +31,8 @@ def build_KVAE(cfg, device='cpu'):
     dropout_p = cfg.getfloat('Network', 'dropout_p')
     scale_reconstruction = cfg.getfloat('Network', 'scale_reconstruction')
     # VAE
-    dense_x_a = [int(i) for i in cfg.get('Network', 'dense_x_a').split(',')]
-    dense_a_x = [int(i) for i in cfg.get('Network', 'dense_a_x').split(',')]
+    dense_x_a = [] if cfg.get('Network', 'dense_x_a') == '' else [int(i) for i in cfg.get('Network', 'dense_x_a').split(',')]
+    dense_a_x = [] if cfg.get('Network', 'dense_a_x') == '' else [int(i) for i in cfg.get('Network', 'dense_a_x').split(',')]
     # LGSSM
     init_kf_mat = cfg.getfloat('Network', 'init_kf_mat')
     noise_transition = cfg.getfloat('Network', 'noise_transition')

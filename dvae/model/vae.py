@@ -24,7 +24,7 @@ def build_VAE(cfg, device='cpu'):
     activation = cfg.get('Network', 'activation')
     dropout_p = cfg.getfloat('Network', 'dropout_p')
     # Inference and generation
-    dense_x_z = [int(i) for i in cfg.get('Network', 'dense_x_z').split(',')]
+    dense_x_z = [] if cfg.get('Network', 'dense_x_z') == '' else [int(i) for i in cfg.get('Network', 'dense_x_z').split(',')]
 
     # Beta-vae
     beta = cfg.getfloat('Training', 'beta')

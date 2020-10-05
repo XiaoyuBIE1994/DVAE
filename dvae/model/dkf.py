@@ -33,14 +33,14 @@ def build_DKF(cfg, device='cpu'):
     activation = cfg.get('Network', 'activation')
     dropout_p = cfg.getfloat('Network', 'dropout_p')
     # Inference
-    dense_x_gx = [int(i) for i in cfg.get('Network', 'dense_x_gx').split(',')]
+    dense_x_gx = [] if cfg.get('Network', 'dense_x_gx') == '' else [int(i) for i in cfg.get('Network', 'dense_x_gx').split(',')]
     dim_RNN_gx = cfg.getint('Network', 'dim_RNN_gx')
     num_RNN_gx = cfg.getint('Network', 'num_RNN_gx')
     bidir_gx = cfg.getboolean('Network', 'bidir_gx')
-    dense_ztm1_g = [int(i) for i in cfg.get('Network', 'dense_ztm1_g').split(',')]
-    dense_g_z = [int(i) for i in cfg.get('Network', 'dense_g_z').split(',')]
+    dense_ztm1_g = [] if cfg.get('Network', 'dense_ztm1_g') == '' else [int(i) for i in cfg.get('Network', 'dense_ztm1_g').split(',')]
+    dense_g_z = [] if cfg.get('Network', 'dense_g_z') == '' else [int(i) for i in cfg.get('Network', 'dense_g_z').split(',')]
     # Generation
-    dense_z_x = [int(i) for i in cfg.get('Network', 'dense_z_x').split(',')]
+    dense_z_x = [] if cfg.get('Network', 'dense_z_x') == '' else [int(i) for i in cfg.get('Network', 'dense_z_x').split(',')]
 
     # Beta-vae
     beta = cfg.getfloat('Training', 'beta')

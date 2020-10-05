@@ -23,12 +23,12 @@ def build_VRNN(cfg, device='cpu'):
     activation = cfg.get('Network', 'activation')
     dropout_p = cfg.getfloat('Network', 'dropout_p')
     # Feature extractor
-    dense_x = [int(i) for i in cfg.get('Network', 'dense_x').split(',')]
-    dense_z = [int(i) for i in cfg.get('Network', 'dense_z').split(',')]
+    dense_x = [] if cfg.get('Network', 'dense_x') == '' else [int(i) for i in cfg.get('Network', 'dense_x').split(',')]
+    dense_z = [] if cfg.get('Network', 'dense_z') == '' else [int(i) for i in cfg.get('Network', 'dense_z').split(',')]
     # Dense layers
-    dense_hx_z = [int(i) for i in cfg.get('Network', 'dense_hx_z').split(',')]
-    dense_hz_x = [int(i) for i in cfg.get('Network', 'dense_hz_x').split(',')]
-    dense_h_z = [int(i) for i in cfg.get('Network', 'dense_h_z').split(',')]
+    dense_hx_z = [] if cfg.get('Network', 'dense_hx_z') == '' else [int(i) for i in cfg.get('Network', 'dense_hx_z').split(',')]
+    dense_hz_x = [] if cfg.get('Network', 'dense_hz_x') == '' else [int(i) for i in cfg.get('Network', 'dense_hz_x').split(',')]
+    dense_h_z = [] if cfg.get('Network', 'dense_h_z') == '' else [int(i) for i in cfg.get('Network', 'dense_h_z').split(',')]
     # RNN
     dim_RNN = cfg.getint('Network', 'dim_RNN')
     num_RNN = cfg.getint('Network', 'num_RNN')
