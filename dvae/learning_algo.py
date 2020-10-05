@@ -17,6 +17,7 @@ import torch
 import librosa
 import soundfile as sf
 import speechmetrics
+import matplotlib.pyplot as plt
 from .utils import myconf, get_logger, rmse_frame, SpeechSequencesFull, SpeechSequencesRandom
 from .model import build_VAE, build_DKF, build_KVAE, build_STORN, build_VRNN, build_SRNN, build_RVAE, build_DSAE
 
@@ -610,7 +611,7 @@ class LearningAlgorithm():
             raise ValueError('Evaluation only support: rmse, pesq, stoi, all')
 
 
-    def test(self, data_dir, state_dict_file=None):
+    def test(self, data_dir, state_dict_file=None, recon_dir=None):
         """
         Apply re-synthesis for all audio files in a given directory, and return evaluation results
         All generated audio files in the same root as data_dir, named audio_dir + '_{}_recon'.format(tag)
@@ -629,12 +630,16 @@ class LearningAlgorithm():
         audio_list = librosa.util.find_files(data_dir, ext=data_suffix)
 
         # Create re-synthesis folder
-        tag = self.cfg.get('Network', 'tag')
-        root, audio_dir = os.path.split(self.data_dir)
-        recon_dir = os.path.join(root, audio_dir + '_{}_recon-utt'.format(self.tag))
-        if os.path.isdir(recon_dir):
-            shutil.rmtree(recon_dir)
-        os.mkdir(recon_dir)
+        if recon_dir == None:
+            tag = self.cfg.get('Network', 'tag')
+            root, audio_dir = os.path.split(data_dir)
+            recon_dir = os.path.join(root, audio_dir + '_{}_recon-utt'.format(self.tag))
+            if os.path.isdir(recon_dir):
+                shutil.rmtree(recon_dir)
+            os.mkdir(recon_dir)
+        else:
+            print('Saved dir pre-defined')
+        print('Re-synthesis results will be saved in {}'.format(recon_dir))
 
         # Load model state, avoid repeatly loading model state
         if state_dict_file == None:
