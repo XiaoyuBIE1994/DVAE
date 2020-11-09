@@ -31,12 +31,12 @@ oarsub -S /scratch/virgo/xbie/Code/dvae-speech/script/train_kvae.sh \
 oarsub -S /scratch/virgo/xbie/Code/dvae-speech/script/train_kvae.sh \
 -       -n train_KVAE
         -l /host=1/gpudevice=1,walltime=90:00:00 \
-        -p "cluster='perception' OR cluster='kinovis'" \
+        -p "cluster='perception' OR cluster='kinovis' OR cluster='mistis'" \
         -t besteffort \
         -t idempotent
 
-oarsub -S /scratch/virgo/xbie/Code/dvae-speech/script/train_srnn.sh \
+oarsub -S /scratch/virgo/xbie/Code/dvae-speech/script/train_se.sh \
         -l /host=1/gpudevice=1,walltime=90:00:00 \
-        -p "cluster='perception' AND host like 'gpu5-perception.inrialpes.fr' OR host like 'gpu6-perception.inrialpes.fr' OR host like 'gpu7-perception.inrialpes.fr'" \
+        -p "cluster='perception' OR cluster='kinovis'" \
         -t besteffort \
         -t idempotent

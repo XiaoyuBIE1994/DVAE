@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Copyright (c) 2020 by Inria
-Authoried by Xiaoyu BIE (xiaoyu.bie@inrai.fr)
+Software dvae-speech
+Copyright Inria
+Year 2020
+Contact : xiaoyu.bie@inria.fr
 License agreement in LICENSE.txt
 """
 
