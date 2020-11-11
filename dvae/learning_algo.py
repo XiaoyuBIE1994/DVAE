@@ -20,7 +20,7 @@ import librosa
 import soundfile as sf
 import speechmetrics
 import matplotlib.pyplot as plt
-from .utils import myconf, get_logger, rmse_frame, SpeechSequencesFull, SpeechSequencesRandom
+from .utils import myconf, get_logger, EvalMetrics, SpeechSequencesFull, SpeechSequencesRandom
 from .model import build_VAE, build_DKF, build_KVAE, build_STORN, build_VRNN, build_SRNN, build_RVAE, build_DSAE
 
 
@@ -589,28 +589,8 @@ class LearningAlgorithm():
         Output: score(s) from different evaluation metrics
         """
 
-        if metric  == 'rmse':
-            eval_func = rmse_frame()
-            score = eval_func(audio_est, audio_ref)
-            return score
-        elif metric == 'pesq':
-            eval_func = speechmetrics.load('pesq', window=None)
-            score = eval_func(audio_est, audio_ref)['pesq']
-            return score
-        elif metric == 'stoi':
-            eval_func = speechmetrics.load('stoi', window=None)
-            score = eval_func(audio_est, audio_ref)['stoi']
-            return score
-        elif metric == 'all':
-            eval_rmse = rmse_frame()
-            eval_pesq = speechmetrics.load('pesq', window=None)
-            eval_stoi = speechmetrics.load('stoi', window=None)
-            score_rmse = eval_rmse(audio_est, audio_ref)
-            score_pesq = eval_pesq(audio_est, audio_ref)['pesq']
-            score_stoi = eval_stoi(audio_est, audio_ref)['stoi']
-            return score_rmse, score_pesq, score_stoi
-        else:
-            raise ValueError('Evaluation only support: rmse, pesq, stoi, all')
+        eval_metrics = EvalMetrics(metric=metric)
+        return eval_metrics.eval(audio_est, audio_ref)
 
 
     def test(self, data_dir, state_dict_file=None, recon_dir=None):
@@ -655,6 +635,9 @@ class LearningAlgorithm():
         list_score_pesq = []
         list_score_stoi = []
 
+        # Init Eval
+        eval_metrics = EvalMetrics(metric='all')
+
         # Loop over all audio files
         for audio_file in audio_list:
 
@@ -666,8 +649,7 @@ class LearningAlgorithm():
             self.generate(audio_orig=audio_file, audio_recon=audio_file_recon, state_dict_file=None)
 
             # Evaluation
-            score_rmse, score_pesq, score_stoi = self.eval(audio_ref=audio_file, audio_est=audio_file_recon, 
-                                                           metric='all')
+            score_rmse, score_pesq, score_stoi = eval_metrics.eval(audio_est=audio_file_recon, audio_ref=audio_file)
             
             list_score_rmse.append(score_rmse)
             list_score_pesq.append(score_pesq)
