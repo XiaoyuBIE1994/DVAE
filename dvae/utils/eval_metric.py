@@ -6,6 +6,8 @@ Copyright Inria
 Year 2020
 Contact : xiaoyu.bie@inria.fr
 License agreement in LICENSE.txt
+
+In this files, I write some equatinos to evaluate speech qualites after re-synthesis
 """
 
 import numpy as np

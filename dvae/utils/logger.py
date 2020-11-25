@@ -6,7 +6,10 @@ Copyright Inria
 Year 2020
 Contact : xiaoyu.bie@inria.fr
 License agreement in LICENSE.txt
+
+get_logger() is used to create a logger instance and record the training status
 """
+
 
 import logging
 

@@ -6,6 +6,8 @@ Copyright Inria
 Year 2020
 Contact : xiaoyu.bie@inria.fr
 License agreement in LICENSE.txt
+
+The main python file for model training, data test and performance evaluation, see README.md for further information
 """
 
 

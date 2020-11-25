@@ -1,4 +1,11 @@
 # -*- coding: utf-8 -*-
+"""
+Software dvae-speech
+Copyright Inria
+Year 2020
+Contact : xiaoyu.bie@inria.fr
+License agreement in LICENSE.txt
+"""
 
 from setuptools import setup, find_packages
 

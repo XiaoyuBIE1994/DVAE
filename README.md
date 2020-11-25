@@ -61,20 +61,20 @@ It's highly recommended to use Singularity container for results reproducing or 
 sudo apt-get install -y singularity-container
 
 # Build singularity image
-sudo singularity build dvae.sif singularity/dvae.def
+sudo singularity build dvae.sif example_singularity/dvae.def
 
 # Shell into the image, no cuda
-singularity shell --bind /path_to_your_dir/:/mnt singularity/dvae.sif
+singularity shell --bind /path_to_your_dir/:/mnt/your_dir_name singularity/dvae.sif
 
-# Execute commands, enable cuda
-singularity exec --nv --bind /path_to_your_dir/:/mnt singularity/dvae.sif python train_model.py config/cfg_dkf.ini
+# Execute commands, enable cuda, you need to define the data path in the config files
+singularity exec --nv --bind /path_to_your_dir/:/mnt singularity/dvae.sif python train_model.py example_configuration/cfg_dkf.ini
 ```
 
 For more information about singularity, please read [Singularity User Guide](https://singularity-userdoc.readthedocs.io/en/latest/)
 
 ### Tips
 
-- One who want to use the package on `MacOS` should disable `speechmetrics` since there exist some compilation errors for `pypesq` on `MacOS`
+- For those who want to use this package on `MacOS`, please go to the branch `code_for_mac`, that branch omits all function about speech evaluation, since there exist some compilation errors for `pypesq` on `MacOS`
 - Python 3.8 support requires Tensorflow 2.2 or later ([link](https://www.tensorflow.org/install/pip)), so it is recommended to use Python 3.7 since `speechmetrics` package needs `Tensorflow 2.0`
 
 
