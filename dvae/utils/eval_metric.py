@@ -13,8 +13,8 @@ In this files, I write some equatinos to evaluate speech qualites after re-synth
 import numpy as np
 import soundfile as sf
 import soundfile as sf
-from pypesq import pesq
-from pystoi import stoi
+# from pypesq import pesq
+# from pystoi import stoi
 
 def compute_median(data):
     median = np.median(data, axis=0)
@@ -43,7 +43,7 @@ def compute_rmse():
 
     return get_result
 
-
+''' Not available for Mac users
 class EvalMetrics():
 
     def __init__(self, metric='all'):
@@ -79,3 +79,4 @@ class EvalMetrics():
             return score_rmse, score_pesq, score_stoi
         else:
             raise ValueError('Evaluation only support: rmse, pesq, (e)stoi, all')
+'''

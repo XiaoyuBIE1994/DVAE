@@ -28,8 +28,7 @@ setup(
         'matplotlib',
         'soundfile',
         'librosa',
-        'torch>=1.3.0+cu92',
-        'speechmetrics @ git+https://github.com/aliutkus/speechmetrics#egg=speechmetrics[cpu]',
+        'torch>=1.3.0+cu92'
     ],
     include_package_data=True,
     classifiers=[

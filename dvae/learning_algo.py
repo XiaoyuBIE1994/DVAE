@@ -20,9 +20,8 @@ import numpy as np
 import torch
 import librosa
 import soundfile as sf
-import speechmetrics
 import matplotlib.pyplot as plt
-from .utils import myconf, get_logger, EvalMetrics, SpeechSequencesFull, SpeechSequencesRandom
+from .utils import myconf, get_logger, SpeechSequencesFull, SpeechSequencesRandom
 from .model import build_VAE, build_DKF, build_KVAE, build_STORN, build_VRNN, build_SRNN, build_RVAE, build_DSAE
 
 
@@ -584,7 +583,8 @@ class LearningAlgorithm():
         scale_norm = 1 / (np.maximum(np.max(np.abs(x_recon)), np.max(np.abs(x)))) * 0.9
         sf.write(audio_recon, scale_norm*x_recon, fs_x)
 
-    
+
+''' Not available for Mac users    
     def eval(self, audio_ref, audio_est, metric='all'):
         """
         Input: a reference audio and a generated audio
@@ -659,4 +659,4 @@ class LearningAlgorithm():
 
         return list_score_rmse, list_score_pesq, list_score_stoi
 
-        
+'''
