@@ -150,26 +150,26 @@ We propose the evaluation results in average and their training curve:
 | DSAE           | 0.0469 | 2.32 | 0.90 |
 
 #### VAE
-![vae](https://github.com/XiaoyuBIE1994/DVAE-speech/tree/code_release_mac/figures/loss_VAE.png)
+![vae](https://github.com/XiaoyuBIE1994/DVAE-speech/raw/code_release_mac/figures/loss_VAE.png)
 
 #### DKF
-![dkf](https://github.com/XiaoyuBIE1994/DVAE-speech/tree/code_release_mac/figures/loss_DKF.png)
+![dkf](https://github.com/XiaoyuBIE1994/DVAE-speech/raw/code_release_mac/figures/loss_DKF.png)
 
 #### STORN
-![storn](https://github.com/XiaoyuBIE1994/DVAE-speech/tree/code_release_mac/figures/loss_STORN.png)
+![storn](https://github.com/XiaoyuBIE1994/DVAE-speech/raw/code_release_mac/figures/loss_STORN.png)
 
 #### VRNN
-![vrnn](https://github.com/XiaoyuBIE1994/DVAE-speech/tree/code_release_mac/figures/loss_VRNN.png)
+![vrnn](https://github.com/XiaoyuBIE1994/DVAE-speech/raw/code_release_mac/figures/loss_VRNN.png)
 
 #### SRNN
-![srnn](https://github.com/XiaoyuBIE1994/DVAE-speech/tree/code_release_mac/figures/loss_SRNN.png)
+![srnn](https://github.com/XiaoyuBIE1994/DVAE-speech/raw/code_release_mac/figures/loss_SRNN.png)
 
 #### RVAE-Causal
-![rvae-causal](https://github.com/XiaoyuBIE1994/DVAE-speech/tree/code_release_mac/figures/loss_RVAE-Causal.png)
+![rvae-causal](https://github.com/XiaoyuBIE1994/DVAE-speech/raw/code_release_mac/figures/loss_RVAE-Causal.png)
 
 #### RVAE-NonCausal
-![rvae-noncausal](https://github.com/XiaoyuBIE1994/DVAE-speech/tree/code_release_mac/figures/loss_RVAE-NonCausal.png)
+![rvae-noncausal](https://github.com/XiaoyuBIE1994/DVAE-speech/raw/code_release_mac/figures/loss_RVAE-NonCausal.png)
 
 #### DSAE
-![dsae](https://github.com/XiaoyuBIE1994/DVAE-speech/tree/code_release_mac/figures/loss_DSAE.png)
+![dsae](https://github.com/XiaoyuBIE1994/DVAE-speech/raw/code_release_mac/figures/loss_DSAE.png)
 
