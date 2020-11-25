@@ -42,9 +42,9 @@ The simplest way to use our code is install it as a python package:
 
 ```bash
 # For Linux users
-pip install git+https://github.com/XiaoyuBIE1994/DVAE-speech@code-release
+pip install git+https://github.com/XiaoyuBIE1994/DVAE-speech@code_release
 # For Mac users
-pip install git+https://github.com/XiaoyuBIE1994/DVAE-speech@code-release-mac
+pip install git+https://github.com/XiaoyuBIE1994/DVAE-speech@code_release_mac
 ```
 
 , then you could import it like other packages:
