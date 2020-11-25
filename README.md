@@ -41,7 +41,10 @@ This code has been tested on Ubuntu 16.04, Python 3.7, Pytorch=1.3.1, CUDA 9.2, 
 The simplest way to use our code is install it as a python package:
 
 ```bash
-pip install git+https://gitlab.inria.fr/xbie/dvae-speech
+# For Linux users
+pip install git+https://github.com/XiaoyuBIE1994/DVAE-speech@code-release
+# For Mac users
+pip install git+https://github.com/XiaoyuBIE1994/DVAE-speech@code-release-mac
 ```
 
 , then you could import it like other packages:
@@ -74,7 +77,7 @@ For more information about singularity, please read [Singularity User Guide](htt
 
 ### Tips
 
-- For those who want to use this package on `MacOS`, please go to the branch `code_for_mac`, that branch omits all function about speech evaluation, since there exist some compilation errors for `pypesq` on `MacOS`
+- For Mac users, speech evaluation is disable because there exist some compilation errors for `pypesq` on `MacOS`
 - Python 3.8 support requires Tensorflow 2.2 or later ([link](https://www.tensorflow.org/install/pip)), so it is recommended to use Python 3.7 since `speechmetrics` package needs `Tensorflow 2.0`
 
 
