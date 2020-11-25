@@ -57,7 +57,7 @@ import dvae
 
 
 ### Use container
-It's highly recommended to use Singularity container for results reproducing or further application, we provide a sigularity definition file [singularity/dvae.def](https://gitlab.inria.fr/xbie/dvae-speech/-/blob/master/singularity/dvae.def) to build the images:
+It's highly recommended to use Singularity container for results reproducing or further application, we provide a sigularity definition file [example_singularity/dvae.def](https://github.com/XiaoyuBIE1994/DVAE-speech/tree/code_release/example_singularity/dvae.def) to build the images:
 
 ```bash
 # Download singularity
@@ -83,7 +83,7 @@ For more information about singularity, please read [Singularity User Guide](htt
 
 ## Usage
 
-`dvae` has been designed to be designed to be easily used in a modular way. All you need to do is to specify a configure file path to innitiale a model, then you could either:
+`dvae-speech` has been designed to be easily used in a modular way. All you need to do is to specify a configure file path for model initialization, then you could either:
 
 - train(): train your model with training/validation dataset specified in your configure file
 - generate(): generate a reconstructed audio with an input audio file
@@ -123,7 +123,7 @@ list_score_rmse, list_score_pesq, list_score_stoi = learning_algo.test(data_dir=
 
 ### Config file
 
-We provide all configuration examples of the above models in [config/](https://gitlab.inria.fr/xbie/dvae-speech/-/tree/master/config). For results reproducing, all you need to do is to replace `saved_root`, `train_data_dir` and `val_data_dir` with your own directory path 
+We provide all configuration examples of the above models in [example_configuration/](https://github.com/XiaoyuBIE1994/DVAE-speech/tree/code_release/example_configuration). For results reproducing, all you need to do is to replace `saved_root`, `train_data_dir` and `val_data_dir` with your own directory path 
 
 
 ## Main results
@@ -150,26 +150,26 @@ We propose the evaluation results in average and their training curve:
 | DSAE           | 0.0469 | 2.32 | 0.90 |
 
 #### VAE
-![vae](https://gitlab.inria.fr/xbie/dvae-speech/-/raw/master/figures/loss_VAE.png)
+![vae](https://github.com/XiaoyuBIE1994/DVAE-speech/tree/code_release/figures/loss_VAE.png)
 
 #### DKF
-![dkf](https://gitlab.inria.fr/xbie/dvae-speech/-/raw/master/figures/loss_DKF.png)
+![dkf](https://github.com/XiaoyuBIE1994/DVAE-speech/tree/code_release/figures/loss_DKF.png)
 
 #### STORN
-![storn](https://gitlab.inria.fr/xbie/dvae-speech/-/raw/master/figures/loss_STORN.png)
+![storn](https://github.com/XiaoyuBIE1994/DVAE-speech/tree/code_release/figures/loss_STORN.png)
 
 #### VRNN
-![vrnn](https://gitlab.inria.fr/xbie/dvae-speech/-/raw/master/figures/loss_VRNN.png)
+![vrnn](https://github.com/XiaoyuBIE1994/DVAE-speech/tree/code_release/figures/loss_VRNN.png)
 
 #### SRNN
-![srnn](https://gitlab.inria.fr/xbie/dvae-speech/-/raw/master/figures/loss_SRNN.png)
+![srnn](https://github.com/XiaoyuBIE1994/DVAE-speech/tree/code_release/figures/loss_SRNN.png)
 
 #### RVAE-Causal
-![rvae-causal](https://gitlab.inria.fr/xbie/dvae-speech/-/raw/master/figures/loss_RVAE-Causal.png)
+![rvae-causal](https://github.com/XiaoyuBIE1994/DVAE-speech/tree/code_release/figures/loss_RVAE-Causal.png)
 
 #### RVAE-NonCausal
-![rvae-noncausal](https://gitlab.inria.fr/xbie/dvae-speech/-/raw/master/figures/loss_RVAE-NonCausal.png)
+![rvae-noncausal](https://github.com/XiaoyuBIE1994/DVAE-speech/tree/code_release/figures/loss_RVAE-NonCausal.png)
 
 #### DSAE
-![dsae](https://gitlab.inria.fr/xbie/dvae-speech/-/raw/master/figures/loss_DSAE.png)
+![dsae](https://github.com/XiaoyuBIE1994/DVAE-speech/tree/code_release/figures/loss_DSAE.png)
 
