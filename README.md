@@ -136,7 +136,7 @@ All models are trained with Adam with a batch size of 32, using:
 
 For more details, pleas visit **Chapter 13 Experiments** in our article.
 
-We propose the evaluation results in average and their training curve:
+We propose the evaluation results in average and their training curve in the following table, the trained models can be found in [saved_model](https://github.com/XiaoyuBIE1994/DVAE-speech/tree/code_release_mac/saved_model)
 
 | DVAE           |  RMSE  | PESQ | STOI |
 | ----           |  ----  | ---- | ---- |
