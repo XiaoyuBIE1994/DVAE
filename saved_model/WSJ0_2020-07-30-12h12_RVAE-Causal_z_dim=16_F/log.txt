@@ -1,0 +1,195 @@
+INFO - HOSTNAME: gpu7-perception
+INFO - Time: 2020-07-30-12h12
+INFO - Training results will be saved in: /mnt/xbie/Results/2020_DVAE/saved_model/WSJ0_2020-07-30-12h12_RVAE-Causal_z_dim=16
+INFO - Device for training: cuda
+INFO - Cuda verion: 9.2.148
+INFO - Model name: RVAE
+INFO - In this experiment, result will be saved in: /mnt/xbie/Results/2020_DVAE/saved_model/WSJ0_2020-07-30-12h12_RVAE-Causal_z_dim=16
+INFO - ===== Init RVAE =====
+INFO - ----- Inference -----
+INFO - >>>> x_t to g_t^x
+INFO - Linear(in_features=257, out_features=256, bias=True)
+INFO - Tanh()
+INFO - Dropout(p=0.0, inplace=False)
+INFO - LSTM(256, 128)
+INFO - >>>> z_tm1 to g_t_z
+INFO - Linear(in_features=16, out_features=32, bias=True)
+INFO - Tanh()
+INFO - Dropout(p=0.0, inplace=False)
+INFO - Linear(in_features=32, out_features=64, bias=True)
+INFO - Tanh()
+INFO - Dropout(p=0.0, inplace=False)
+INFO - LSTM(64, 128)
+INFO - >>>> g_t^x and g_t_z to z_t
+INFO - Linear(in_features=256, out_features=64, bias=True)
+INFO - Tanh()
+INFO - Dropout(p=0.0, inplace=False)
+INFO - Linear(in_features=64, out_features=32, bias=True)
+INFO - Tanh()
+INFO - Dropout(p=0.0, inplace=False)
+INFO - ----- Bottleneck -----
+INFO - Linear(in_features=32, out_features=16, bias=True)
+INFO - Linear(in_features=32, out_features=16, bias=True)
+INFO - ----- Generation x -----
+INFO - >>>> z_t to h_t
+INFO - Linear(in_features=16, out_features=32, bias=True)
+INFO - Tanh()
+INFO - Dropout(p=0.0, inplace=False)
+INFO - Linear(in_features=32, out_features=64, bias=True)
+INFO - Tanh()
+INFO - Dropout(p=0.0, inplace=False)
+INFO - LSTM(64, 128)
+INFO - >>>> h_t to x_t
+INFO - Linear(in_features=128, out_features=256, bias=True)
+INFO - Tanh()
+INFO - Dropout(p=0.0, inplace=False)
+INFO - Linear(in_features=256, out_features=257, bias=True)
+INFO - Epoch: 0 train loss: 32.8128 val loss 36.1994 training time 8.67m
+INFO - Epoch: 1 train loss: 33.5413 val loss 34.2888 training time 8.67m
+INFO - Epoch: 2 train loss: 32.7582 val loss 34.1454 training time 8.67m
+INFO - Epoch: 3 train loss: 32.1389 val loss 33.2763 training time 8.67m
+INFO - Epoch: 4 train loss: 31.9081 val loss 33.2293 training time 8.65m
+INFO - Epoch: 5 train loss: 31.7359 val loss 32.8257 training time 8.63m
+INFO - Epoch: 6 train loss: 31.5091 val loss 32.6157 training time 8.67m
+INFO - Epoch: 7 train loss: 31.0755 val loss 32.2946 training time 8.63m
+INFO - Epoch: 8 train loss: 30.8278 val loss 32.2061 training time 8.65m
+INFO - Epoch: 9 train loss: 30.6928 val loss 31.8715 training time 8.67m
+INFO - Epoch: 10 train loss: 30.4839 val loss 31.7586 training time 8.67m
+INFO - Epoch: 11 train loss: 30.2348 val loss 31.5306 training time 8.67m
+INFO - Epoch: 12 train loss: 29.7962 val loss 31.0757 training time 8.67m
+INFO - Epoch: 13 train loss: 29.6130 val loss 30.7792 training time 8.65m
+INFO - Epoch: 14 train loss: 29.1497 val loss 30.5443 training time 8.65m
+INFO - Epoch: 15 train loss: 28.7188 val loss 29.9479 training time 8.65m
+INFO - Epoch: 16 train loss: 27.9149 val loss 29.3495 training time 8.67m
+INFO - Epoch: 17 train loss: 27.1557 val loss 28.3340 training time 8.65m
+INFO - Epoch: 18 train loss: 26.0758 val loss 27.3514 training time 8.67m
+INFO - Epoch: 19 train loss: 24.9219 val loss 26.3702 training time 8.67m
+INFO - Epoch: 20 train loss: 24.1306 val loss 25.4351 training time 8.67m
+INFO - Epoch: 21 train loss: 23.2469 val loss 24.8483 training time 8.68m
+INFO - Epoch: 22 train loss: 22.5105 val loss 24.0876 training time 8.65m
+INFO - Epoch: 23 train loss: 21.7968 val loss 23.3012 training time 8.67m
+INFO - Epoch: 24 train loss: 21.1271 val loss 22.4677 training time 8.67m
+INFO - Epoch: 25 train loss: 20.3094 val loss 21.7990 training time 8.68m
+INFO - Epoch: 26 train loss: 19.6705 val loss 21.4851 training time 8.67m
+INFO - Epoch: 27 train loss: 19.2232 val loss 21.1295 training time 8.95m
+INFO - Epoch: 28 train loss: 18.8193 val loss 20.8113 training time 9.08m
+INFO - Epoch: 29 train loss: 18.4307 val loss 20.5120 training time 9.10m
+INFO - Epoch: 30 train loss: 18.0887 val loss 20.1492 training time 8.82m
+INFO - Epoch: 31 train loss: 17.7636 val loss 19.9057 training time 8.65m
+INFO - Epoch: 32 train loss: 17.4586 val loss 19.6403 training time 8.68m
+INFO - Epoch: 33 train loss: 17.1621 val loss 19.3240 training time 8.67m
+INFO - Epoch: 34 train loss: 16.8786 val loss 19.0269 training time 8.68m
+INFO - Epoch: 35 train loss: 16.6301 val loss 18.7310 training time 8.67m
+INFO - Epoch: 36 train loss: 16.3647 val loss 18.4673 training time 8.65m
+INFO - Epoch: 37 train loss: 16.1224 val loss 18.2152 training time 8.67m
+INFO - Epoch: 38 train loss: 15.8659 val loss 17.9048 training time 8.70m
+INFO - Epoch: 39 train loss: 15.6424 val loss 17.6260 training time 8.68m
+INFO - Epoch: 40 train loss: 15.4128 val loss 17.5397 training time 8.68m
+INFO - Epoch: 41 train loss: 15.1799 val loss 17.2327 training time 8.68m
+INFO - Epoch: 42 train loss: 14.9292 val loss 16.9150 training time 8.67m
+INFO - Epoch: 43 train loss: 14.6019 val loss 16.5769 training time 8.68m
+INFO - Epoch: 44 train loss: 14.2101 val loss 16.1955 training time 8.68m
+INFO - Epoch: 45 train loss: 13.8957 val loss 15.9571 training time 8.68m
+INFO - Epoch: 46 train loss: 13.6231 val loss 15.8129 training time 8.67m
+INFO - Epoch: 47 train loss: 13.4218 val loss 15.7157 training time 8.68m
+INFO - Epoch: 48 train loss: 13.2676 val loss 15.7812 training time 8.67m
+INFO - Epoch: 49 train loss: 13.0186 val loss 15.4060 training time 8.68m
+INFO - Epoch: 50 train loss: 12.8582 val loss 15.7181 training time 8.68m
+INFO - Epoch: 51 train loss: 12.7026 val loss 15.1298 training time 8.68m
+INFO - Epoch: 52 train loss: 12.5935 val loss 15.1342 training time 8.67m
+INFO - Epoch: 53 train loss: 12.4593 val loss 15.0057 training time 8.67m
+INFO - Epoch: 54 train loss: 12.3920 val loss 14.7133 training time 8.67m
+INFO - Epoch: 55 train loss: 12.2537 val loss 14.6569 training time 8.67m
+INFO - Epoch: 56 train loss: 12.1373 val loss 14.4773 training time 8.65m
+INFO - Epoch: 57 train loss: 12.0886 val loss 14.4656 training time 8.67m
+INFO - Epoch: 58 train loss: 11.9479 val loss 14.3567 training time 8.68m
+INFO - Epoch: 59 train loss: 11.8187 val loss 14.2253 training time 8.68m
+INFO - Epoch: 60 train loss: 11.6971 val loss 14.1750 training time 8.68m
+INFO - Epoch: 61 train loss: 11.5866 val loss 13.9179 training time 8.68m
+INFO - Epoch: 62 train loss: 11.5361 val loss 13.9897 training time 8.68m
+INFO - Epoch: 63 train loss: 11.4404 val loss 14.0825 training time 9.03m
+INFO - Epoch: 64 train loss: 11.4080 val loss 14.0132 training time 8.98m
+INFO - Epoch: 65 train loss: 11.2974 val loss 13.5671 training time 8.67m
+INFO - Epoch: 66 train loss: 11.1341 val loss 13.4703 training time 8.67m
+INFO - Epoch: 67 train loss: 11.0011 val loss 13.3752 training time 8.67m
+INFO - Epoch: 68 train loss: 10.8573 val loss 13.0030 training time 8.68m
+INFO - Epoch: 69 train loss: 10.8046 val loss 13.0552 training time 8.67m
+INFO - Epoch: 70 train loss: 10.7548 val loss 13.0738 training time 8.65m
+INFO - Epoch: 71 train loss: 10.6406 val loss 13.0455 training time 8.65m
+INFO - Epoch: 72 train loss: 10.5477 val loss 13.0655 training time 8.65m
+INFO - Epoch: 73 train loss: 10.5867 val loss 13.2236 training time 9.12m
+INFO - Epoch: 74 train loss: 10.5993 val loss 13.0946 training time 9.32m
+INFO - Epoch: 75 train loss: 10.4536 val loss 13.0128 training time 8.68m
+INFO - Epoch: 76 train loss: 10.4244 val loss 12.9767 training time 8.68m
+INFO - Epoch: 77 train loss: 10.4120 val loss 13.0872 training time 8.68m
+INFO - Epoch: 78 train loss: 10.3486 val loss 12.7946 training time 8.68m
+INFO - Epoch: 79 train loss: 10.3607 val loss 12.8849 training time 8.68m
+INFO - Epoch: 80 train loss: 10.2992 val loss 12.9618 training time 8.67m
+INFO - Epoch: 81 train loss: 10.2536 val loss 13.2145 training time 8.67m
+INFO - Epoch: 82 train loss: 10.2586 val loss 13.1130 training time 8.65m
+INFO - Epoch: 83 train loss: 10.2055 val loss 12.9930 training time 8.65m
+INFO - Epoch: 84 train loss: 10.2196 val loss 12.8399 training time 8.65m
+INFO - Epoch: 85 train loss: 10.1798 val loss 12.7325 training time 8.67m
+INFO - Epoch: 86 train loss: 10.1804 val loss 12.9609 training time 8.68m
+INFO - Epoch: 87 train loss: 10.1569 val loss 12.7886 training time 8.68m
+INFO - Epoch: 88 train loss: 10.1082 val loss 12.5357 training time 8.70m
+INFO - Epoch: 89 train loss: 10.0880 val loss 12.6292 training time 8.68m
+INFO - Epoch: 90 train loss: 10.0590 val loss 12.6205 training time 8.68m
+INFO - Epoch: 91 train loss: 10.0341 val loss 12.2904 training time 8.68m
+INFO - Epoch: 92 train loss: 10.0470 val loss 12.1767 training time 8.68m
+INFO - Epoch: 93 train loss: 9.9050 val loss 12.2732 training time 8.67m
+INFO - Epoch: 94 train loss: 9.9597 val loss 12.1525 training time 8.67m
+INFO - Epoch: 95 train loss: 9.8456 val loss 11.8497 training time 8.65m
+INFO - Epoch: 96 train loss: 9.8605 val loss 12.1215 training time 8.67m
+INFO - Epoch: 97 train loss: 9.8411 val loss 11.9569 training time 8.65m
+INFO - Epoch: 98 train loss: 9.7424 val loss 11.8976 training time 8.65m
+INFO - Epoch: 99 train loss: 9.7499 val loss 11.9185 training time 8.67m
+INFO - Epoch: 100 train loss: 9.7226 val loss 11.7853 training time 8.67m
+INFO - Epoch: 101 train loss: 9.6858 val loss 11.8798 training time 8.65m
+INFO - Epoch: 102 train loss: 9.6825 val loss 11.7783 training time 8.67m
+INFO - Epoch: 103 train loss: 9.6550 val loss 11.9232 training time 8.67m
+INFO - Epoch: 104 train loss: 9.6503 val loss 11.7977 training time 8.67m
+INFO - Epoch: 105 train loss: 9.6229 val loss 11.7433 training time 8.65m
+INFO - Epoch: 106 train loss: 9.6709 val loss 12.0071 training time 8.65m
+INFO - Epoch: 107 train loss: 9.6366 val loss 11.8524 training time 9.03m
+INFO - Epoch: 108 train loss: 9.6193 val loss 11.9466 training time 9.12m
+INFO - Epoch: 109 train loss: 9.6064 val loss 11.9121 training time 9.12m
+INFO - Epoch: 110 train loss: 9.5655 val loss 11.7812 training time 8.80m
+INFO - Epoch: 111 train loss: 9.5310 val loss 11.9536 training time 8.70m
+INFO - Epoch: 112 train loss: 9.4979 val loss 11.7558 training time 8.68m
+INFO - Epoch: 113 train loss: 9.4981 val loss 11.8242 training time 8.68m
+INFO - Epoch: 114 train loss: 9.4748 val loss 11.7349 training time 8.65m
+INFO - Epoch: 115 train loss: 9.5155 val loss 11.7832 training time 8.65m
+INFO - Epoch: 116 train loss: 9.4728 val loss 11.5662 training time 8.67m
+INFO - Epoch: 117 train loss: 9.4464 val loss 11.7144 training time 8.68m
+INFO - Epoch: 118 train loss: 9.4152 val loss 11.6429 training time 8.68m
+INFO - Epoch: 119 train loss: 9.4248 val loss 11.7228 training time 8.68m
+INFO - Epoch: 120 train loss: 9.4184 val loss 11.6387 training time 8.68m
+INFO - Epoch: 121 train loss: 9.4480 val loss 11.8639 training time 8.67m
+INFO - Epoch: 122 train loss: 9.4093 val loss 11.5918 training time 8.67m
+INFO - Epoch: 123 train loss: 9.3896 val loss 11.8442 training time 8.67m
+INFO - Epoch: 124 train loss: 9.4214 val loss 11.6404 training time 8.67m
+INFO - Epoch: 125 train loss: 9.4494 val loss 11.8192 training time 8.68m
+INFO - Epoch: 126 train loss: 9.4777 val loss 11.6321 training time 8.67m
+INFO - Epoch: 127 train loss: 9.4061 val loss 11.4375 training time 8.68m
+INFO - Epoch: 128 train loss: 9.3935 val loss 11.8805 training time 8.68m
+INFO - Epoch: 129 train loss: 9.3940 val loss 11.7854 training time 8.67m
+INFO - Epoch: 130 train loss: 9.3924 val loss 11.8767 training time 8.70m
+INFO - Epoch: 131 train loss: 9.3766 val loss 11.7894 training time 8.70m
+INFO - Epoch: 132 train loss: 9.4053 val loss 11.7211 training time 8.68m
+INFO - Epoch: 133 train loss: 9.4804 val loss 11.8231 training time 8.68m
+INFO - Epoch: 134 train loss: 9.4966 val loss 12.0559 training time 8.67m
+INFO - Epoch: 135 train loss: 9.4638 val loss 11.8758 training time 8.65m
+INFO - Epoch: 136 train loss: 9.4512 val loss 11.8574 training time 8.65m
+INFO - Epoch: 137 train loss: 9.4150 val loss 11.7630 training time 8.65m
+INFO - Epoch: 138 train loss: 9.4358 val loss 11.7134 training time 8.67m
+INFO - Epoch: 139 train loss: 9.4432 val loss 11.7807 training time 8.67m
+INFO - Epoch: 140 train loss: 9.3923 val loss 11.8565 training time 8.65m
+INFO - Epoch: 141 train loss: 9.4102 val loss 11.7345 training time 8.65m
+INFO - Epoch: 142 train loss: 9.3979 val loss 11.7841 training time 8.65m
+INFO - Epoch: 143 train loss: 9.3549 val loss 11.6594 training time 8.65m
+INFO - Epoch: 144 train loss: 9.3541 val loss 11.5892 training time 8.65m
+INFO - Epoch: 145 train loss: 9.4056 val loss 11.7374 training time 8.65m
+INFO - Epoch: 146 train loss: 9.3851 val loss 11.6570 training time 8.67m
+INFO - Epoch: 147 train loss: 9.3678 val loss 11.8046 training time 8.65m
+INFO - Early stop patience achieved
