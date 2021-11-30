@@ -8,7 +8,7 @@ Dynamical Variational Autoencoders: A Comprehensive Review, **Foundations and Tr
 More precisely, this repo is a re-implementation of the following models in Pytorch:
 - [VAE](https://arxiv.org/abs/1312.6114), Kingma et al., ICLR 2014
 - [DKF](https://arxiv.org/abs/1609.09869), Krishnan et al., AAAI 2017
-- [KVAE](https://papers.nips.cc/paper/6951-a-disentangled-recognition-and-nonlinear-dynamics-model-for-unsupervised-learning), Fraccaro et al., NeurIPS 2017
+- [KVAE](https://arxiv.org/abs/1710.05741), Fraccaro et al., NeurIPS 2017
 - [STORN](https://arxiv.org/abs/1411.7610), Bayer et al., arXiv 2014
 - [VRNN](https://arxiv.org/abs/1506.02216), Chung et al., NeurIPS 2015
 - [SRNN](https://arxiv.org/abs/1605.07571), Fraccaro et al., NeurIPS 2016
