@@ -6,14 +6,14 @@ Dynamical Variational Autoencoders: A Comprehensive Review, **Foundations and Tr
 **[[Paper](https://arxiv.org/abs/2008.12595)]**
 
 More precisely, this repo is a re-implementation of the following models in Pytorch:
-- [VAE](https://arxiv.org/abs/1312.6114)
-- [DKF](https://arxiv.org/abs/1609.09869)
-- [KVAE](https://papers.nips.cc/paper/6951-a-disentangled-recognition-and-nonlinear-dynamics-model-for-unsupervised-learning)
-- [STORN](https://arxiv.org/abs/1411.7610)
-- [VRNN](https://arxiv.org/abs/1506.02216)
-- [SRNN](https://arxiv.org/abs/1605.07571)
-- [RVAE](https://arxiv.org/abs/1910.10942)
-- [DSAE](https://arxiv.org/abs/1803.02991)
+- [VAE](https://arxiv.org/abs/1312.6114), Kingma et al., ICLR 2014
+- [DKF](https://arxiv.org/abs/1609.09869), Krishnan et al., AAAI 2017
+- [KVAE](https://papers.nips.cc/paper/6951-a-disentangled-recognition-and-nonlinear-dynamics-model-for-unsupervised-learning), Fraccaro et al., NeurIPS 2017
+- [STORN](https://arxiv.org/abs/1411.7610), Bayer et al., arXiv 2014
+- [VRNN](https://arxiv.org/abs/1506.02216), Chung et al., NeurIPS 2015
+- [SRNN](https://arxiv.org/abs/1605.07571), Fraccaro et al., NeurIPS 2016
+- [RVAE](https://arxiv.org/abs/1910.10942), Simon et al., ICASSP 2020
+- [DSAE](https://arxiv.org/abs/1803.02991), Yingzhen et al. ICML 2018
 
 > For the results we report at Interspeech 2021, please visit the **interspeech branch**  
 > We don't report the results of KVAE since we haven't make it work in our experiments, we still provide the code for research purpose  
