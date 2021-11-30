@@ -1,0 +1,10 @@
+.ipynb_checkpoints/*
+**/*.ipynb_checkpoints/*
+*.ipynb
+*.pyc
+.DS_Store
+.vscode/*
+*.sh
+data/*
+saved_model/*
+pretrained_models/*
