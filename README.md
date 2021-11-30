@@ -15,8 +15,8 @@ More precisely, this repo is a re-implementation of the following models in Pyto
 - [RVAE](https://arxiv.org/abs/1910.10942)
 - [DSAE](https://arxiv.org/abs/1803.02991)
 
-> For the results we report at Interspeech 2021, please visit the **interspeech branch**
-> We don't report the results of KVAE since we haven't make it work in our experiments, we still provide the code for research purpose
+> For the results we report at Interspeech 2021, please visit the **interspeech branch**  
+> We don't report the results of KVAE since we haven't make it work in our experiments, we still provide the code for research purpose  
 > The PESQ value we report in our paper is a narrow-band PESQ value provide by [pypesq](https://github.com/vBaiCai/python-pesq) package. If you want to get a wide-band PESQ value, please use [pesq](https://github.com/ludlows/python-pesq) package instead
 
 
