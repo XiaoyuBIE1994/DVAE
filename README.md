@@ -17,16 +17,18 @@ More precisely, this repo is a re-implementation of the following models in Pyto
 
 > For the results we report at Interspeech 2021, please visit the **interspeech branch**  
 > We don't report the results of KVAE since we haven't make it work in our experiments, we still provide the code for research purpose  
-> The PESQ value we report in our paper is a narrow-band PESQ value provide by [pypesq](https://github.com/vBaiCai/python-pesq) package. If you want to get a wide-band PESQ value, please use [pesq](https://github.com/ludlows/python-pesq) package instead
 
 
 ## Prerequest
 - Pytorch >= 1.4.0
 - [librosa](https://pypi.org/project/librosa/)
 - [soundfile](https://pypi.org/project/SoundFile/)
+- [pypesq](https://pypi.org/project/pypesq/)
+- [pystoi](https://pypi.org/project/pystoi/)
 
 
 > If you use a last version of Pytorch (e.g. torch >= 1.8.0), you need to define `return_complex` explicitely for [torch.stft](https://pytorch.org/docs/stable/generated/torch.stft.html)
+> The PESQ value we report in our paper is a narrow-band PESQ value provide by [pypesq](https://github.com/vBaiCai/python-pesq) package. If you want to get a wide-band PESQ value, please use [pesq](https://github.com/ludlows/python-pesq) package instead
 
 ## Dataset
 In this version, DVAE models support two differnt data structure:
