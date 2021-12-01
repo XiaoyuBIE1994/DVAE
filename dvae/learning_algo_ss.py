@@ -118,6 +118,7 @@ class LearningAlgorithm_ss():
             if not(os.path.isdir(save_dir)):
                 os.makedirs(save_dir)
         else:
+            tag = self.cfg.get('Network', 'tag')
             save_dir = self.params['model_dir']
 
         # Save the model configuration
