@@ -28,14 +28,16 @@ More precisely, this repo is a re-implementation of the following models in Pyto
 - [pystoi](https://pypi.org/project/pystoi/)
 
 
-> If you use a last version of Pytorch (e.g. torch >= 1.8.0), you need to define `return_complex` explicitely for [torch.stft](https://pytorch.org/docs/stable/generated/torch.stft.html)
+Human3.6M
 
 > The PESQ value we report in our paper is a narrow-band PESQ value provide by [pypesq](https://github.com/vBaiCai/python-pesq) package. If you want to get a wide-band PESQ value, please use [pesq](https://github.com/ludlows/python-pesq) package instead
 
 ## Dataset
 In this version, DVAE models support two differnt data structure:
-- Audio speech data, we use [ChiME2-WSJ0](https://catalog.ldc.upenn.edu/LDC2017S10) from [ChiME-Challenge](http://spandh.dcs.shef.ac.uk/chime_challenge/chime2013/)
-- 3D human motion data, Human3.6M under license [here](http://vision.imar.ro/human3.6m/eula.php), the exponential map version can be download [here](http://www.cs.stanford.edu/people/ashesh/h3.6m.zip)
+- WSJ0, an audio speech data, we use the subset [ChiME2-WSJ0](https://catalog.ldc.upenn.edu/LDC2017S10) from [ChiME-Challenge](http://spandh.dcs.shef.ac.uk/chime_challenge/chime2013/)
+- Human3.6M, a 3D human motion data under license [here](http://vision.imar.ro/human3.6m/eula.php), the exponential map version can be download [here](http://www.cs.stanford.edu/people/ashesh/h3.6m.zip)
+
+> If you want to use our models in other datasets, you can simply modify/re-write the dataloader and make minor changes in the training steps. Please remind that DVAE models accept data in the format of `(seq_len, batch_size, x_dim)`
 
 ## Train
 
