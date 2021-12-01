@@ -3,7 +3,7 @@
 This repository contains the code for:  
 Dynamical Variational Autoencoders: A Comprehensive Review, **Foundations and Trends in Machine Learning**, 2022.  
 [Laurent Girin](http://www.gipsa-lab.grenoble-inp.fr/~laurent.girin/cv_en.html), [Simon Leglaive](https://sleglaive.github.io/index.html), [Xiaoyu Bie](https://team.inria.fr/perception/team-members/xiaoyu-bie/), [Julien Diard](https://diard.wordpress.com/), [Thomas Hueber](http://www.gipsa-lab.grenoble-inp.fr/~thomas.hueber/), [Xavier Alameda-Pineda](http://xavirema.eu/)  
-**[[Paper](https://arxiv.org/abs/2008.12595)]**
+**[[Paper](https://arxiv.org/abs/2008.12595)]** **[[Project](https://team.inria.fr/robotlearn/dvae/)]** **[[Tutorial](https://dynamicalvae.github.io/)]**
 
 More precisely, this repo is a re-implementation of the following models in Pytorch:
 - [VAE](https://arxiv.org/abs/1312.6114), Kingma et al., ICLR 2014
