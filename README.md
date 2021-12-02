@@ -146,5 +146,5 @@ More results can be found in **Chapter 13 Experiments** of our article.
 
 ## Contact
 
-For any further questions, you can drop me xiaoyu[dot]bie[at]inria[dot]fr
+For any further questions, you can drop me an email via xiaoyu[dot]bie[at]inria[dot]fr
 
