@@ -6,7 +6,7 @@ Dynamical Variational Autoencoders: A Comprehensive Review, **Foundations and Tr
 **[[Paper](https://arxiv.org/abs/2008.12595)]** **[[Project](https://team.inria.fr/robotlearn/dvae/)]** **[[Tutorial](https://dynamicalvae.github.io/)]**
 
 
-<img src="./DVAE_overview.png" width="50%">
+<img src="./DVAE_overview.png" width="60%">
 
 
 More precisely, this repo is a re-implementation of the following models in Pytorch:
