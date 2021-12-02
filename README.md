@@ -81,7 +81,7 @@ If you find this code useful, please star the project and consider citing:
   title={Dynamical Variational Autoencoders: A Comprehensive Review},
   author={Girin, Laurent and Leglaive, Simon and Bie, Xiaoyu and Diard, Julien and Hueber, Thomas and Alameda-Pineda, Xavier},
   journal={Foundations and Trends® in Machine Learning},
-  year={2022},
+  year={2021},
   doi = {10.1561/2200000089},
   issn = {1935-8237},
   number = {1-2},
