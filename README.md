@@ -77,11 +77,12 @@ python eval_h36m.py --ss --cfg PATH_TO_CONFIG --saved_dict PATH_TO_PRETRAINED_DI
 If you find this code useful, please star the project and consider citing:
 
 ```
-@article{dvae2020,
+@article{dvae2021,
   title={Dynamical Variational Autoencoders: A Comprehensive Review},
   author={Girin, Laurent and Leglaive, Simon and Bie, Xiaoyu and Diard, Julien and Hueber, Thomas and Alameda-Pineda, Xavier},
   journal={Foundations and Trends® in Machine Learning},
-  year={2021},
+  year = {2021},
+  volume = {15},
   doi = {10.1561/2200000089},
   issn = {1935-8237},
   number = {1-2},
