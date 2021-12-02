@@ -144,5 +144,7 @@ For human motion data, using:
 
 More results can be found in **Chapter 13 Experiments** of our article.
 
+## Contact
 
+For any further questions, you can drop me xiaoyu[dot]bie[at]inria[dot]fr
 
