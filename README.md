@@ -5,6 +5,10 @@ Dynamical Variational Autoencoders: A Comprehensive Review, **Foundations and Tr
 [Laurent Girin](http://www.gipsa-lab.grenoble-inp.fr/~laurent.girin/cv_en.html), [Simon Leglaive](https://sleglaive.github.io/index.html), [Xiaoyu Bie](http://www.biexiaoyu1994.com/), [Julien Diard](https://diard.wordpress.com/), [Thomas Hueber](http://www.gipsa-lab.grenoble-inp.fr/~thomas.hueber/), [Xavier Alameda-Pineda](http://xavirema.eu/)  
 **[[Paper](https://arxiv.org/abs/2008.12595)]** **[[Project](https://team.inria.fr/robotlearn/dvae/)]** **[[Tutorial](https://dynamicalvae.github.io/)]**
 
+
+<img src="./DVAE_overview.png" width="50%">
+
+
 More precisely, this repo is a re-implementation of the following models in Pytorch:
 - [VAE](https://arxiv.org/abs/1312.6114), Kingma et al., ICLR 2014
 - [DKF](https://arxiv.org/abs/1609.09869), Krishnan et al., AAAI 2017
