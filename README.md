@@ -31,9 +31,6 @@ More precisely, this repo is a re-implementation of the following models in Pyto
 - [pypesq](https://pypi.org/project/pypesq/)
 - [pystoi](https://pypi.org/project/pystoi/)
 
-
-Human3.6M
-
 > The PESQ value we report in our paper is a narrow-band PESQ value provide by [pypesq](https://github.com/vBaiCai/python-pesq) package. If you want to get a wide-band PESQ value, please use [pesq](https://github.com/ludlows/python-pesq) package instead
 
 ## Dataset
