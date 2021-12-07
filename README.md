@@ -1,7 +1,7 @@
 # Dynamical Variational Autoencoders A Comprehensive Review
 
 This repository contains the code for:  
-Dynamical Variational Autoencoders: A Comprehensive Review, **Foundations and Trends in Machine Learning**, 2022.  
+Dynamical Variational Autoencoders: A Comprehensive Review, **Foundations and Trends in Machine Learning**, 2021.  
 [Laurent Girin](http://www.gipsa-lab.grenoble-inp.fr/~laurent.girin/cv_en.html), [Simon Leglaive](https://sleglaive.github.io/index.html), [Xiaoyu Bie](http://www.biexiaoyu1994.com/), [Julien Diard](https://diard.wordpress.com/), [Thomas Hueber](http://www.gipsa-lab.grenoble-inp.fr/~thomas.hueber/), [Xavier Alameda-Pineda](http://xavirema.eu/)  
 **[[arXiv](https://arxiv.org/abs/2008.12595)]** **[[Paper](https://www.nowpublishers.com/article/Details/MAL-089)]** **[[Project](https://team.inria.fr/robotlearn/dvae/)]** **[[Tutorial](https://dynamicalvae.github.io/)]**
 
