@@ -1,6 +1,6 @@
 MIT License
 
-For DVAE library
+For DVAE and dvae-spech library
 
 Copyright © 2020 INRIA
 
