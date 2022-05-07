@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 Copyright (c) 2020 by Inria
-Authoried by Xiaoyu BIE (xiaoyu.bie@inrai.fr)
+Authoried by Xiaoyu BIE (xiaoyu.bie@inria.fr)
 License agreement in LICENSE.txt
 """
 

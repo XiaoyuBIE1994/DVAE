@@ -1,4 +1,5 @@
-Copyright © 2022 INRIA
+Software DVAE_SE - Copyright @ by INRIA and Xiaoyu Bie- License GPL - 2020
+Contact: robotlearn@inria.fr, xiaoyu.bie@inria.fr
 
                     GNU GENERAL PUBLIC LICENSE
                        Version 3, 29 June 2007
