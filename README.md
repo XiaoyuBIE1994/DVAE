@@ -23,6 +23,10 @@ More precisely, this repo is a re-implementation of the following models in Pyto
 
 > We don't report the results of KVAE since we haven't make it work in our experiments, we still provide the code for research purpose  
 
+## Pretrained models
+
+You could download all the pre-trained DVAE models [here](https://zenodo.org/record/6881571#.Ytp4gtLP05m) 
+
 
 ## Prerequest
 - Pytorch >= 1.4.0
